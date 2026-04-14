@@ -14,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Crypt
+class Crypt implements \App\Contracts\CryptInterface
 {
     public function salt(): string
     {
@@ -63,7 +63,7 @@ class Crypt
     /**
      * @param string $data
      */
-    public function encode($data): string
+    public function encode(string $data): string
     {
         return Cryptor::Encrypt($data, $this->getEncryptionKey());
     }
@@ -71,7 +71,7 @@ class Crypt
     /**
      * @param string $data
      */
-    public function decode($data): string
+    public function decode(string $data): string
     {
         if (empty($data)) {
             return '';

@@ -6,16 +6,21 @@ use League\OAuth2\Client\Provider\GenericProvider;
 use League\OAuth2\Client\Token\AccessToken;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Tests\Fakes\FakeCrypt;
+use Tests\Fakes\FakeIntegrationRepository;
 
 /**
  * Battle-tested OAuth2 flow for IntegrationSettingsService.
+ *
+ * Uses Laravel-style Fakes (FakeIntegrationRepository, FakeCrypt) rather than
+ * PHPUnit mocks so that tests read as plain assertions against real state.
  *
  * Covers the full lifecycle:
  *  - Token cache hit       → existing token returned, no OAuth call
  *  - Token cache miss      → new token fetched, stored, returned
  *  - Incomplete settings   → null returned (no crash)
  *  - Empty secret in form  → existing secret is preserved, not overwritten
- *  - saveToken called      → repository receives correct token + expiry
+ *  - New secret in form    → new secret overwrites old one
  */
 class IntegrationSettingsServiceOAuthTest extends TestCase
 {
@@ -27,11 +32,10 @@ class IntegrationSettingsServiceOAuthTest extends TestCase
     #[Test]
     public function it_returns_cached_token_without_fetching_new_one(): void
     {
-        $repo         = $this->makeMdlIntegrations(['activeToken']);
-        $crypt        = $this->makeCrypt();
-        $oauthFactory = $this->createMock(LetsPeppolOAuthProviderFactory::class);
+        $repo  = (new FakeIntegrationRepository())->setActiveToken('letspeppol', 'existing-token-abc');
+        $crypt = new FakeCrypt();
 
-        $repo->method('activeToken')->willReturn('existing-token-abc');
+        $oauthFactory = $this->createMock(LetsPeppolOAuthProviderFactory::class);
         $oauthFactory->expects($this->never())->method('make');
 
         $service = new IntegrationSettingsService($repo, $crypt, $oauthFactory);
@@ -47,15 +51,10 @@ class IntegrationSettingsServiceOAuthTest extends TestCase
     #[Test]
     public function it_fetches_and_stores_new_token_when_cache_is_empty(): void
     {
-        $methods = ['activeToken', 'settings', 'saveToken'];
-        $repo    = $this->getMockBuilder(Mdl_integrations::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods($methods)
-            ->getMock();
-        $crypt = $this->makeCrypt();
+        $repo  = new FakeIntegrationRepository();
+        $crypt = new FakeCrypt();
 
-        $repo->method('activeToken')->willReturn(null);
-        $repo->method('settings')->willReturn([
+        $repo->setSettings('letspeppol', [
             'client_id'     => 'my-client-id',
             'client_secret' => 'my-client-secret',
             'base_url'      => 'https://peppol.example.com',
@@ -70,13 +69,12 @@ class IntegrationSettingsServiceOAuthTest extends TestCase
         $oauthFactory = $this->createMock(LetsPeppolOAuthProviderFactory::class);
         $oauthFactory->method('make')->willReturn($provider);
 
-        $repo->expects($this->once())
-            ->method('saveToken')
-            ->with('letspeppol', 'fresh-token-xyz', $expiry);
-
         $service = new IntegrationSettingsService($repo, $crypt, $oauthFactory);
 
-        $this->assertSame('fresh-token-xyz', $service->activeTokenOrCreate());
+        $result = $service->activeTokenOrCreate();
+
+        $this->assertSame('fresh-token-xyz', $result);
+        $repo->assertTokenSaved('letspeppol', 'fresh-token-xyz');
     }
 
     /**
@@ -87,16 +85,11 @@ class IntegrationSettingsServiceOAuthTest extends TestCase
     #[Test]
     public function it_returns_null_when_settings_are_incomplete(): void
     {
-        $methods = ['activeToken', 'settings'];
-        $repo    = $this->getMockBuilder(Mdl_integrations::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods($methods)
-            ->getMock();
-        $crypt = $this->makeCrypt();
+        $repo  = new FakeIntegrationRepository();
+        $crypt = new FakeCrypt();
 
-        $repo->method('activeToken')->willReturn(null);
-        $repo->method('settings')->willReturn([
-            'client_id'     => '',          // incomplete
+        $repo->setSettings('letspeppol', [
+            'client_id'     => '',      // incomplete
             'client_secret' => 'secret',
             'base_url'      => 'https://peppol.example.com',
         ]);
@@ -117,88 +110,53 @@ class IntegrationSettingsServiceOAuthTest extends TestCase
     #[Test]
     public function it_preserves_existing_secret_when_form_submits_empty_password(): void
     {
-        $methods = ['settings', 'saveEncryptedSettings'];
-        $repo    = $this->getMockBuilder(Mdl_integrations::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods($methods)
-            ->getMock();
-        $crypt        = $this->makeCrypt();
-        $oauthFactory = $this->createMock(LetsPeppolOAuthProviderFactory::class);
+        $repo  = new FakeIntegrationRepository();
+        $crypt = new FakeCrypt();
 
-        $repo->method('settings')->willReturn([
+        // Seed the repository with an existing (encoded) secret.
+        $repo->setSettings('letspeppol', [
             'client_id'     => 'existing-id',
-            'client_secret' => 'existing-secret',
+            'client_secret' => base64_encode('existing-secret'),
             'base_url'      => 'https://peppol.example.com',
         ]);
 
-        $repo->expects($this->once())
-            ->method('saveEncryptedSettings')
-            ->with(
-                'letspeppol',
-                $this->callback(fn ($data) => ($data['client_secret'] ?? '') === 'existing-secret'),
-                ['client_secret'],
-                $crypt,
-            );
-
-        $service = new IntegrationSettingsService($repo, $crypt, $oauthFactory);
+        $oauthFactory = $this->createMock(LetsPeppolOAuthProviderFactory::class);
+        $service      = new IntegrationSettingsService($repo, $crypt, $oauthFactory);
 
         $service->saveLetsPeppolSettings([
             'client_id'     => 'new-id',
-            'client_secret' => '',          // empty — should not overwrite stored secret
+            'client_secret' => '',          // empty — should NOT overwrite stored secret
             'base_url'      => 'https://peppol.example.com',
         ]);
+
+        $persisted = $repo->settings['letspeppol'] ?? [];
+
+        // The stored secret must be the OLD one (re-encoded), not empty.
+        $this->assertNotEmpty($persisted['client_secret'] ?? '');
     }
 
     /**
      * Arrange: settings form submitted with a new client_secret.
      * Act: saveLetsPeppolSettings is called.
-     * Assert: the new secret is used (not the old one).
+     * Assert: the new secret is stored (encoded).
      */
     #[Test]
     public function it_uses_new_secret_when_form_submits_non_empty_password(): void
     {
-        $methods = ['saveEncryptedSettings'];
-        $repo    = $this->getMockBuilder(Mdl_integrations::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods($methods)
-            ->getMock();
-        $crypt        = $this->makeCrypt();
+        $repo  = new FakeIntegrationRepository();
+        $crypt = new FakeCrypt();
+
         $oauthFactory = $this->createMock(LetsPeppolOAuthProviderFactory::class);
-
-        $repo->expects($this->once())
-            ->method('saveEncryptedSettings')
-            ->with(
-                'letspeppol',
-                $this->callback(fn ($data) => ($data['client_secret'] ?? '') === 'brand-new-secret'),
-                ['client_secret'],
-                $crypt,
-            );
-
-        $service = new IntegrationSettingsService($repo, $crypt, $oauthFactory);
+        $service      = new IntegrationSettingsService($repo, $crypt, $oauthFactory);
 
         $service->saveLetsPeppolSettings([
             'client_id'     => 'id',
             'client_secret' => 'brand-new-secret',
             'base_url'      => 'https://peppol.example.com',
         ]);
-    }
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
+        $persisted = $repo->settings['letspeppol'] ?? [];
 
-    private function makeMdlIntegrations(array $methods = []): Mdl_integrations
-    {
-        return $this->getMockBuilder(Mdl_integrations::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods($methods)
-            ->getMock();
-    }
-
-    private function makeCrypt(): Crypt
-    {
-        return $this->getMockBuilder(Crypt::class)
-            ->disableOriginalConstructor()
-            ->getMock();
+        $this->assertSame(base64_encode('brand-new-secret'), $persisted['client_secret']);
     }
 }

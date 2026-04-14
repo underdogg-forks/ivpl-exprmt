@@ -43,6 +43,16 @@ namespace {
         require_once dirname(__DIR__) . '/bootstrap/autoload.php';
     }
 
+    // Register Tests\ namespace so Fakes are autoloaded without requiring --dev install.
+    spl_autoload_register(static function (string $class): void {
+        if (str_starts_with($class, 'Tests\\')) {
+            $path = dirname(__DIR__) . '/tests/' . str_replace('\\', '/', substr($class, strlen('Tests\\'))) . '.php';
+            if (file_exists($path)) {
+                require_once $path;
+            }
+        }
+    });
+
     /*
      * CodeIgniter global function stubs.
      *
@@ -71,16 +81,16 @@ namespace {
             require_once dirname(__DIR__) . '/application/modules/integrations/models/Mdl_integrations.php';
         } else {
             #[AllowDynamicProperties]
-            class Mdl_integrations extends CI_Model
+            class Mdl_integrations extends CI_Model implements \App\Contracts\IntegrationRepositoryInterface
             {
                 /** Ensures a provider row exists and returns its ID. */
                 public function ensureProvider(string $provider, string $name): int { return 0; }
 
                 /** Persists encrypted integration settings. */
-                public function saveEncryptedSettings(string $provider, array $settings, array $encryptedKeys, Crypt $crypt): void {}
+                public function saveEncryptedSettings(string $provider, array $settings, array $encryptedKeys, \App\Contracts\CryptInterface $crypt): void {}
 
                 /** Returns decrypted integration settings keyed by setting key. */
-                public function settings(string $provider, Crypt $crypt): array { return []; }
+                public function settings(string $provider, \App\Contracts\CryptInterface $crypt): array { return []; }
 
                 /** Persists an OAuth access token for the given provider. */
                 public function saveToken(string $provider, string $token, ?int $expiresAt = null): void {}
@@ -99,7 +109,7 @@ namespace {
             require_once dirname(__DIR__) . '/application/libraries/Crypt.php';
         } else {
             #[AllowDynamicProperties]
-            class Crypt
+            class Crypt implements \App\Contracts\CryptInterface
             {
                 public function encode(string $value): string { return base64_encode($value); }
                 public function decode(string $value): string { return base64_decode($value); }

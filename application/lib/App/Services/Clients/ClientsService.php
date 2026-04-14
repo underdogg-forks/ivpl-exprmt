@@ -2,8 +2,8 @@
 
 namespace App\Services\Clients;
 
+use App\Contracts\IntegrationRepositoryInterface;
 use App\Services\Integrations\IntegrationProviderFactory;
-use Mdl_integrations;
 
 /**
  * Encapsulates client-related business logic that depends on external integrations.
@@ -15,7 +15,7 @@ class ClientsService
 {
     public function __construct(
         private IntegrationProviderFactory $providerFactory,
-        private Mdl_integrations $integrations,
+        private IntegrationRepositoryInterface $integrations,
     ) {
     }
 
