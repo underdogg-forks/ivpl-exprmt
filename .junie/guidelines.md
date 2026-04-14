@@ -6,12 +6,13 @@ This document outlines the security principles, code quality standards, and best
 
 1. [Security Principles](#security-principles)
 2. [DRY Programming](#dry-programming)
-3. [Input Validation and Sanitization](#input-validation-and-sanitization)
-4. [Output Encoding](#output-encoding)
-5. [File Security](#file-security)
-6. [Logging Best Practices](#logging-best-practices)
-7. [Testing Requirements](#testing-requirements)
-8. [Code Review Checklist](#code-review-checklist)
+3. [Integration Provider Pattern](#integration-provider-pattern)
+4. [Input Validation and Sanitization](#input-validation-and-sanitization)
+5. [Output Encoding](#output-encoding)
+6. [File Security](#file-security)
+7. [Logging Best Practices](#logging-best-practices)
+8. [Testing Requirements](#testing-requirements)
+9. [Code Review Checklist](#code-review-checklist)
 
 ---
 
@@ -126,7 +127,52 @@ Place helper functions in appropriate files:
 
 ---
 
-## Input Validation and Sanitization
+## Integration Provider Pattern
+
+### Overview
+
+External payment and e-invoicing networks (LetsPeppol, StoreCove, Stripe, PayPal, …) are integrated
+through a **provider pattern** that follows the Open/Closed and Dependency Inversion principles.
+New providers can be plugged in without touching existing code.
+
+### Key Classes
+
+| Class | Responsibility |
+|---|---|
+| `App\Contracts\IntegrationProviderInterface` | Contract every provider must fulfil |
+| `App\Providers\LetsPeppolProvider` | LetsPeppol implementation |
+| `App\Adapters\LetsPeppol\LetsPeppolClientFactory` | Builds the HTTP client with canonical endpoints |
+| `App\Services\Integrations\IntegrationProviderFactory` | Resolves providers by name |
+| `App\Services\Clients\ClientsService` | Client business logic that depends on providers |
+
+### Adding a New Provider
+
+```php
+// 1. Implement the interface
+class StoreCoveProvider implements IntegrationProviderInterface
+{
+    public function validateParticipant(string $participantId): bool { /* … */ }
+    public function sendInvoice(array $payload): bool { /* … */ }
+}
+
+// 2. Register it in the controller / service container
+$factory = new IntegrationProviderFactory();
+$factory->register('storecove', fn () => new StoreCoveProvider($settingsService));
+
+// 3. Use it generically – no code changes needed elsewhere
+$provider = $factory->make('storecove');
+$provider->sendInvoice($payload);
+```
+
+### Design Principles Applied
+
+- **Single Responsibility** – each provider class handles one integration only.
+- **Open/Closed** – add providers without modifying `IntegrationProviderFactory`.
+- **Dependency Inversion** – controllers depend on `IntegrationProviderInterface`, not concrete classes.
+- **Early Returns** – guard clauses at the top of methods avoid deep nesting.
+- **DRY** – `LetsPeppolClientFactory` centralises HTTP client construction.
+
+---
 
 ### Global Input Sanitization
 

@@ -74,6 +74,41 @@ InvoicePlane is migrating to Laravel. When working on Laravel code:
 // Follow Laravel conventions
 ```
 
+#### Integration Provider Pattern (New Code)
+
+All external network integrations (LetsPeppol, StoreCove, Stripe, PayPal, …) follow a **provider
+pattern**.  New providers implement `App\Contracts\IntegrationProviderInterface` and are registered
+in `App\Services\Integrations\IntegrationProviderFactory`.
+
+```php
+// Implement the contract for a new provider
+class StoreCoveProvider implements IntegrationProviderInterface
+{
+    public function validateParticipant(string $participantId): bool { /* … */ }
+    public function sendInvoice(array $payload): bool { /* … */ }
+}
+
+// Register and resolve dynamically – no changes to existing code needed
+$factory = (new IntegrationProviderFactory())
+    ->register('storecove', fn () => new StoreCoveProvider($settingsService))
+    ->register('letspeppol', fn () => new LetsPeppolProvider($settingsService));
+
+$provider = $factory->make('letspeppol');
+```
+
+Key classes live under `application/lib/App/`:
+- `Contracts/IntegrationProviderInterface.php`
+- `Providers/LetsPeppolProvider.php`
+- `Adapters/LetsPeppol/LetsPeppolClientFactory.php`
+- `Services/Integrations/IntegrationProviderFactory.php`
+- `Services/Clients/ClientsService.php`
+
+**SOLID principles applied:**
+- Single Responsibility – one class per provider
+- Open/Closed – register new providers without modifying the factory
+- Dependency Inversion – depend on the interface, not concrete classes
+- Early Returns – guard clauses prevent deep nesting
+
 ## Security-First Development
 
 ### Input Sanitization Strategy
