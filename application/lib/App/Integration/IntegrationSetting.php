@@ -1,15 +1,14 @@
 <?php
 
-declare(strict_types=1);
 
 namespace App\Integration;
 
-final class IntegrationSetting
+class IntegrationSetting
 {
     public function __construct(
-        private readonly string $key,
-        private readonly string $value,
-        private readonly bool $isEncrypted = false,
+        private string $key,
+        private string $value,
+        private bool $isEncrypted = false,
     ) {
     }
 

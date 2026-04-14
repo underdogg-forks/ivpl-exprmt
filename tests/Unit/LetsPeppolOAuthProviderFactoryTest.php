@@ -1,12 +1,11 @@
 <?php
 
-declare(strict_types=1);
 
 use App\Integration\IntegrationCredentials;
 use App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
 use PHPUnit\Framework\TestCase;
 
-final class LetsPeppolOAuthProviderFactoryTest extends TestCase
+class LetsPeppolOAuthProviderFactoryTest extends TestCase
 {
     public function testItBuildsTheExpectedOAuthEndpoints(): void
     {
