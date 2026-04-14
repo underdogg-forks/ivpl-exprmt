@@ -1,6 +1,5 @@
 <?php
 
-declare(strict_types=1);
 
 namespace App\Adapters\LetsPeppol\Endpoints;
 
@@ -8,11 +7,11 @@ use App\Enums\RequestMethod;
 use GuzzleHttp\ClientInterface;
 use Psr\Http\Message\ResponseInterface;
 
-final class LetsPeppolClient
+class LetsPeppolClient
 {
     public function __construct(
-        private readonly ClientInterface $httpClient,
-        private readonly string $baseUrl,
+        private ClientInterface $httpClient,
+        private string $baseUrl,
     ) {
     }
 

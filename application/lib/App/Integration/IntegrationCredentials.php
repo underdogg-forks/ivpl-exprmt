@@ -1,14 +1,13 @@
 <?php
 
-declare(strict_types=1);
 
 namespace App\Integration;
 
-final class IntegrationCredentials
+class IntegrationCredentials
 {
     public function __construct(
-        private readonly string $clientId,
-        private readonly string $clientSecret,
+        private string $clientId,
+        private string $clientSecret,
     ) {
     }
 

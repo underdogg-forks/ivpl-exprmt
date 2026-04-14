@@ -1,6 +1,5 @@
 <?php
 
-declare(strict_types=1);
 
 $classMap = [
     App\Adapters\CodeIgniter\MX\Config::class => __DIR__ . '/../application/third_party/MX/Namespaced/Config.php',

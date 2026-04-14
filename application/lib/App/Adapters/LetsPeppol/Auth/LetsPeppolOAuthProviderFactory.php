@@ -1,13 +1,12 @@
 <?php
 
-declare(strict_types=1);
 
 namespace App\Adapters\LetsPeppol\Auth;
 
 use App\Integration\IntegrationCredentials;
 use League\OAuth2\Client\Provider\GenericProvider;
 
-final class LetsPeppolOAuthProviderFactory
+class LetsPeppolOAuthProviderFactory
 {
     public function make(IntegrationCredentials $credentials, string $baseUrl): GenericProvider
     {
