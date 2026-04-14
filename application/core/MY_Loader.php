@@ -45,8 +45,33 @@ class MY_Loader extends MX_Loader
             return $this;
         }
 
+    public function model($model, $object_name = null, $connect = false)
+    {
+        if (is_array($model)) {
+            foreach ($model as $key => $value) {
+                if (is_int($key)) {
+                    $this->model($value, null, $connect);
+                } else {
+                    $this->model($key, $value, $connect);
+                }
+            }
+
+            return $this;
+        }
+
         if ($this->isNamespacedClassName($model)) {
+            // Handle database connection for namespaced models
+            if ($connect !== false && ! class_exists('CI_DB', false)) {
+                if ($connect === true) {
+                    $connect = '';
+                }
+                $this->database($connect, false, true);
+            }
             return $this->loadNamespacedClass($model, null, $object_name, true);
+        }
+
+        return parent::model($model, $object_name, $connect);
+    }
         }
 
         return parent::model($model, $object_name, $connect);
@@ -73,6 +98,9 @@ class MY_Loader extends MX_Loader
         $alias    = $object_name ?: lcfirst($short);
 
         if (isset(CI::$APP->{$alias})) {
+            if ($object_name === null) {
+                log_message('debug', 'Namespaced class ' . $className . ' not loaded: alias "' . $alias . '" already exists. Use $object_name to specify a unique alias.');
+            }
             return $this;
         }
 
