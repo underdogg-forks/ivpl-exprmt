@@ -3,6 +3,7 @@
 namespace App\Services\Integrations;
 
 use App\Contracts\IntegrationProviderInterface;
+use App\Providers\ExceptionHandlingDecorator;
 use InvalidArgumentException;
 
 /**
@@ -12,13 +13,16 @@ use InvalidArgumentException;
  * are only resolved when the provider is actually needed.  New providers
  * (StoreCove, Stripe, PayPal, …) can be plugged in without modifying existing code.
  *
+ * Every resolved provider is automatically wrapped in ExceptionHandlingDecorator,
+ * so all providers — current and future — get exception safety for free.
+ *
  * Usage:
  *
  *   $factory = new IntegrationProviderFactory();
  *   $factory->register('letspeppol', fn () => new LetsPeppolProvider($settingsService));
  *   $factory->register('stripe',     fn () => new StripeProvider($settingsService));
  *
- *   $provider = $factory->make('letspeppol');
+ *   $provider = $factory->make('letspeppol');  // returns ExceptionHandlingDecorator<LetsPeppolProvider>
  */
 class IntegrationProviderFactory
 {
@@ -42,6 +46,9 @@ class IntegrationProviderFactory
     /**
      * Resolve and return a provider instance by name.
      *
+     * The resolved provider is automatically wrapped in ExceptionHandlingDecorator
+     * so callers never need to handle provider-level exceptions.
+     *
      * @throws InvalidArgumentException When the provider is not registered.
      */
     public function make(string $name): IntegrationProviderInterface
@@ -50,7 +57,9 @@ class IntegrationProviderFactory
             throw new InvalidArgumentException("Integration provider '{$name}' is not registered.");
         }
 
-        return ($this->providers[$name])();
+        $provider = ($this->providers[$name])();
+
+        return new ExceptionHandlingDecorator($provider, $name);
     }
 
     /**

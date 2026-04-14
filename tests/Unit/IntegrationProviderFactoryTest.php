@@ -1,6 +1,7 @@
 <?php
 
 use App\Contracts\IntegrationProviderInterface;
+use App\Providers\ExceptionHandlingDecorator;
 use App\Services\Integrations\IntegrationProviderFactory;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -10,7 +11,7 @@ class IntegrationProviderFactoryTest extends TestCase
     /**
      * Arrange: a provider factory callable is registered.
      * Act: make() is called for that provider.
-     * Assert: the provider instance is returned.
+     * Assert: an ExceptionHandlingDecorator wrapping the provider is returned.
      */
     #[Test]
     public function it_resolves_a_registered_provider(): void
@@ -20,7 +21,11 @@ class IntegrationProviderFactoryTest extends TestCase
         $factory = new IntegrationProviderFactory();
         $factory->register('letspeppol', fn () => $provider);
 
-        $this->assertSame($provider, $factory->make('letspeppol'));
+        $resolved = $factory->make('letspeppol');
+
+        // make() always wraps in ExceptionHandlingDecorator
+        $this->assertInstanceOf(ExceptionHandlingDecorator::class, $resolved);
+        $this->assertInstanceOf(IntegrationProviderInterface::class, $resolved);
     }
 
     /**
@@ -90,5 +95,25 @@ class IntegrationProviderFactoryTest extends TestCase
         $result = $factory->register('letspeppol', fn () => $this->createMock(IntegrationProviderInterface::class));
 
         $this->assertSame($factory, $result);
+    }
+
+    /**
+     * Arrange: inner provider throws.
+     * Act: make() is called and the resulting provider's method is invoked.
+     * Assert: ExceptionHandlingDecorator catches the exception and returns false.
+     */
+    #[Test]
+    public function it_returns_false_on_provider_exception_via_decorator(): void
+    {
+        $provider = $this->createMock(IntegrationProviderInterface::class);
+        $provider->method('validateParticipant')->willThrowException(new RuntimeException('boom'));
+
+        $factory = (new IntegrationProviderFactory())
+            ->register('letspeppol', fn () => $provider);
+
+        $resolved = $factory->make('letspeppol');
+
+        // The decorator must swallow the exception and return false
+        $this->assertFalse($resolved->validateParticipant('0088:123'));
     }
 }

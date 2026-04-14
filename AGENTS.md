@@ -75,6 +75,55 @@ tests/
 
 New external payment / e-invoicing networks follow the **provider pattern**.
 
+### ExceptionHandlingDecorator — Automatic Safety for All Providers
+
+`IntegrationProviderFactory::make()` automatically wraps every resolved provider in
+`App\Providers\ExceptionHandlingDecorator`.  This means:
+
+- **No try/catch needed in controllers or services** — exception safety is free.
+- Any future provider (StoreCove, Stripe, PayPal) gets the same protection without extra code.
+- The decorator logs a sanitized error message and returns `false` on any `Throwable`.
+
+```php
+// You never need to write this:
+try {
+    $result = $factory->make('stripe')->sendInvoice($payload);
+} catch (Throwable $e) { ... }
+
+// This is all you need — the decorator handles the rest:
+$result = $factory->make('stripe')->sendInvoice($payload);   // never throws
+```
+
+### PSR-4 Controller Naming
+
+New module controllers can use the PSR-4 `IntegrationsController` style instead of the
+legacy `Integrations_Controller`.  `MY_Router` detects `IntegrationsController.php` and
+aliases it so MX can load it without changes to the URL or routing rules.
+
+```php
+// application/modules/integrations/controllers/IntegrationsController.php
+class IntegrationsController extends Admin_Controller { ... }   // PSR-4 style ✅
+// OR the legacy style still works:
+// application/modules/integrations/controllers/Integrations.php
+class Integrations extends Admin_Controller { ... }
+```
+
+### Hiding a Module Prefix from the URL (e.g. "core" module)
+
+When controllers are grouped inside a `core` module to keep the top-level module list
+tidy, CI3 routes let you expose them at a clean URL without the `core/` prefix:
+
+```php
+// application/config/routes.php
+$route['integrations']         = 'core/integrations/index';
+$route['integrations/(:any)']  = 'core/integrations/$1';
+```
+
+`/integrations/index` now works exactly as if the module were top-level.
+MX resolves `core/integrations/index` to
+`modules/core/controllers/integrations/IntegrationsController.php` (PSR-4) or
+`modules/core/controllers/integrations/Integrations.php` (legacy).
+
 ### Adding a New Provider (e.g. StoreCove)
 
 1. **Implement the contract:**
@@ -168,7 +217,11 @@ See `.junie/guidelines.md` for full details.
 | `.junie/guidelines.md` | Full development guidelines (security, DRY, testing) |
 | `.github/copilot-instructions.md` | Copilot-specific instructions with code examples |
 | `application/lib/App/Contracts/IntegrationProviderInterface.php` | Provider contract |
-| `application/lib/App/Services/Integrations/IntegrationProviderFactory.php` | How providers are resolved |
+| `application/lib/App/Providers/ExceptionHandlingDecorator.php` | Auto exception safety for all providers |
+| `application/lib/App/Services/Integrations/IntegrationProviderFactory.php` | How providers are resolved (applies decorator automatically) |
+| `application/core/MY_Loader.php` | PSR-4 namespaced class loading for CI super-object |
+| `application/core/MY_Router.php` | PSR-4 controller naming + routing docs |
+| `application/config/routes.php` | Add `$route['integrations'] = 'core/integrations/index'` to hide module prefix from URL |
 | `tests/phpunit-parallel-bootstrap.php` | Test bootstrap & CI stubs |
 | `phpunit.xml.dist` | PHPUnit configuration |
 | `composer.json` | Dependencies & autoloading |
