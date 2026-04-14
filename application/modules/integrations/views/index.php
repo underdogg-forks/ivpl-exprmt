@@ -5,6 +5,7 @@
 <div class="content">
     <form method="post" class="form-horizontal">
         <?php _csrf_field(); ?>
+        <?php _csrf_field(); ?>
         <div class="panel panel-default">
             <div class="panel-heading"><?php _trans('letspeppol'); ?></div>
             <div class="panel-body">
