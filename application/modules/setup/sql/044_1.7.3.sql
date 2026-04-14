@@ -23,3 +23,34 @@ CREATE TABLE `ip_integration_settings` (
         FOREIGN KEY (`integration_id`) REFERENCES `ip_integrations` (`integration_id`)
         ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `ip_integration_tokens` (
+    `integration_token_id` int(11) NOT NULL AUTO_INCREMENT,
+    `integration_id` int(11) NOT NULL,
+    `token_type` varchar(50) NOT NULL,
+    `token_value` text NOT NULL,
+    `expires_at` datetime DEFAULT NULL,
+    `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+    PRIMARY KEY (`integration_token_id`),
+    KEY `integration_tokens_integration_id` (`integration_id`),
+    CONSTRAINT `fk_integration_tokens_integration`
+        FOREIGN KEY (`integration_id`) REFERENCES `ip_integrations` (`integration_id`)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `ip_integration_logs` (
+    `integration_log_id` int(11) NOT NULL AUTO_INCREMENT,
+    `integration_id` int(11) NOT NULL,
+    `log_event` varchar(190) NOT NULL,
+    `log_status` varchar(50) NOT NULL,
+    `log_context` longtext DEFAULT NULL,
+    `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+    PRIMARY KEY (`integration_log_id`),
+    KEY `integration_logs_integration_id` (`integration_id`),
+    CONSTRAINT `fk_integration_logs_integration`
+        FOREIGN KEY (`integration_id`) REFERENCES `ip_integrations` (`integration_id`)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+ALTER TABLE `ip_clients`
+    ADD COLUMN `client_peppol_id` varchar(255) NULL AFTER `client_tax_code`;

@@ -147,6 +147,7 @@
                         <li><?php echo anchor('payment_methods/index', trans('payment_methods')); ?></li>
                         <li><?php echo anchor('tax_rates/index', trans('tax_rates')); ?></li>
                         <li><?php echo anchor('users/index', trans('user_accounts')); ?></li>
+                        <li><?php echo anchor('integrations/index', trans('integrations')); ?></li>
                         <li class="divider hidden-xs hidden-sm"></li>
                         <li><?php echo anchor('settings', trans('system_settings')); ?></li>
                         <li><?php echo anchor('import', trans('import_data')); ?></li>
