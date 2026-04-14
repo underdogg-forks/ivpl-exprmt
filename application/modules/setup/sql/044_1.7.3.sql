@@ -14,7 +14,7 @@ CREATE TABLE `ip_integration_settings` (
     `integration_id` int(11) NOT NULL,
     `setting_key` varchar(190) NOT NULL,
     `setting_value` text NOT NULL,
-    `is_encrypted` tinyint(1) NOT NULL DEFAULT 1,
+    `is_encrypted` tinyint(1) NOT NULL DEFAULT 0,
     `created_at` datetime NOT NULL DEFAULT current_timestamp(),
     `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
     PRIMARY KEY (`integration_setting_id`),
@@ -33,6 +33,7 @@ CREATE TABLE `ip_integration_tokens` (
     `created_at` datetime NOT NULL DEFAULT current_timestamp(),
     PRIMARY KEY (`integration_token_id`),
     KEY `integration_tokens_integration_id` (`integration_id`),
+    KEY `integration_tokens_expires_at` (`expires_at`),
     CONSTRAINT `fk_integration_tokens_integration`
         FOREIGN KEY (`integration_id`) REFERENCES `ip_integrations` (`integration_id`)
         ON DELETE CASCADE ON UPDATE CASCADE
@@ -47,6 +48,7 @@ CREATE TABLE `ip_integration_logs` (
     `created_at` datetime NOT NULL DEFAULT current_timestamp(),
     PRIMARY KEY (`integration_log_id`),
     KEY `integration_logs_integration_id` (`integration_id`),
+    KEY `integration_logs_created_at` (`created_at`),
     CONSTRAINT `fk_integration_logs_integration`
         FOREIGN KEY (`integration_id`) REFERENCES `ip_integrations` (`integration_id`)
         ON DELETE CASCADE ON UPDATE CASCADE

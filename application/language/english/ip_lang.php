@@ -842,4 +842,16 @@ $lang = [
     // Types
     'true'  => 'True',
     'false' => 'False',
+
+    // Integrations / LetsPeppol
+    'integrations'             => 'Integrations',
+    'letspeppol'               => 'LetsPeppol',
+    'letspeppol_base_url'      => 'Base URL',
+    'letspeppol_client_id'     => 'Client ID',
+    'letspeppol_client_secret' => 'Client Secret',
+    'client_peppol_id'         => 'Peppol ID',
+    'send_to_letspeppol'       => 'Send to LetsPeppol',
+    'peppol_validation_failed' => 'Peppol ID could not be validated against LetsPeppol.',
+    'peppol_sent_successfully' => 'Invoice was sent to LetsPeppol successfully.',
+    'peppol_sent_failed'       => 'Invoice could not be sent to LetsPeppol.',
 ];

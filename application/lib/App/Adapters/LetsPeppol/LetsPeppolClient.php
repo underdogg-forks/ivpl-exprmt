@@ -3,6 +3,7 @@
 namespace App\Adapters\LetsPeppol;
 
 use GuzzleHttp\ClientInterface;
+use Psr\Http\Message\ResponseInterface;
 
 class LetsPeppolClient
 {
@@ -20,7 +21,7 @@ class LetsPeppolClient
      * Request options may include JSON body, query, headers, etc.
      * Response is the raw PSR-7 response object from Guzzle.
      */
-    public function request(string $method, string $endpointOrPath, array $options = [])
+    public function request(string $method, string $endpointOrPath, array $options = []): ResponseInterface
     {
         $path = $this->endpoints[$endpointOrPath] ?? $endpointOrPath;
 

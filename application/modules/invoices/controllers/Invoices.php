@@ -380,6 +380,7 @@ class Invoices extends Admin_Controller
             ->register('letspeppol', fn () => new App\Providers\LetsPeppolProvider($settingsService));
 
         $isSent = false;
+        $exceptionThrown = false;
 
         try {
             $isSent = $providerFactory->make('letspeppol')->sendInvoice([
@@ -390,15 +391,19 @@ class Invoices extends Admin_Controller
                 'currency_code' => $invoice->invoice_currency_code,
             ]);
         } catch (Throwable $throwable) {
+            $exceptionThrown = true;
+            $sanitized = str_replace(["\r", "\n"], '', $throwable->getMessage());
             $this->mdl_integrations->log('letspeppol', 'invoices.send', 'failed', [
                 'invoice_id' => $invoice_id,
-                'error' => $throwable->getMessage(),
+                'error' => $sanitized,
             ]);
         }
 
-        $this->mdl_integrations->log('letspeppol', 'invoices.send', $isSent ? 'success' : 'failed', [
-            'invoice_id' => $invoice_id,
-        ]);
+        if ( ! $exceptionThrown) {
+            $this->mdl_integrations->log('letspeppol', 'invoices.send', $isSent ? 'success' : 'failed', [
+                'invoice_id' => $invoice_id,
+            ]);
+        }
 
         $this->session->set_flashdata($isSent ? 'alert_success' : 'alert_error', trans($isSent ? 'peppol_sent_successfully' : 'peppol_sent_failed'));
 

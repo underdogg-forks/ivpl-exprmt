@@ -75,6 +75,8 @@ class Mdl_integrations extends CI_Model
     {
         $integrationId = $this->ensureProvider($provider, 'LetsPeppol');
 
+        $this->db->trans_start();
+
         $this->db->where('integration_id', $integrationId)->delete('ip_integration_tokens');
 
         $this->db->insert('ip_integration_tokens', [
@@ -83,6 +85,8 @@ class Mdl_integrations extends CI_Model
             'token_value'    => $token,
             'expires_at'     => $expiresAt ? date('Y-m-d H:i:s', $expiresAt) : null,
         ]);
+
+        $this->db->trans_complete();
     }
 
     public function activeToken(string $provider): ?string

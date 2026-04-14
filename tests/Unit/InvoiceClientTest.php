@@ -24,6 +24,7 @@ class InvoiceClientTest extends TestCase
                 $this->callback(function ($options) {
                     return isset($options['headers']['Authorization'])
                         && $options['headers']['Authorization'] === 'Bearer token-123'
+                        && isset($options['json']['invoice_id'])
                         && $options['json']['invoice_id'] === 99;
                 })
             );
