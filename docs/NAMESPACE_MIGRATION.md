@@ -40,3 +40,16 @@ If a class is instantiated by CodeIgniter/MX internals, routing, or subclass pre
 
 - New namespaced code uses `App\...` (Laravel-style naming) and is autoloaded via Composer.
 - Legacy MX compatibility shims are autoloaded from `bootstrap/autoload.php` so framework glue remains isolated from domain/application code.
+
+
+## Loading namespaced classes through `$this->load()`
+
+`MY_Loader` now supports fully-qualified class names in `library()`/`service()`, so controllers can do:
+
+```php
+$this->load->library(App\Adapters\LetsPeppol\Endpoints\LetsPeppolClient::class, $params, 'letsPeppolClient');
+// or
+$this->load->service(App\Adapters\LetsPeppol\Endpoints\LetsPeppolClient::class, $params, 'letsPeppolClient');
+```
+
+That keeps old `$this->load` ergonomics while moving implementations to PSR-4 namespaced classes.
