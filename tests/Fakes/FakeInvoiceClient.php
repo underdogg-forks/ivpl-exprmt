@@ -29,7 +29,7 @@ class FakeInvoiceClient extends InvoiceClient
         $this->succeeds = $succeeds;
     }
 
-    public function sendInvoice(string $accessToken, array $payload): \Psr\Http\Message\ResponseInterface
+    public function sendInvoice(string $accessToken, array $payload): FakeResponse
     {
         $this->sent[] = ['token' => $accessToken, 'payload' => $payload];
 
