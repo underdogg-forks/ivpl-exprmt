@@ -8,42 +8,83 @@ if ( ! defined('BASEPATH')) {
 require APPPATH . 'third_party/MX/Router.php';
 
 /**
- * Enhanced CI3/MX Router with PSR-4 controller naming support.
+ * Enhanced CI3/MX Router with two capabilities:
  *
- * Extends MX_Router so that module controllers can be named following the
- * PSR-4 convention (`IntegrationsController`) instead of the legacy CI
- * underscore suffix (`Integrations_Controller`).
+ *  1. PSR-4 controller naming  — `IntegrationsController.php` alongside legacy `Integrations.php`.
+ *  2. Module URL aliases        — expose sub-modules at clean URLs without any routes.php entry.
  *
- * Resolution order (for a URL segment `integrations`):
- *   1. PSR-4 style  → application/modules/integrations/controllers/IntegrationsController.php
- *   2. Legacy style → application/modules/integrations/controllers/Integrations.php
+ * ═══════════════════════════════════════════════════════════════════
+ *  1. PSR-4 Controller Naming
+ * ═══════════════════════════════════════════════════════════════════
+ *  New module controllers can be named with a `Controller` suffix
+ *  (PSR-4 style) instead of the legacy CI underscore suffix.
  *
- * This allows new modules to adopt clean PSR-4 naming while all existing
- * legacy controllers continue to work unchanged.
+ *  Resolution order for URL segment `integrations`:
+ *    1. PSR-4  → modules/integrations/controllers/IntegrationsController.php
+ *    2. Legacy → modules/integrations/controllers/Integrations.php
  *
- * URL routing for "hidden" module prefix
- * ----------------------------------------
- * When Integrations (or any future module) moves inside a "core" module to
- * keep the top-level module list tidy, its URL can be kept short with CI3
- * routes.  In application/config/routes.php add:
+ * ═══════════════════════════════════════════════════════════════════
+ *  2. Module URL Aliases  (no routes.php required)
+ * ═══════════════════════════════════════════════════════════════════
+ *  Add entries to $moduleAliases to map a public URL segment to an
+ *  internal parent-module/sub-module path.
  *
- *   $route['integrations']         = 'core/integrations/index';
- *   $route['integrations/(:any)']  = 'core/integrations/$1';
+ *  Example — Integrations lives inside a "core" module:
  *
- * MX resolves `core/integrations/index` to the controller at
- * `modules/core/controllers/integrations/IntegrationsController.php` (or
- * `Integrations.php`), so the URL `/integrations/index` works exactly as
- * if the module were top-level.
+ *    File:  modules/core/controllers/integrations/IntegrationsController.php
+ *    URL:   /integrations                  ← no "core/" in the URL
+ *    Alias: 'integrations' => 'core/integrations'
+ *
+ *  MY_Router intercepts the URL segment and expands it to the real
+ *  module path before MX resolves the controller — no routes.php
+ *  entries needed.
+ *
+ *  Can all application/modules classes get namespaces?
+ *  ────────────────────────────────────────────────────
+ *  Yes — provided MY_Loader and MY_Router are aware of the mapping.
+ *  The approach (documented in .github/prompt.md) is:
+ *   • Declare namespace Module\<ModuleName> in each controller/model.
+ *   • Name files IntegrationsController.php (PSR-4), keeping the URL the same.
+ *   • Register `Module\\` → `application/modules/` in composer.json autoload.
+ *   • MY_Router aliases the PSR-4 class so MX can instantiate it.
+ *  Legacy controllers (no namespace) continue to work unchanged, so
+ *  the migration is fully incremental.
  */
 #[AllowDynamicProperties]
 class MY_Router extends MX_Router
 {
     /**
-     * Locate a module controller, checking PSR-4 naming first.
+     * Map a URL segment to an internal "parentModule/subModule" path.
      *
-     * Overrides MX_Router::locate() to additionally probe for
-     * `<ModuleName>Controller.php` files before falling back to the legacy
-     * `<ModuleName>.php` search already performed by the parent.
+     * Add entries here instead of adding routes to application/config/routes.php.
+     *
+     * Format:  'url_segment' => 'parent_module/sub_module'
+     *
+     * Example (Integrations inside a "core" module):
+     *   'integrations' => 'core/integrations'
+     *
+     * The URL /integrations/save will resolve to:
+     *   modules/core/controllers/integrations/IntegrationsController.php::save()
+     *
+     * @var array<string, string>
+     */
+    protected array $moduleAliases = [
+        // Uncomment when Integrations moves into a "core" module:
+        // 'integrations' => 'core/integrations',
+    ];
+
+    /**
+     * Locate a module controller.
+     *
+     * Extends MX_Router::locate() with two additions applied before the
+     * standard MX resolution:
+     *
+     *  a) Module alias expansion — rewrites segments when the first segment
+     *     matches a key in $moduleAliases (no routes.php required).
+     *
+     *  b) PSR-4 controller name detection — when a module has
+     *     `<Module>Controller.php` but not `<Module>.php`, class_alias()
+     *     the PSR-4 class to the legacy name so MX can load it.
      *
      * @param  array $segments URI segments
      * @return array|null      Remaining segments after consuming module/directory
@@ -52,36 +93,65 @@ class MY_Router extends MX_Router
     {
         $ext = $this->config->item('controller_suffix') . EXT;
 
-        // Check whether a PSR-4 style controller file exists and, if so,
-        // rewrite the segment to the PSR-4 class name so CI loads the right file.
+        // ── a) Module alias expansion ──────────────────────────────────────
+        if (isset($segments[0]) && isset($this->moduleAliases[$segments[0]])) {
+            $alias      = $this->moduleAliases[$segments[0]];
+            $aliasParts = explode('/', $alias);
+
+            // Replace the public segment with the real parent/sub path.
+            // e.g. ['integrations', 'save'] → ['core', 'integrations', 'save']
+            $segments = array_merge($aliasParts, array_slice($segments, 1));
+        }
+
+        // ── b) PSR-4 controller name aliasing ─────────────────────────────
         if (isset($segments[0])) {
-            $module = $segments[0];
+            $this->aliasPsr4Controller($segments[0], $ext);
 
-            foreach (Modules::$locations as $location => $offset) {
-                if ( ! is_dir($source = $location . $module . '/controllers/')) {
-                    continue;
-                }
-
-                $psr4File  = $source . ucfirst($module) . 'Controller' . $ext;
-                $legacyFile = $source . ucfirst($module) . $ext;
-
-                // PSR-4 style file found — rewrite class resolution
-                if (is_file($psr4File) && ! is_file($legacyFile)) {
-                    // Temporarily expose the PSR-4 class name so the parent
-                    // locate() picks it up via set_class()/set_filename().
-                    // We do this by aliasing the PSR-4 class to the legacy name
-                    // using a require + class_alias so CI can instantiate it.
-                    $psr4Class  = ucfirst($module) . 'Controller';
-                    $legacyName = ucfirst($module);
-
-                    if ( ! class_exists($legacyName, false) && class_exists($psr4Class, false)) {
-                        class_alias($psr4Class, $legacyName);
-                    }
-                }
+            // Also handle sub-module PSR-4 names (e.g. core → integrations controller)
+            if (isset($segments[1])) {
+                $this->aliasPsr4Controller($segments[1], $ext, $segments[0]);
             }
         }
 
         return parent::locate($segments);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Protected helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * If the module/sub-module has a PSR-4 style controller file
+     * (`<Name>Controller.php`) but NOT a legacy file (`<Name>.php`),
+     * register a class_alias so MX can find it by the legacy class name.
+     *
+     * @param  string      $name       Module or sub-module segment
+     * @param  string      $ext        Controller file extension (e.g. '.php')
+     * @param  string|null $parentName Parent module name (for sub-module lookup)
+     */
+    protected function aliasPsr4Controller(string $name, string $ext, ?string $parentName = null): void
+    {
+        foreach (Modules::$locations as $location => $offset) {
+            $base = $parentName
+                ? $location . $parentName . '/controllers/' . $name . '/'
+                : $location . $name . '/controllers/';
+
+            if ( ! is_dir($base)) {
+                continue;
+            }
+
+            $psr4Name   = ucfirst($name) . 'Controller';
+            $legacyName = ucfirst($name);
+            $psr4File   = $base . $psr4Name . $ext;
+            $legacyFile = $base . $legacyName . $ext;
+
+            if (is_file($psr4File) && ! is_file($legacyFile)) {
+                if ( ! class_exists($legacyName, false) && class_exists($psr4Name, false)) {
+                    class_alias($psr4Name, $legacyName);
+                }
+            }
+        }
+    }
 }
+
 

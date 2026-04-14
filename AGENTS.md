@@ -111,18 +111,22 @@ class Integrations extends Admin_Controller { ... }
 ### Hiding a Module Prefix from the URL (e.g. "core" module)
 
 When controllers are grouped inside a `core` module to keep the top-level module list
-tidy, CI3 routes let you expose them at a clean URL without the `core/` prefix:
+tidy, use `MY_Router::$moduleAliases` — **no routes.php changes needed**:
 
 ```php
-// application/config/routes.php
-$route['integrations']         = 'core/integrations/index';
-$route['integrations/(:any)']  = 'core/integrations/$1';
+// application/core/MY_Router.php — edit the $moduleAliases property:
+protected array $moduleAliases = [
+    'integrations' => 'core/integrations',
+    'storecove'    => 'core/storecove',
+];
 ```
 
-`/integrations/index` now works exactly as if the module were top-level.
-MX resolves `core/integrations/index` to
+`/integrations/index` now resolves to
 `modules/core/controllers/integrations/IntegrationsController.php` (PSR-4) or
 `modules/core/controllers/integrations/Integrations.php` (legacy).
+
+MY_Router intercepts the URL segment before MX runs, expands it to the real module
+path, and the rest of the resolution is standard MX — no routes.php entries needed.
 
 ### Adding a New Provider (e.g. StoreCove)
 
@@ -220,8 +224,9 @@ See `.junie/guidelines.md` for full details.
 | `application/lib/App/Providers/ExceptionHandlingDecorator.php` | Auto exception safety for all providers |
 | `application/lib/App/Services/Integrations/IntegrationProviderFactory.php` | How providers are resolved (applies decorator automatically) |
 | `application/core/MY_Loader.php` | PSR-4 namespaced class loading for CI super-object |
-| `application/core/MY_Router.php` | PSR-4 controller naming + routing docs |
-| `application/config/routes.php` | Add `$route['integrations'] = 'core/integrations/index'` to hide module prefix from URL |
+| `application/core/MY_Router.php` | PSR-4 controller naming; `$moduleAliases` map (no routes.php needed) |
+| `application/config/routes.php` | **Do not add URL aliases here** — use `MY_Router::$moduleAliases` instead |
+| `.github/prompt.md` | Copy-paste AI prompt for full PSR-4 namespace migration of all modules |
 | `tests/phpunit-parallel-bootstrap.php` | Test bootstrap & CI stubs |
 | `phpunit.xml.dist` | PHPUnit configuration |
 | `composer.json` | Dependencies & autoloading |
