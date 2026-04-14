@@ -5,54 +5,48 @@ if ( ! defined('BASEPATH')) {
 }
 
 use App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
+use App\Services\Integrations\IntegrationSettingsService;
 
 #[AllowDynamicProperties]
 class Integrations extends Admin_Controller
 {
+    private IntegrationSettingsService $settingsService;
+
     public function __construct()
     {
         parent::__construct();
 
         $this->load->model('integrations/mdl_integrations');
+        $this->load->library('crypt');
+
+        $this->settingsService = new IntegrationSettingsService(
+            $this->mdl_integrations,
+            $this->crypt,
+            new LetsPeppolOAuthProviderFactory()
+        );
     }
 
     public function index(): void
     {
         if ($this->input->post('btn_submit')) {
-            $clientId     = trim((string) $this->input->post('client_id'));
-            $clientSecret = trim((string) $this->input->post('client_secret'));
-
-            $this->mdl_integrations->saveSettings('letspeppol', [
-                'client_id'     => $clientId,
-                'client_secret' => $clientSecret,
-                'base_url'      => trim((string) $this->input->post('base_url')),
+            $this->settingsService->saveLetsPeppolSettings([
+                'client_id' => $this->input->post('client_id'),
+                'client_secret' => $this->input->post('client_secret'),
+                'base_url' => $this->input->post('base_url'),
             ]);
 
-            $settings = $this->mdl_integrations->settings('letspeppol');
-
-            if (($settings['client_id'] ?? '') && ($settings['client_secret'] ?? '') && ($settings['base_url'] ?? '')) {
-                try {
-                    $factory  = new LetsPeppolOAuthProviderFactory();
-                    $provider = $factory->make(
-                        new App\Integration\IntegrationCredentials($settings['client_id'], $settings['client_secret']),
-                        $settings['base_url']
-                    );
-
-                    $token = $provider->getAccessToken('client_credentials');
-                    $this->mdl_integrations->saveToken('letspeppol', $token->getToken(), $token->getExpires());
-                } catch (\Throwable $throwable) {
-                    $this->mdl_integrations->log('letspeppol', 'oauth.token', 'failed', ['error' => $throwable->getMessage()]);
-                }
+            try {
+                $this->settingsService->activeTokenOrCreate();
+            } catch (\Throwable $throwable) {
+                $this->mdl_integrations->log('letspeppol', 'oauth.token', 'failed', ['error' => $throwable->getMessage()]);
             }
 
             $this->session->set_flashdata('alert_success', trans('record_successfully_saved'));
             redirect('integrations/index');
         }
 
-        $settings = $this->mdl_integrations->settings('letspeppol');
-
         $this->layout->set([
-            'settings' => $settings,
+            'settings' => $this->settingsService->letsPeppolSettings(),
         ]);
         $this->layout->buffer('content', 'integrations/index');
         $this->layout->render();

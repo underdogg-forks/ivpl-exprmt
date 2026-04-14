@@ -14,6 +14,12 @@ class LetsPeppolClient
     ) {
     }
 
+    /**
+     * Generic transport method used by endpoint clients.
+     *
+     * Request options may include JSON body, query, headers, etc.
+     * Response is the raw PSR-7 response object from Guzzle.
+     */
     public function request(string $method, string $endpointOrPath, array $options = [])
     {
         $path = $this->endpoints[$endpointOrPath] ?? $endpointOrPath;

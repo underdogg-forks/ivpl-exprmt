@@ -11,6 +11,15 @@ class ParticipantClient
     {
     }
 
+    /**
+     * Validates participant ID in LetsPeppol registry.
+     *
+     * Request query example:
+     * GET /api/participants/validate?peppol_id=0088:123456789
+     *
+     * Response JSON example:
+     * {"valid":true,"participant":{"peppol_id":"0088:123456789"}}
+     */
     public function validatePeppolId(string $peppolId, ?string $accessToken = null): bool
     {
         try {
