@@ -61,5 +61,10 @@
         "files": [
             "bootstrap/autoload.php"
         ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
     }
 }

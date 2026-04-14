@@ -5,13 +5,14 @@ use App\Services\Clients\ClientsService;
 use App\Services\Integrations\IntegrationProviderFactory;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Tests\Fakes\FakeIntegrationRepository;
 
 class ClientsServiceTest extends TestCase
 {
     /**
-     * Arrange: provider returns true.
+     * Arrange: provider returns true, FakeIntegrationRepository (no CI model).
      * Act: validatePeppolId is called.
-     * Assert: true is returned and the integration log is called with 'success'.
+     * Assert: true is returned and a 'success' log entry is recorded.
      */
     #[Test]
     public function it_returns_true_and_logs_success_when_participant_is_valid(): void
@@ -19,25 +20,20 @@ class ClientsServiceTest extends TestCase
         $provider = $this->createMock(IntegrationProviderInterface::class);
         $provider->method('validateParticipant')->with('0088:1234')->willReturn(true);
 
-        $integrations = $this->getMockBuilder(Mdl_integrations::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['log'])
-            ->getMock();
-
-        $integrations->expects($this->once())
-            ->method('log')
-            ->with('letspeppol', 'participants.validate', 'success', ['peppol_id' => '0088:1234']);
-
+        $repo    = new FakeIntegrationRepository();
         $factory = (new IntegrationProviderFactory())->register('letspeppol', fn () => $provider);
-        $service = new ClientsService($factory, $integrations);
+        $service = new ClientsService($factory, $repo);
 
-        $this->assertTrue($service->validatePeppolId('0088:1234'));
+        $result = $service->validatePeppolId('0088:1234');
+
+        $this->assertTrue($result);
+        $repo->assertLogged('letspeppol', 'participants.validate', 'success');
     }
 
     /**
      * Arrange: provider returns false.
      * Act: validatePeppolId is called.
-     * Assert: false is returned and the integration log is called with 'failed'.
+     * Assert: false is returned and a 'failed' log entry is recorded.
      */
     #[Test]
     public function it_returns_false_and_logs_failed_when_participant_is_invalid(): void
@@ -45,39 +41,31 @@ class ClientsServiceTest extends TestCase
         $provider = $this->createMock(IntegrationProviderInterface::class);
         $provider->method('validateParticipant')->willReturn(false);
 
-        $integrations = $this->getMockBuilder(Mdl_integrations::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['log'])
-            ->getMock();
-
-        $integrations->expects($this->once())
-            ->method('log')
-            ->with('letspeppol', 'participants.validate', 'failed', $this->anything());
-
+        $repo    = new FakeIntegrationRepository();
         $factory = (new IntegrationProviderFactory())->register('letspeppol', fn () => $provider);
-        $service = new ClientsService($factory, $integrations);
+        $service = new ClientsService($factory, $repo);
 
-        $this->assertFalse($service->validatePeppolId('0088:bad'));
+        $result = $service->validatePeppolId('0088:bad');
+
+        $this->assertFalse($result);
+        $repo->assertLogged('letspeppol', 'participants.validate', 'failed');
     }
 
     /**
      * Arrange: letspeppol provider is NOT registered.
      * Act: validatePeppolId is called.
-     * Assert: false is returned without calling the log.
+     * Assert: false is returned without recording any log.
      */
     #[Test]
     public function it_returns_false_when_letspeppol_provider_is_not_registered(): void
     {
-        $integrations = $this->getMockBuilder(Mdl_integrations::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['log'])
-            ->getMock();
+        $repo    = new FakeIntegrationRepository();
+        $factory = new IntegrationProviderFactory(); // empty
+        $service = new ClientsService($factory, $repo);
 
-        $integrations->expects($this->never())->method('log');
+        $result = $service->validatePeppolId('0088:1234');
 
-        $factory = new IntegrationProviderFactory(); // empty – no providers registered
-        $service = new ClientsService($factory, $integrations);
-
-        $this->assertFalse($service->validatePeppolId('0088:1234'));
+        $this->assertFalse($result);
+        $repo->assertNotLogged();
     }
 }

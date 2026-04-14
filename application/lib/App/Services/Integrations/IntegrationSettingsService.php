@@ -3,15 +3,15 @@
 namespace App\Services\Integrations;
 
 use App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
+use App\Contracts\CryptInterface;
+use App\Contracts\IntegrationRepositoryInterface;
 use App\Integration\IntegrationCredentials;
-use Crypt;
-use Mdl_integrations;
 
 class IntegrationSettingsService
 {
     public function __construct(
-        private Mdl_integrations $integrations,
-        private Crypt $crypt,
+        private IntegrationRepositoryInterface $integrations,
+        private CryptInterface $crypt,
         private LetsPeppolOAuthProviderFactory $oauthFactory,
     ) {
     }
