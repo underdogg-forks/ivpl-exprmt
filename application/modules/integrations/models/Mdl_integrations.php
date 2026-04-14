@@ -95,7 +95,8 @@ class Mdl_integrations extends CI_Model
             ->limit(1)
             ->get()->row();
 
-        if ( ! $row || ($row->expires_at && strtotime($row->expires_at) < time())) {
+        $expiryBuffer = 60; // seconds
+        if ( ! $row || ($row->expires_at && strtotime($row->expires_at) < (time() + $expiryBuffer))) {
             return null;
         }
 
