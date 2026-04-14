@@ -38,8 +38,7 @@ class ExceptionHandlingDecorator implements IntegrationProviderInterface
         try {
             return $this->inner->validateParticipant($participantId);
         } catch (Throwable $throwable) {
-            $sanitized = str_replace(["\r", "\n"], '', $throwable->getMessage());
-            log_message('error', '[' . $this->providerName . '] validateParticipant failed: ' . $sanitized);
+            log_message('error', '[' . $this->providerName . '] validateParticipant failed: ' . $this->sanitize($throwable->getMessage()));
 
             return false;
         }
@@ -55,10 +54,20 @@ class ExceptionHandlingDecorator implements IntegrationProviderInterface
         try {
             return $this->inner->sendInvoice($payload);
         } catch (Throwable $throwable) {
-            $sanitized = str_replace(["\r", "\n"], '', $throwable->getMessage());
-            log_message('error', '[' . $this->providerName . '] sendInvoice failed: ' . $sanitized);
+            log_message('error', '[' . $this->providerName . '] sendInvoice failed: ' . $this->sanitize($throwable->getMessage()));
 
             return false;
         }
+    }
+
+    /**
+     * Strip CR/LF from a string to prevent log injection attacks.
+     *
+     * Mirrors the sanitize_for_logging() CI helper for use in namespaced App\ classes
+     * where CI global helpers may not be loaded.
+     */
+    private function sanitize(string $value): string
+    {
+        return str_replace(["\r", "\n"], '', $value);
     }
 }
