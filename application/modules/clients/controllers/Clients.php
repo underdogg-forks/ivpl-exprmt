@@ -428,7 +428,15 @@ class Clients extends Admin_Controller
 
         $clientsService = new App\Services\Clients\ClientsService($providerFactory, $this->mdl_integrations);
 
-        if ( ! $clientsService->validatePeppolId($peppolId)) {
+        try {
+            $isValid = $clientsService->validatePeppolId($peppolId);
+        } catch (Throwable $throwable) {
+            $sanitized = str_replace(["\r", "\n"], '', $throwable->getMessage());
+            log_message('error', '[LetsPeppol] Peppol ID validation threw: ' . $sanitized);
+            $isValid = false;
+        }
+
+        if ( ! $isValid) {
             $this->session->set_flashdata('alert_error', trans('peppol_validation_failed'));
         }
     }

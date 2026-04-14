@@ -10,7 +10,7 @@ PHPUNIT ?= vendor/bin/phpunit
 PLAYWRIGHT ?= npx playwright
 
 .PHONY: help install test test-unit test-feature test-filter test-fail e2e e2e-list \
-	dup ddown drebuild dsh dphpunit dtest dtest-filter dtest-fail de2e
+	dup ddown ddown-volumes drebuild dsh dphpunit dtest dtest-filter dtest-fail de2e
 
 install:
 	composer install
@@ -42,6 +42,9 @@ dup:
 	$(COMPOSE) up -d
 
 ddown:
+	$(COMPOSE) down
+
+ddown-volumes:
 	$(COMPOSE) down -v
 
 drebuild:
@@ -50,8 +53,7 @@ drebuild:
 dsh:
 	$(COMPOSE) exec $(APP_SERVICE) bash
 
-dphpunit:
-	$(COMPOSE) exec $(APP_SERVICE) $(PHPUNIT)
+dphpunit: dtest
 
 dtest:
 	$(COMPOSE) exec $(APP_SERVICE) $(PHPUNIT)
@@ -76,11 +78,12 @@ help:
 	@echo "  make e2e                Run Playwright tests"
 	@echo ""
 	@echo "Docker:"
-	@echo "  make dup / ddown        Start/stop docker compose"
-	@echo "  make drebuild           Rebuild containers"
-	@echo "  make dsh                Shell into app container"
-	@echo "  make dtest              Run phpunit in app container"
-	@echo "  make de2e               Run Playwright in app container"
+	@echo "  make dup / ddown          Start/stop docker compose (no volume removal)"
+	@echo "  make ddown-volumes        Stop and remove volumes"
+	@echo "  make drebuild             Rebuild containers"
+	@echo "  make dsh                  Shell into app container"
+	@echo "  make dtest / dphpunit     Run phpunit in app container"
+	@echo "  make de2e                 Run Playwright in app container"
 	@echo "==========================================================================================="
 
 .DEFAULT_GOAL := help

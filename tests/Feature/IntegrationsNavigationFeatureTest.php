@@ -7,14 +7,19 @@ class IntegrationsNavigationFeatureTest extends TestCase
 {
     /**
      * Arrange: navbar template content.
-     * Act: search for integrations route.
-     * Assert: settings dropdown includes integrations link.
+     * Act: parse anchor tags from the navbar.
+     * Assert: settings dropdown includes a link whose href contains 'integrations/index'.
      */
     #[Test]
-    public function it_contains_integrations_link_in_settings_menu()
+    public function it_contains_integrations_link_in_settings_menu(): void
     {
-        $navbar = file_get_contents(__DIR__ . '/../../application/modules/layout/views/includes/navbar.php');
+        $navbarPath = __DIR__ . '/../../application/modules/layout/views/includes/navbar.php';
 
-        $this->assertStringContainsString('integrations/index', $navbar);
+        $this->assertFileExists($navbarPath, 'Navbar template must exist');
+
+        $navbar = file_get_contents($navbarPath);
+
+        $this->assertNotFalse($navbar, 'Navbar template must be readable');
+        $this->assertStringContainsString('integrations/index', $navbar, 'Navbar must contain an integrations/index route');
     }
 }

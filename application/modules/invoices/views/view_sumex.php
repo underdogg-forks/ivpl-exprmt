@@ -286,6 +286,8 @@ if ($invoice->invoice_balance != 0) {
                         <i class="fa fa-send fa-margin"></i>
                         <?php _trans('send_email'); ?>
                     </a>
+                </li>
+                <li>
                     <a href="<?php echo site_url('invoices/send_to_peppol/' . $invoice->invoice_id); ?>">
                         <i class="fa fa-paper-plane fa-margin"></i>
                         <?php _trans('send_to_letspeppol'); ?>
