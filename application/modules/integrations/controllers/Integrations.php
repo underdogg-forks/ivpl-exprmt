@@ -37,11 +37,12 @@ class Integrations extends Admin_Controller
 
             try {
                 $this->settingsService->activeTokenOrCreate();
+                $this->session->set_flashdata('alert_success', trans('record_successfully_saved'));
             } catch (\Throwable $throwable) {
                 $this->mdl_integrations->log('letspeppol', 'oauth.token', 'failed', ['error' => $throwable->getMessage()]);
+                $this->session->set_flashdata('alert_warning', trans('settings_saved_but_oauth_failed'));
             }
 
-            $this->session->set_flashdata('alert_success', trans('record_successfully_saved'));
             redirect('integrations/index');
         }
 
