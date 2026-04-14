@@ -25,11 +25,22 @@ if ( ! class_exists('Mdl_integrations')) {
         #[AllowDynamicProperties]
         class Mdl_integrations extends CI_Model
         {
+            /** Ensures a provider row exists and returns its ID. */
             public function ensureProvider(string $provider, string $name): int { return 0; }
+
+            /** Persists encrypted integration settings. */
             public function saveEncryptedSettings(string $provider, array $settings, array $encryptedKeys, Crypt $crypt): void {}
+
+            /** Returns decrypted integration settings keyed by setting key. */
             public function settings(string $provider, Crypt $crypt): array { return []; }
+
+            /** Persists an OAuth access token for the given provider. */
             public function saveToken(string $provider, string $token, ?int $expiresAt = null): void {}
+
+            /** Returns the currently active (non-expired) OAuth token, or null. */
             public function activeToken(string $provider): ?string { return null; }
+
+            /** Appends an audit log entry for a provider action. */
             public function log(string $provider, string $action, string $status, array $context = []): void {}
         }
     }
