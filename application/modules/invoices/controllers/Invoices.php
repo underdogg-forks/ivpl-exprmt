@@ -379,31 +379,19 @@ class Invoices extends Admin_Controller
         $providerFactory = (new App\Services\Integrations\IntegrationProviderFactory())
             ->register('letspeppol', fn () => new App\Providers\LetsPeppolProvider($settingsService));
 
-        $isSent = false;
-        $exceptionThrown = false;
+        // ExceptionHandlingDecorator (applied automatically by IntegrationProviderFactory::make())
+        // catches any provider-level exception and returns false — no manual try/catch needed.
+        $isSent = $providerFactory->make('letspeppol')->sendInvoice([
+            'invoice_id'      => $invoice->invoice_id,
+            'invoice_number'  => $invoice->invoice_number,
+            'client_peppol_id' => $invoice->client_peppol_id,
+            'invoice_total'   => $invoice->invoice_total,
+            'currency_code'   => $invoice->invoice_currency_code,
+        ]);
 
-        try {
-            $isSent = $providerFactory->make('letspeppol')->sendInvoice([
-                'invoice_id' => $invoice->invoice_id,
-                'invoice_number' => $invoice->invoice_number,
-                'client_peppol_id' => $invoice->client_peppol_id,
-                'invoice_total' => $invoice->invoice_total,
-                'currency_code' => $invoice->invoice_currency_code,
-            ]);
-        } catch (Throwable $throwable) {
-            $exceptionThrown = true;
-            $sanitized = str_replace(["\r", "\n"], '', $throwable->getMessage());
-            $this->mdl_integrations->log('letspeppol', 'invoices.send', 'failed', [
-                'invoice_id' => $invoice_id,
-                'error' => $sanitized,
-            ]);
-        }
-
-        if ( ! $exceptionThrown) {
-            $this->mdl_integrations->log('letspeppol', 'invoices.send', $isSent ? 'success' : 'failed', [
-                'invoice_id' => $invoice_id,
-            ]);
-        }
+        $this->mdl_integrations->log('letspeppol', 'invoices.send', $isSent ? 'success' : 'failed', [
+            'invoice_id' => $invoice_id,
+        ]);
 
         $this->session->set_flashdata($isSent ? 'alert_success' : 'alert_error', trans($isSent ? 'peppol_sent_successfully' : 'peppol_sent_failed'));
 
