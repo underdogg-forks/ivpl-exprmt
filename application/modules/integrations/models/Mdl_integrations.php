@@ -105,12 +105,17 @@ class Mdl_integrations extends CI_Model
     public function log(string $provider, string $event, string $status, array $context = []): void
     {
         $integrationId = $this->ensureProvider($provider, 'LetsPeppol');
+        $logContext = json_encode($context);
+
+        if ($logContext === false) {
+            $logContext = null;
+        }
 
         $this->db->insert('ip_integration_logs', [
             'integration_id' => $integrationId,
             'log_event'      => $event,
             'log_status'     => $status,
-            'log_context'    => json_encode($context),
+            'log_context'    => $logContext,
         ]);
     }
 }
