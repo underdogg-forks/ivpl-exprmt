@@ -20,10 +20,20 @@ class IntegrationSettingsService
     {
         $normalized = [
             'client_id' => trim((string) ($settings['client_id'] ?? '')),
-            'client_secret' => trim((string) ($settings['client_secret'] ?? '')),
             'base_url' => trim((string) ($settings['base_url'] ?? '')),
         ];
 
+        $clientSecret = trim((string) ($settings['client_secret'] ?? ''));
+
+        if ($clientSecret !== '') {
+            $normalized['client_secret'] = $clientSecret;
+        } else {
+            $existingSettings = $this->letsPeppolSettings();
+
+            if (!empty($existingSettings['client_secret'])) {
+                $normalized['client_secret'] = (string) $existingSettings['client_secret'];
+            }
+        }
         $this->integrations->saveEncryptedSettings('letspeppol', $normalized, ['client_secret'], $this->crypt);
     }
 
