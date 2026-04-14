@@ -423,15 +423,12 @@ class Clients extends Admin_Controller
             new App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory()
         );
 
-        $peppolService = new App\Services\Integrations\LetsPeppolService($settingsService);
+        $providerFactory = (new App\Services\Integrations\IntegrationProviderFactory())
+            ->register('letspeppol', fn () => new App\Providers\LetsPeppolProvider($settingsService));
 
-        $isValid = $peppolService->validateParticipantId($peppolId);
+        $clientsService = new App\Services\Clients\ClientsService($providerFactory, $this->mdl_integrations);
 
-        $this->mdl_integrations->log('letspeppol', 'participants.validate', $isValid ? 'success' : 'failed', [
-            'peppol_id' => $peppolId,
-        ]);
-
-        if ( ! $isValid) {
+        if ( ! $clientsService->validatePeppolId($peppolId)) {
             $this->session->set_flashdata('alert_error', trans('peppol_validation_failed'));
         }
     }

@@ -376,12 +376,13 @@ class Invoices extends Admin_Controller
             new App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory()
         );
 
-        $peppolService = new App\Services\Integrations\LetsPeppolService($settingsService);
+        $providerFactory = (new App\Services\Integrations\IntegrationProviderFactory())
+            ->register('letspeppol', fn () => new App\Providers\LetsPeppolProvider($settingsService));
 
         $isSent = false;
 
         try {
-            $isSent = $peppolService->sendInvoice([
+            $isSent = $providerFactory->make('letspeppol')->sendInvoice([
                 'invoice_id' => $invoice->invoice_id,
                 'invoice_number' => $invoice->invoice_number,
                 'client_peppol_id' => $invoice->client_peppol_id,
