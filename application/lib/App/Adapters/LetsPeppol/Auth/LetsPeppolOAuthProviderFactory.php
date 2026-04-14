@@ -10,6 +10,10 @@ class LetsPeppolOAuthProviderFactory
 {
     public function make(IntegrationCredentials $credentials, string $baseUrl): GenericProvider
     {
+        if (empty($baseUrl) || filter_var($baseUrl, FILTER_VALIDATE_URL) === false) {
+            throw new \InvalidArgumentException('A valid base URL is required');
+        }
+
         $normalizedBaseUrl = rtrim($baseUrl, '/');
 
         return new GenericProvider([

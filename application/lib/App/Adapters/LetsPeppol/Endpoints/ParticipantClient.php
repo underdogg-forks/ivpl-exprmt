@@ -35,7 +35,8 @@ class ParticipantClient
 
             return $response->getStatusCode() >= 200 && $response->getStatusCode() < 300;
         } catch (\Throwable $throwable) {
-            log_message('error', 'LetsPeppol participant validation failed: ' . $throwable->getMessage());
+            $sanitizedMessage = str_replace(["\r", "\n"], '', $throwable->getMessage());
+            log_message('error', 'LetsPeppol participant validation failed: ' . $sanitizedMessage);
 
             return false;
         }

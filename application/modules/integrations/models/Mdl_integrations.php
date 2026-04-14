@@ -27,8 +27,7 @@ class Mdl_integrations extends CI_Model
 
     public function saveEncryptedSettings(string $provider, array $settings, array $encryptedKeys, Crypt $crypt): void
     {
-        $integrationId = $this->ensureProvider($provider, 'LetsPeppol');
-
+        $integrationId = $this->ensureProvider($provider, ucfirst($provider));
         foreach ($settings as $key => $value) {
             $isEncrypted = in_array($key, $encryptedKeys, true) ? 1 : 0;
             $storedValue = $isEncrypted ? $crypt->encode($value) : $value;
