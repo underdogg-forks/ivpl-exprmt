@@ -101,6 +101,11 @@ class Mdl_Clients extends Response_Model
             'client_tax_code' => [
                 'field' => 'client_tax_code',
             ],
+            'client_peppol_id' => [
+                'field' => 'client_peppol_id',
+                'label' => trans('client_peppol_id'),
+                'rules' => 'trim|max_length[255]',
+            ],
             'client_invoicing_contact' => [
                 'field' => 'client_invoicing_contact',
                 'rules' => 'trim',

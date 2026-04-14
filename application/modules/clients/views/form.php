@@ -343,6 +343,15 @@ foreach ($custom_fields as $custom_field) {
                             </div>
                         </div>
 
+                        <div class="form-group">
+                            <label for="client_peppol_id"><?php _trans('client_peppol_id'); ?></label>
+
+                            <div class="controls">
+                                <input type="text" name="client_peppol_id" id="client_peppol_id" class="form-control"
+                                       value="<?php echo $this->mdl_clients->form_value('client_peppol_id', true); ?>">
+                            </div>
+                        </div>
+
 <?php
 foreach ($custom_fields as $custom_field) {
     if ($custom_field->custom_field_location == 4) {
