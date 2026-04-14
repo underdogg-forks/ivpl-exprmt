@@ -368,59 +368,38 @@ class Invoices extends Admin_Controller
         }
 
         $this->load->model('integrations/mdl_integrations');
-        $settings = $this->mdl_integrations->settings('letspeppol');
+        $this->load->library('crypt');
 
-        if (empty($settings['base_url'])) {
-            $this->session->set_flashdata('alert_error', trans('peppol_sent_failed'));
-            redirect('invoices/view/' . $invoice_id);
-        }
+        $settingsService = new App\Services\Integrations\IntegrationSettingsService(
+            $this->mdl_integrations,
+            $this->crypt,
+            new App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory()
+        );
 
-        $token = $this->mdl_integrations->activeToken('letspeppol');
+        $peppolService = new App\Services\Integrations\LetsPeppolService($settingsService);
 
-        if ( ! $token && ! empty($settings['client_id']) && ! empty($settings['client_secret'])) {
-            try {
-                $factory  = new App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory();
-                $provider = $factory->make(new App\Integration\IntegrationCredentials($settings['client_id'], $settings['client_secret']), $settings['base_url']);
-                $oauthToken = $provider->getAccessToken('client_credentials');
-                $token = $oauthToken->getToken();
-                $this->mdl_integrations->saveToken('letspeppol', $token, $oauthToken->getExpires());
-            } catch (Throwable $throwable) {
-                $this->mdl_integrations->log('letspeppol', 'invoices.send', 'failed', ['invoice_id' => $invoice_id, 'error' => $throwable->getMessage()]);
-                $this->session->set_flashdata('alert_error', trans('peppol_sent_failed'));
-                redirect('invoices/view/' . $invoice_id);
-            }
-        }
+        $isSent = false;
 
         try {
-            $baseClient = new App\Adapters\LetsPeppol\LetsPeppolClient(
-                new GuzzleHttp\Client(),
-                $settings['base_url'],
-                ['invoices.send' => 'api/invoices'],
-                $settings
-            );
-
-            $invoiceClient = new App\Adapters\LetsPeppol\Endpoints\InvoiceClient($baseClient);
-            $response = $invoiceClient->sendInvoice($token, [
+            $isSent = $peppolService->sendInvoice([
                 'invoice_id' => $invoice->invoice_id,
                 'invoice_number' => $invoice->invoice_number,
                 'client_peppol_id' => $invoice->client_peppol_id,
                 'invoice_total' => $invoice->invoice_total,
                 'currency_code' => $invoice->invoice_currency_code,
             ]);
-
-            $this->mdl_integrations->log('letspeppol', 'invoices.send', 'success', [
-                'invoice_id' => $invoice_id,
-                'status_code' => $response->getStatusCode(),
-            ]);
-
-            $this->session->set_flashdata('alert_success', trans('peppol_sent_successfully'));
         } catch (Throwable $throwable) {
             $this->mdl_integrations->log('letspeppol', 'invoices.send', 'failed', [
                 'invoice_id' => $invoice_id,
                 'error' => $throwable->getMessage(),
             ]);
-            $this->session->set_flashdata('alert_error', trans('peppol_sent_failed'));
         }
+
+        $this->mdl_integrations->log('letspeppol', 'invoices.send', $isSent ? 'success' : 'failed', [
+            'invoice_id' => $invoice_id,
+        ]);
+
+        $this->session->set_flashdata($isSent ? 'alert_success' : 'alert_error', trans($isSent ? 'peppol_sent_successfully' : 'peppol_sent_failed'));
 
         redirect('invoices/view/' . $invoice_id);
     }

@@ -415,37 +415,17 @@ class Clients extends Admin_Controller
     private function validate_peppol_id(string $peppolId): void
     {
         $this->load->model('integrations/mdl_integrations');
+        $this->load->library('crypt');
 
-        $settings = $this->mdl_integrations->settings('letspeppol');
-
-        if (empty($settings['base_url'])) {
-            return;
-        }
-
-        $token = $this->mdl_integrations->activeToken('letspeppol');
-
-        if ( ! $token && ! empty($settings['client_id']) && ! empty($settings['client_secret'])) {
-            try {
-                $factory  = new App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory();
-                $provider = $factory->make(new App\Integration\IntegrationCredentials($settings['client_id'], $settings['client_secret']), $settings['base_url']);
-                $oauthToken = $provider->getAccessToken('client_credentials');
-                $token = $oauthToken->getToken();
-                $this->mdl_integrations->saveToken('letspeppol', $token, $oauthToken->getExpires());
-            } catch (Throwable $throwable) {
-                $this->mdl_integrations->log('letspeppol', 'participants.validate', 'failed', ['error' => $throwable->getMessage()]);
-                return;
-            }
-        }
-
-        $client = new App\Adapters\LetsPeppol\LetsPeppolClient(
-            new GuzzleHttp\Client(),
-            $settings['base_url'],
-            ['participants.validate' => 'api/participants/validate'],
-            $settings
+        $settingsService = new App\Services\Integrations\IntegrationSettingsService(
+            $this->mdl_integrations,
+            $this->crypt,
+            new App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory()
         );
 
-        $participantClient = new App\Adapters\LetsPeppol\Endpoints\ParticipantClient($client);
-        $isValid = $participantClient->validatePeppolId($peppolId, $token);
+        $peppolService = new App\Services\Integrations\LetsPeppolService($settingsService);
+
+        $isValid = $peppolService->validateParticipantId($peppolId);
 
         $this->mdl_integrations->log('letspeppol', 'participants.validate', $isValid ? 'success' : 'failed', [
             'peppol_id' => $peppolId,

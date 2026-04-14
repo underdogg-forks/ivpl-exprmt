@@ -4,6 +4,7 @@ if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
 
+
 #[AllowDynamicProperties]
 class Mdl_integrations extends CI_Model
 {
@@ -24,15 +25,13 @@ class Mdl_integrations extends CI_Model
         return (int) $this->db->insert_id();
     }
 
-    public function saveSettings(string $provider, array $settings): void
+    public function saveEncryptedSettings(string $provider, array $settings, array $encryptedKeys, Crypt $crypt): void
     {
         $integrationId = $this->ensureProvider($provider, 'LetsPeppol');
 
-        $this->load->library('crypt');
-
         foreach ($settings as $key => $value) {
-            $isEncrypted = $key === 'client_secret' ? 1 : 0;
-            $storedValue = $isEncrypted ? $this->crypt->encode($value) : $value;
+            $isEncrypted = in_array($key, $encryptedKeys, true) ? 1 : 0;
+            $storedValue = $isEncrypted ? $crypt->encode($value) : $value;
 
             $row = $this->db->get_where('ip_integration_settings', [
                 'integration_id' => $integrationId,
@@ -56,10 +55,8 @@ class Mdl_integrations extends CI_Model
         }
     }
 
-    public function settings(string $provider): array
+    public function settings(string $provider, Crypt $crypt): array
     {
-        $this->load->library('crypt');
-
         $rows = $this->db->select('s.setting_key, s.setting_value, s.is_encrypted')
             ->from('ip_integration_settings s')
             ->join('ip_integrations i', 'i.integration_id = s.integration_id')
@@ -69,7 +66,7 @@ class Mdl_integrations extends CI_Model
         $settings = [];
 
         foreach ($rows as $row) {
-            $settings[$row->setting_key] = $row->is_encrypted ? $this->crypt->decode($row->setting_value) : $row->setting_value;
+            $settings[$row->setting_key] = $row->is_encrypted ? $crypt->decode($row->setting_value) : $row->setting_value;
         }
 
         return $settings;
@@ -99,11 +96,7 @@ class Mdl_integrations extends CI_Model
             ->limit(1)
             ->get()->row();
 
-        if ( ! $row) {
-            return null;
-        }
-
-        if ($row->expires_at && strtotime($row->expires_at) < time()) {
+        if ( ! $row || ($row->expires_at && strtotime($row->expires_at) < time())) {
             return null;
         }
 
