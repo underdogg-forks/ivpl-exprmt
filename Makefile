@@ -82,7 +82,7 @@ help:
 	@echo "  make ddown-volumes        Stop and remove volumes"
 	@echo "  make drebuild             Rebuild containers"
 	@echo "  make dsh                  Shell into app container"
-	@echo "  make dtest / dphpunit     Run phpunit in app container"
+	@echo "  make dtest / dphpunit     Run phpunit in app container (dphpunit is an alias for dtest)"
 	@echo "  make de2e                 Run Playwright in app container"
 	@echo "==========================================================================================="
 
