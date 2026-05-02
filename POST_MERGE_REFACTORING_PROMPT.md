@@ -636,7 +636,7 @@ for module_dir in */; do
     echo "Renaming module: $module → $pascal"
     
     # Clean up any leftover .tmp directories from previous failed runs
-    [[ -d "$pascal.tmp" ]] && rm -rf "$pascal.tmp"
+    [[ -n "$pascal" && -d "$pascal.tmp" ]] && rm -rf -- "$pascal.tmp"
     
     # Two-step rename to handle case-insensitive filesystems
     mv "$module" "$pascal.tmp"
@@ -646,31 +646,31 @@ for module_dir in */; do
     cd "$pascal" || continue
     
     if [[ -d "controllers" ]]; then
-        [[ -d "Controllers.tmp" ]] && rm -rf "Controllers.tmp"
+        [[ -n "Controllers" && -d "Controllers.tmp" ]] && rm -rf -- "Controllers.tmp"
         mv controllers Controllers.tmp
         mv Controllers.tmp Controllers
     fi
     
     if [[ -d "models" ]]; then
-        [[ -d "Models.tmp" ]] && rm -rf "Models.tmp"
+        [[ -n "Models" && -d "Models.tmp" ]] && rm -rf -- "Models.tmp"
         mv models Models.tmp
         mv Models.tmp Models
     fi
     
     if [[ -d "views" ]]; then
-        [[ -d "Views.tmp" ]] && rm -rf "Views.tmp"
+        [[ -n "Views" && -d "Views.tmp" ]] && rm -rf -- "Views.tmp"
         mv views Views.tmp
         mv Views.tmp Views
     fi
     
     if [[ -d "helpers" ]]; then
-        [[ -d "Helpers.tmp" ]] && rm -rf "Helpers.tmp"
+        [[ -n "Helpers" && -d "Helpers.tmp" ]] && rm -rf -- "Helpers.tmp"
         mv helpers Helpers.tmp
         mv Helpers.tmp Helpers
     fi
     
     if [[ -d "libraries" ]]; then
-        [[ -d "Libraries.tmp" ]] && rm -rf "Libraries.tmp"
+        [[ -n "Libraries" && -d "Libraries.tmp" ]] && rm -rf -- "Libraries.tmp"
         mv libraries Libraries.tmp
         mv Libraries.tmp Libraries
     fi
@@ -786,11 +786,12 @@ composer dump-autoload -o
    - Recursive model loading: One model loading another (handle in MX_Loader)
    - AJAX endpoints: Ensure they still resolve correctly after routing changes
 
-7. **Directory Renaming Order:**
+7. **Directory Renaming Order (Script implements these safety measures):**
    - **Always use two-step `.tmp` suffix** to avoid case-sensitivity issues
    - Example: `clients` → `clients.tmp` → `Clients`
    - This prevents problems on case-insensitive filesystems (macOS, Windows)
-   - **Clean up `.tmp` directories** before renaming to handle failed previous runs
+   - **Clean up `.tmp` directories** before renaming to handle failed previous runs (see script lines 638-640)
+   - **Validate paths** before `rm -rf` operations using `-n` test
    - Apply this pattern to **both module directories and subdirectories**
 
 8. **Testing Strategy:**
