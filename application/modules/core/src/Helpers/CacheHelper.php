@@ -24,7 +24,7 @@ class CacheHelper
      */
     public static function get(string $key): mixed
     {
-        if (!isset(self::$cache[$key])) {
+
             return null;
         }
 
