@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Projects\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Projects extends Admin_Controller
+class Projects extends \Admin_Controller
 {
     /**
      * Projects constructor.

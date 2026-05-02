@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Tasks\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Tasks extends Admin_Controller
+class Tasks extends \Admin_Controller
 {
     /**
      * Tasks constructor.

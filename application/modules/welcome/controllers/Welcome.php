@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Welcome\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Welcome extends CI_Controller
+class Welcome extends \CI_Controller
 {
     public function index()
     {

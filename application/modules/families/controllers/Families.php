@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Families\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Families extends Admin_Controller
+class Families extends \Admin_Controller
 {
     /**
      * Families constructor.

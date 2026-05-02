@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Units\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Units extends Admin_Controller
+class Units extends \Admin_Controller
 {
     /**
      * Units constructor.

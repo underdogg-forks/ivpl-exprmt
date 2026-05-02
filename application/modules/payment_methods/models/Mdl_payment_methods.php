@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\PaymentMethods\Models;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Mdl_Payment_Methods extends Response_Model
+class Mdl_Payment_Methods extends \Response_Model
 {
     public $table = 'ip_payment_methods';
 

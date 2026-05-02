@@ -1,8 +1,15 @@
 <?php
 
+namespace Modules\Invoices\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
+
+use Core\Services\Integrations\IntegrationSettingsService;
+use Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
+use Core\Services\Integrations\IntegrationProviderFactory;
+use Core\Providers\LetsPeppolProvider;
 
 /*
  * InvoicePlane
@@ -14,7 +21,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Invoices extends Admin_Controller
+class Invoices extends \Admin_Controller
 {
     /**
      * Invoices constructor.
@@ -370,14 +377,14 @@ class Invoices extends Admin_Controller
         $this->load->model('integrations/mdl_integrations');
         $this->load->library('crypt');
 
-        $settingsService = new Core\Services\Integrations\IntegrationSettingsService(
+        $settingsService = new IntegrationSettingsService(
             $this->mdl_integrations,
             $this->crypt,
-            new Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory()
+            new LetsPeppolOAuthProviderFactory()
         );
 
-        $providerFactory = (new Core\Services\Integrations\IntegrationProviderFactory())
-            ->register('letspeppol', fn () => new Core\Providers\LetsPeppolProvider($settingsService));
+        $providerFactory = (new IntegrationProviderFactory())
+            ->register('letspeppol', fn () => new LetsPeppolProvider($settingsService));
 
         // ExceptionHandlingDecorator (applied automatically by IntegrationProviderFactory::make())
         // catches any provider-level exception and returns false — no manual try/catch needed.

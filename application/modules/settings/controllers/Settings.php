@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Settings\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Settings extends Admin_Controller
+class Settings extends \Admin_Controller
 {
     private const MIN_TAX_RATE_DECIMALS = 2;
     private const MAX_TAX_RATE_DECIMALS = 3;

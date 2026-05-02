@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Users\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Users extends Admin_Controller
+class Users extends \Admin_Controller
 {
     /**
      * Users constructor.

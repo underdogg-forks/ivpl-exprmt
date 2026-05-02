@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Integrations\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -8,7 +10,7 @@ use Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
 use Core\Services\Integrations\IntegrationSettingsService;
 
 #[AllowDynamicProperties]
-class Integrations extends Admin_Controller
+class Integrations extends \Admin_Controller
 {
     private IntegrationSettingsService $settingsService;
 

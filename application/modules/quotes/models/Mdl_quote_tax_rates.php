@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Quotes\Models;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Mdl_Quote_Tax_Rates extends Response_Model
+class Mdl_Quote_Tax_Rates extends \Response_Model
 {
     public $table = 'ip_quote_tax_rates';
 

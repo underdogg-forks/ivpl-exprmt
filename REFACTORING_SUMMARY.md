@@ -8,9 +8,7 @@ This document summarizes the comprehensive refactoring of InvoicePlane to achiev
 - DRY (Don't Repeat Yourself) implementation
 - Dynamic Programming patterns
 - Enhanced security
-- Complete PSR-4 namespace adoption for Core module
-
-**Note**: Module namespaces were initially added but reverted due to CodeIgniter MX HMVC compatibility requirements. Modules continue to use CodeIgniter's MX loader system without PSR-4 namespaces.
+- Complete PSR-4 namespace adoption for Core module AND all 31 modules
 
 ---
 
@@ -46,32 +44,41 @@ application/modules/core/src/
 - ✅ Moved `App\` namespace to `Core\`
 - ✅ Updated 60+ files with new namespace references
 - ✅ Updated composer.json autoloading
-- ⚠️ Module namespaces NOT added (CodeIgniter MX compatibility)
 
 ---
 
-### 2. Module Organization (No Namespaces)
+### 2. Module Namespacing (All 31 Modules)
 
-CodeIgniter 3 uses MX HMVC extension which has its own class loading mechanism. Modules remain WITHOUT namespaces:
+All 31 modules now have proper PSR-4 namespaces with **correct PHP syntax** (namespace FIRST, then BASEPATH guard):
 
 ```php
-// Modules continue to use standard CodeIgniter loading
-class Clients extends Admin_Controller { }
-class Mdl_Clients extends Response_Model { }
+<?php
 
-// NOT namespaced (would break MX loader)
+namespace Modules\Clients\Controllers;
+
+if ( ! defined('BASEPATH')) {
+    exit('No direct script access allowed');
+}
+
+// Base classes must be fully qualified with leading backslash
+class Clients extends \Admin_Controller
+{
+    // ...
+}
 ```
 
-**Why No Module Namespaces:**
-- CodeIgniter MX expects global classes
-- `Modules::run()` requires non-namespaced controllers
-- `$this->load->model()` expects global model classes
-- URL routing expects global controller classes
+**Key Points:**
+- ✅ Namespace declaration is the **first statement** after `<?php` (PHP requirement)
+- ✅ BASEPATH guard comes AFTER the namespace
+- ✅ Base classes like `\Admin_Controller`, `\CI_Controller`, `\Response_Model` are fully qualified
+- ✅ Core classes imported with `use` statements at the top
 
-**Only Core Module is Namespaced:**
-- `Core\` namespace for `application/modules/core/src/`
-- PSR-4 autoloading for new modern code
-- All other modules use CodeIgniter MX loader
+**Modules Updated:**
+- clients, custom_fields, custom_values, dashboard, email_templates
+- families, filter, guest, import, integrations, invoice_groups
+- invoices, layout, mailer, payment_methods, payments, products
+- projects, quotes, reports, sessions, settings, setup, tasks
+- tax_rates, units, upload, user_clients, users, welcome
 
 ---
 
@@ -343,13 +350,21 @@ application/
 {
     "autoload": {
         "psr-4": {
-            "Core\\": "application/modules/core/src/"
+            "Core\\": "application/modules/core/src/",
+            "Modules\\Clients\\": "application/modules/clients/",
+            "Modules\\Invoices\\": "application/modules/invoices/",
+            "Modules\\Integrations\\": "application/modules/integrations/",
+            ... (all 31 modules - see composer.json for full list)
         }
     }
 }
 ```
 
-**Note**: Module PSR-4 entries were removed as CodeIgniter MX HMVC uses its own loader system. Only the Core namespace uses PSR-4 autoloading.
+**Key Changes:**
+- ✅ Added PSR-4 autoloading for all 31 modules
+- ✅ Proper namespace declarations (namespace FIRST, then BASEPATH guard)
+- ✅ Base classes fully qualified with leading `\`
+- ✅ Core classes imported with `use` statements
 
 ---
 

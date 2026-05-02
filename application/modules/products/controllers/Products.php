@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Products\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Products extends Admin_Controller
+class Products extends \Admin_Controller
 {
     /**
      * Products constructor.
