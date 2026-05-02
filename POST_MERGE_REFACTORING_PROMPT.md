@@ -438,15 +438,15 @@ class ClientsControllerTest extends TestCase
     #[Test]
     public function it_loads_index_page(): void
     {
-        // Arrange
+        /* Arrange */
         $controller = new ClientsController();
         
-        // Act
+        /* Act */
         ob_start();
         $controller->index();
         $output = ob_get_clean();
         
-        // Assert
+        /* Assert */
         $this->assertStringContainsString('clients', $output);
     }
     
@@ -469,14 +469,14 @@ class ClientTest extends TestCase
     #[Test]
     public function it_retrieves_client_by_id(): void
     {
-        // Arrange
+        /* Arrange */
         $model = new Client();
         $clientId = 1;
         
-        // Act
+        /* Act */
         $result = $model->get_by_id($clientId);
         
-        // Assert
+        /* Assert */
         $this->assertNotNull($result);
         $this->assertEquals($clientId, $result->client_id);
     }
@@ -507,16 +507,11 @@ class ClientTest extends TestCase
 1. Rename all 51 controller classes (add `Controller` suffix)
 2. Rename all 43 model classes (remove `Mdl_` prefix, use singular)
 3. Update class references in files
-4. Run linters and fix issues
-5. Test all modules
 
 ### Phase 4: Testing & Validation (Week 3)
 1. Write comprehensive controller tests (51 files)
 2. Write comprehensive model tests (43 files)
 3. Achieve 100% code coverage
-4. Run full test suite
-5. Test in staging environment
-6. Document any edge cases
 
 ## Estimated Effort (Option B: Full PSR-4)
 
@@ -582,15 +577,6 @@ class ClientTest extends TestCase
 - [ ] All integration tests pass
 - [ ] 100% test coverage for new infrastructure code
 - [ ] Comprehensive tests for controllers and models
-- [ ] Manual testing in development environment
-- [ ] Staging environment tested
-
-### Code Quality
-- [ ] Linters pass (PHP CS Fixer, PHPStan)
-- [ ] No new PHPStan errors introduced
-- [ ] PSR-4 autoloading works natively
-- [ ] IDE autocomplete works correctly
-- [ ] No console errors or warnings
 
 ### Documentation
 - [ ] AGENTS.md updated with PSR-4 structure
@@ -678,7 +664,7 @@ for module_dir in */; do
     cd ..
 done
 
-echo "✅ All directories renamed to PSR-4 format"
+echo "All directories renamed to PSR-4 format"
 ```
 
 ```bash
