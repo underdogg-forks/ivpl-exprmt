@@ -157,9 +157,9 @@ class MY_Router extends MX_Router
     protected function _set_module_path(string $urlSegment): string
     {
         // Early return: if module doesn't exist, bail
+        // Note: show_404() terminates execution, never returns
         if (!$this->moduleExists($urlSegment)) {
             show_404();
-            return '';
         }
         
         // Convert snake_case to PascalCase
@@ -169,7 +169,6 @@ class MY_Router extends MX_Router
         // Early return: validate module path exists
         if (!is_dir($modulePath)) {
             show_404();
-            return '';
         }
         
         return $modulePath;
@@ -410,7 +409,7 @@ composer dump-autoload
 - **Documentation Updates:** 4-6 hours
 - **Total:** 58-85 hours (1.5-2 weeks for one developer)
 
-**Note:** This is actually **less work** than Option A because:
+**Note:** This is actually **less hands-on work** than Option A because:
 - No need to update hundreds of `$this->load->model()` calls (MX_Loader handles it)
 - No need to update hundreds of `Modules::run()` calls (routing handles it)
 - Automated directory renaming script reduces manual work
@@ -531,10 +530,10 @@ class ClientTest extends TestCase
 - **Total:** 78-110 hours (2-3 weeks for one developer)
 
 **Comparison with Option A:**
-- Option A (keep lowercase): 68-107 hours + ongoing maintenance burden
-- Option B (full PSR-4): 78-110 hours + clean architecture long-term
+- Option A (keep lowercase): 68-107 hours total BUT requires manually updating hundreds of `$this->load->model()` and `Modules::run()` calls
+- Option B (full PSR-4): 78-110 hours total BUT smart MX refactoring eliminates manual updates
 
-**Key Advantage:** Option B eliminates the need to manually update hundreds of `$this->load->model()` and `Modules::run()` calls because the refactored MX layer handles conversion automatically.
+**Key Advantage:** Option B's upfront investment in infrastructure (12-16 hours for MX refactoring) eliminates the need to manually update hundreds of calls throughout the codebase. The actual hands-on work is less, even though total hours are similar.
 
 ## Breaking Changes
 
@@ -636,18 +635,45 @@ for module_dir in */; do
     
     echo "Renaming module: $module → $pascal"
     
-    # Rename module directory
+    # Clean up any leftover .tmp directories from previous failed runs
+    [[ -d "$pascal.tmp" ]] && rm -rf "$pascal.tmp"
+    
+    # Two-step rename to handle case-insensitive filesystems
     mv "$module" "$pascal.tmp"
     mv "$pascal.tmp" "$pascal"
     
-    # Rename subdirectories
+    # Rename subdirectories using same .tmp pattern
     cd "$pascal" || continue
     
-    [[ -d "controllers" ]] && mv controllers Controllers
-    [[ -d "models" ]] && mv models Models  
-    [[ -d "views" ]] && mv views Views
-    [[ -d "helpers" ]] && mv helpers Helpers
-    [[ -d "libraries" ]] && mv libraries Libraries
+    if [[ -d "controllers" ]]; then
+        [[ -d "Controllers.tmp" ]] && rm -rf "Controllers.tmp"
+        mv controllers Controllers.tmp
+        mv Controllers.tmp Controllers
+    fi
+    
+    if [[ -d "models" ]]; then
+        [[ -d "Models.tmp" ]] && rm -rf "Models.tmp"
+        mv models Models.tmp
+        mv Models.tmp Models
+    fi
+    
+    if [[ -d "views" ]]; then
+        [[ -d "Views.tmp" ]] && rm -rf "Views.tmp"
+        mv views Views.tmp
+        mv Views.tmp Views
+    fi
+    
+    if [[ -d "helpers" ]]; then
+        [[ -d "Helpers.tmp" ]] && rm -rf "Helpers.tmp"
+        mv helpers Helpers.tmp
+        mv Helpers.tmp Helpers
+    fi
+    
+    if [[ -d "libraries" ]]; then
+        [[ -d "Libraries.tmp" ]] && rm -rf "Libraries.tmp"
+        mv libraries Libraries.tmp
+        mv Libraries.tmp Libraries
+    fi
     
     cd ..
 done
@@ -761,9 +787,11 @@ composer dump-autoload -o
    - AJAX endpoints: Ensure they still resolve correctly after routing changes
 
 7. **Directory Renaming Order:**
-   - Always use temporary `.tmp` suffix to avoid case-sensitivity issues
+   - **Always use two-step `.tmp` suffix** to avoid case-sensitivity issues
    - Example: `clients` → `clients.tmp` → `Clients`
-   - Prevents problems on case-insensitive filesystems (macOS, Windows)
+   - This prevents problems on case-insensitive filesystems (macOS, Windows)
+   - **Clean up `.tmp` directories** before renaming to handle failed previous runs
+   - Apply this pattern to **both module directories and subdirectories**
 
 8. **Testing Strategy:**
    - Unit tests for MX routing layer (mock CI super-object)
