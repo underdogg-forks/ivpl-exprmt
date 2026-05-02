@@ -13,23 +13,16 @@ namespace Core\Helpers;
 class SecurityHelper
 {
     /**
-     * Perform basic sanitization by removing control characters, null bytes, and HTML tags.
+     * Strip HTML tags and control characters from input data.
      *
-     * IMPORTANT: This method only performs basic filtering and is NOT sufficient to prevent
-     * all XSS attacks. Specifically:
-     * - strip_tags() only removes complete HTML tags, not partial or malformed markup
-     * - It does NOT neutralize attribute-injection vectors (e.g., `" onmouseover='alert(1)'`)
-     * - It does NOT handle context-specific encoding (HTML, JS, CSS, URL contexts)
-     *
-     * Callers MUST apply proper, context-aware output encoding when rendering user data:
-     * - For HTML text context: use htmlspecialchars() or html_escape()
-     * - For HTML attributes: use attribute encoding
-     * - For JavaScript/CSS/URL contexts: use appropriate encoding for that context
-     *
-     * This method should be considered a basic input filter, not a substitute for output escaping.
+     * This method removes HTML tag syntax and dangerous control characters as an
+     * INPUT-layer defence. It does NOT encode HTML entities; attribute-injection
+     * payloads that contain no HTML tags (e.g. `' onmouseover='alert(1)`) pass
+     * through unchanged. Always pair with html_escape() (htmlspecialchars) when
+     * rendering output to achieve full XSS protection.
      *
      * @param string|array $data Data to sanitize
-     * @return string|array Sanitized data
+     * @return string|array Sanitized data (tags and control chars stripped)
      */
     public static function xssClean(string|array $data): string|array
     {
