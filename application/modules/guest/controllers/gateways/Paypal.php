@@ -59,7 +59,7 @@ class Paypal extends Base_Controller
 
         // Decode the PayPal response
         $paypal_response = json_decode($paypal_client, true);
-        
+
         // Handle JSON decode errors
         if (json_last_error() !== JSON_ERROR_NONE) {
             log_message('error', 'PayPal createOrder JSON decode error for invoice ' . sanitize_for_logging($invoice_url_key) . ': ' . sanitize_for_logging(json_last_error_msg()));
@@ -69,7 +69,7 @@ class Paypal extends Base_Controller
                 ->set_output(json_encode(['error' => 'Invalid response from payment gateway']));
             return;
         }
-        
+
         // Validate required fields from PayPal response
         if (empty($paypal_response['id'])) {
             log_message('error', 'PayPal createOrder missing order ID for invoice ' . sanitize_for_logging($invoice_url_key));
@@ -79,14 +79,14 @@ class Paypal extends Base_Controller
                 ->set_output(json_encode(['error' => 'Invalid response from payment gateway']));
             return;
         }
-        
+
         // Add refreshed CSRF token to response (token regenerates on each POST)
         $response = [
             'id' => $paypal_response['id'],
             'status' => $paypal_response['status'] ?? null,
             'csrf_token' => $this->security->get_csrf_hash()
         ];
-        
+
         // Preserve any additional fields from PayPal response
         foreach ($paypal_response as $key => $value) {
             if (!isset($response[$key])) {
@@ -129,22 +129,22 @@ class Paypal extends Base_Controller
                 $payments = $purchase_units[0]->payments ?? null;
                 $captures = $payments->captures ?? null;
                 $capture_data = $captures[0] ?? null;
-                
+
                 if (!$capture_data) {
                     log_message('error', __CLASS__ . '::' . __FUNCTION__ . ' - Invalid PayPal response structure: missing capture data');
                     throw new Exception('Invalid PayPal response structure');
                 }
-                
+
                 $invoice_id = $capture_data->invoice_id ?? null;
                 $amount     = $capture_data->amount->value ?? null;
                 $capture_id = $capture_data->id ?? null;
-                
+
                 // Validate required fields
                 if (empty($invoice_id) || empty($amount) || empty($capture_id)) {
                     log_message('error', __CLASS__ . '::' . __FUNCTION__ . ' - Missing required PayPal data fields');
                     throw new Exception('Missing required PayPal data');
                 }
-                
+
                 $capture_id = (string) $capture_id; // Ensure string type
 
                 // Validate and sanitize the capture_id
@@ -165,14 +165,14 @@ class Paypal extends Base_Controller
                 if ($existing_payment) {
                     // Duplicate payment attempt detected
                     log_message('warning', __CLASS__ . '::' . __FUNCTION__ . ' - Duplicate payment attempt blocked. PayPal capture ID: ' . sanitize_for_logging($capture_id) . ' already exists as payment_id: ' . sanitize_for_logging($existing_payment->payment_id));
-                    
+
                     $invoice = $this->mdl_invoices->where('ip_invoices.invoice_id', $invoice_id)->get()->row();
                     $this->session->set_flashdata('alert_info', trans('online_payment_already_processed'));
                     $this->session->keep_flashdata('alert_info');
                 } else {
                     // Check if invoice is already fully paid
                     $invoice = $this->mdl_invoices->where('ip_invoices.invoice_id', $invoice_id)->get()->row();
-                    
+
                     if ($invoice->invoice_balance <= 0) {
                         log_message('warning', __CLASS__ . '::' . __FUNCTION__ . ' - Payment rejected. Invoice ' . sanitize_for_logging($invoice->invoice_number) . ' already fully paid. Balance: ' . sanitize_for_logging($invoice->invoice_balance));
                         $this->session->set_flashdata('alert_info', trans('invoice_already_paid'));

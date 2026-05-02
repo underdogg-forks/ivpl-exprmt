@@ -32,7 +32,7 @@ function phpmailer_debug_output(string $str, int $level = 0): void
     // Note: sanitize_for_logging is available because file_security helper
     // is loaded at the start of phpmail_send()
     $sanitized = sanitize_for_logging($str);
-    
+
     // Log with 'debug' level so it respects log_threshold setting
     log_message('debug', 'PHPMailer [level ' . (int) $level . ']: ' . $sanitized);
 }
@@ -85,7 +85,6 @@ function phpmail_send(
             $mail->Host = get_setting('smtp_server_address');
             $mail->Port = get_setting('smtp_port');
 
-        
             /**
                 v1.7.2:
                 Adding the "From" since that somehow never happened
@@ -218,15 +217,15 @@ function phpmail_send(
     // Log the result - handle failure case first (early return pattern)
     if (!$ok) {
         // Log the error with sanitized ErrorInfo
-        log_message('error', 'PHPMailer: Email sending failed - ' . 
+        log_message('error', 'PHPMailer: Email sending failed - ' .
             sanitize_for_logging($mail->ErrorInfo));
-        
+
         // Set flashdata for user notification
         $CI->session->set_flashdata('alert_error', $mail->ErrorInfo);
-        
+
         // Format recipient list for logging - $to has already been normalized to an array
         $recipient_list = implode(', ', $to);
-        log_message('debug', 'PHPMailer: Email sent successfully to ' . 
+        log_message('debug', 'PHPMailer: Email sent successfully to ' .
             sanitize_for_logging($recipient_list));
     }
 

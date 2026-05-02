@@ -22,13 +22,13 @@ function invoice_logo(): string
 
     if ($CI->mdl_settings->setting('invoice_logo')) {
         $logo_file = $CI->mdl_settings->setting('invoice_logo');
-        
+
         // Security: Block SVG files to prevent XSS attacks
         $extension = strtolower(pathinfo($logo_file, PATHINFO_EXTENSION));
         if ($extension === 'svg') {
             return '';
         }
-        
+
         return '<img src="' . base_url() . 'uploads/' . $logo_file . '">';
     }
 
@@ -45,7 +45,7 @@ function invoice_logo_pdf(): string
     if ($CI->mdl_settings->setting('invoice_logo')) {
         $logo_file = $CI->mdl_settings->setting('invoice_logo');
         $absolutePath = dirname(dirname(__DIR__));
-        
+
         // Security: Block SVG files to prevent XSS attacks
         $extension = strtolower(pathinfo($logo_file, PATHINFO_EXTENSION));
         if ($extension === 'svg') {

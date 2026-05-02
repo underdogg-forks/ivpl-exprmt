@@ -56,7 +56,7 @@ class Admin_Controller extends User_Controller
             }
 
             $original_value = $value;
-            
+
             // Apply XSS cleaning and strip dangerous tags
             // Note: We don't use html_escape here to avoid double-encoding at output
             $cleaned_value = $this->security->xss_clean($value);
@@ -105,7 +105,7 @@ class Admin_Controller extends User_Controller
 
     /**
      * Recursively sanitize array values
-     * 
+     *
      * @param array $data The array to sanitize
      * @param array $bypass_keys Keys that should bypass sanitization
      * @param string $path_prefix Prefix for tracking nested field paths
@@ -125,7 +125,7 @@ class Admin_Controller extends User_Controller
             if (in_array($key, $bypass_keys, true)) {
                 continue;
             }
-            
+
             if (is_array($value)) {
                 $data[$key] = $this->sanitize_array(
                     $value,
