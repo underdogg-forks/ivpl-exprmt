@@ -28,8 +28,8 @@ application/
 ├── core/              MY_* CI core overrides
 ├── helpers/           Global helpers (file_security_helper, pdf_helper, …)
 ├── libraries/         Global libraries (Crypt, QrCode, …)
-├── modules/           HMVC modules — ALL NAMESPACED
-│   ├── core/          Core\ namespace (central module)
+├── modules/           HMVC modules (NO namespaces - use MX loader)
+│   ├── core/          Core\ namespace (central module - ONLY namespaced module)
 │   │   └── src/
 │   │       ├── Contracts/   Interfaces (IntegrationProviderInterface, GatewayClientInterface, …)
 │   │       ├── Enums/       PHP 8.1+ enums (RequestMethod, …)
@@ -41,22 +41,22 @@ application/
 │   │       ├── Helpers/     NEW: Core helper classes
 │   │       │   ├── SecurityHelper.php     ← XSS, CSRF, path traversal protection
 │   │       │   ├── CacheHelper.php        ← Dynamic programming (memoization)
-│   │       │   └── ValidatorHelper.php    ← Input validation
+│   │       │   └── ValidatorHelper.php    ← Input validation (includes email())
 │   │       ├── Integration/ Value objects (IntegrationCredentials, IntegrationSetting)
 │   │       ├── Providers/   Provider implementations (LetsPeppol, …)
 │   │       └── Services/    Application services
 │   │           ├── Clients/       ClientsService
 │   │           └── Integrations/  IntegrationProviderFactory, IntegrationSettingsService
-│   ├── clients/       Modules\Clients\ namespace
+│   ├── clients/       NO namespace (uses MX loader)
 │   │   ├── controllers/
 │   │   ├── models/
 │   │   ├── views/
 │   │   └── Enums/
-│   ├── invoices/      Modules\Invoices\ namespace
+│   ├── invoices/      NO namespace (uses MX loader)
 │   │   ├── controllers/
 │   │   ├── models/
 │   │   └── views/
-│   └── ... (31 modules total, all with Modules\ModuleName\ namespace)
+│   └── ... (31 modules total, all use MX loader except core)
 └── third_party/
     └── MX/Namespaced/ Compatibility shims for CI/MX classes under Core\ namespace
 
@@ -81,8 +81,8 @@ tests/
 |---|---|---|
 | CI controllers | PascalCase, extends Admin_Controller | `Clients`, `Invoices` |
 | CI models | `Mdl_` prefix + snake_case | `Mdl_invoices`, `Mdl_integrations` |
-| Module controllers | Namespaced: `Modules\ModuleName\Controllers\` | `Modules\Clients\Controllers\Clients` |
-| Module models | Namespaced: `Modules\ModuleName\Models\` | `Modules\Clients\Models\Mdl_Clients` |
+| Module controllers | NO namespace (MX loader) | `class Clients extends Admin_Controller` |
+| Module models | NO namespace (MX loader) | `class Mdl_Clients extends Response_Model` |
 | Core\ services | PascalCase + `Service` suffix | `ClientsService`, `IntegrationSettingsService` |
 | Core\ providers | PascalCase + `Provider` suffix | `LetsPeppolProvider` |
 | Core\ factories | PascalCase + `Factory` suffix | `IntegrationProviderFactory`, `LetsPeppolClientFactory` |
@@ -549,8 +549,15 @@ See `.junie/guidelines.md` and `REFACTORING_SUMMARY.md` for full details.
 ## Migration Strategy (CI → Laravel)
 
 - New code goes under `application/modules/core/src/` with PSR-4 namespace `Core\`.
-- All 31 modules now have proper PSR-4 namespaces (`Modules\ModuleName\`).
+- Modules do NOT use namespaces (CodeIgniter MX HMVC compatibility).
 - Legacy CI code stays in `application/core/` (MY_* overrides).
 - Compatibility shims in `application/third_party/MX/Namespaced/` bridge the two worlds.
 - Controllers gradually delegate to Core\ services; controllers themselves stay CI for now.
 - Use `Core\Helpers` for all new utility functions (SecurityHelper, CacheHelper, ValidatorHelper).
+
+**Why Modules Aren't Namespaced:**
+- CodeIgniter 3 MX HMVC uses its own loader (not PSR-4)
+- `Modules::run()` expects global controller classes
+- `$this->load->model()` expects global model classes
+- URL routing maps to global classes
+- Adding namespaces breaks MX functionality
