@@ -51,12 +51,12 @@ class LetsPeppolGatewayProviderTest extends TestCase
     }
 
     /**
-     * Arrange: Provider with valid settings (this would require mocking the HTTP client).
-     * Act: Check that proper settings enable gateway creation.
-     * Assert: Settings structure is validated.
+     * Arrange: Provider with valid settings and cached token.
+     * Act: Call validateParticipant twice.
+     * Assert: activeTokenOrCreate is called only once (token cached in gateway).
      */
     #[Test]
-    public function it_validates_required_settings_structure(): void
+    public function it_reuses_cached_token_for_multiple_calls(): void
     {
         $settingsService = $this->createMock(IntegrationSettingsService::class);
 
@@ -69,10 +69,20 @@ class LetsPeppolGatewayProviderTest extends TestCase
         $settingsService->method('letsPeppolSettings')
             ->willReturn($validSettings);
 
+        // Token should be requested only once despite multiple provider calls
+        $settingsService->expects($this->once())
+            ->method('activeTokenOrCreate')
+            ->willReturn('cached-token-123');
+
         $provider = new LetsPeppolGatewayProvider($settingsService);
 
-        // This is just validating the settings structure
-        // Actual HTTP interaction would require more complex mocking
-        $this->assertInstanceOf(LetsPeppolGatewayProvider::class, $provider);
+        // First call - should get token
+        $provider->validateParticipant('0088:123456789');
+
+        // Second call - should reuse gateway with cached token
+        $provider->sendInvoice(['invoice_id' => 1]);
+
+        // The expectation above ensures activeTokenOrCreate was called only once
+        $this->assertTrue(true);
     }
 }

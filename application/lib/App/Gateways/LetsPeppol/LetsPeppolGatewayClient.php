@@ -101,6 +101,17 @@ class LetsPeppolGatewayClient extends ApiClient
     }
 
     /**
+     * Inject an access token directly (used when token is cached externally).
+     *
+     * This allows the provider to use a cached token from IntegrationSettingsService
+     * without triggering OAuth authorization.
+     */
+    public function setAccessToken(string $token): void
+    {
+        $this->accessToken = $token;
+    }
+
+    /**
      * Check if required credentials are present in settings.
      */
     private function hasCredentials(): bool
