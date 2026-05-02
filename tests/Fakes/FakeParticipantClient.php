@@ -2,8 +2,8 @@
 
 namespace Tests\Fakes;
 
-use App\Adapters\LetsPeppol\Endpoints\ParticipantClient;
-use App\Adapters\LetsPeppol\LetsPeppolClient;
+use Core\Adapters\LetsPeppol\Endpoints\ParticipantClient;
+use Core\Adapters\LetsPeppol\LetsPeppolClient;
 
 /**
  * Fake for ParticipantClient that controls validation results without HTTP.

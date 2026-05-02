@@ -4,8 +4,8 @@ if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
 
-use App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
-use App\Services\Integrations\IntegrationSettingsService;
+use Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
+use Core\Services\Integrations\IntegrationSettingsService;
 
 #[AllowDynamicProperties]
 class Integrations extends Admin_Controller

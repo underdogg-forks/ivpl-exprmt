@@ -1,8 +1,8 @@
 <?php
 
-use App\Providers\LetsPeppolProvider;
-use App\Services\Integrations\IntegrationSettingsService;
-use App\Services\Integrations\LetsPeppolService;
+use Core\Providers\LetsPeppolProvider;
+use Core\Services\Integrations\IntegrationSettingsService;
+use Core\Services\Integrations\LetsPeppolService;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -53,7 +53,7 @@ class LetsPeppolServiceTest extends TestCase
         $service = new LetsPeppolService($settingsService);
 
         $this->assertInstanceOf(LetsPeppolProvider::class, $service);
-        $this->assertInstanceOf(\App\Contracts\IntegrationProviderInterface::class, $service);
+        $this->assertInstanceOf(\Core\Contracts\IntegrationProviderInterface::class, $service);
     }
 }
 

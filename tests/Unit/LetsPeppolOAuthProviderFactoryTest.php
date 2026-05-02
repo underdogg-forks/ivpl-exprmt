@@ -1,7 +1,7 @@
 <?php
 
-use App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
-use App\Integration\IntegrationCredentials;
+use Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
+use Core\Integration\IntegrationCredentials;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

@@ -75,7 +75,7 @@ class LetsPeppolGatewayProviderTest extends TestCase
         // Inject a factory that returns a gateway with a fake HTTP client
         $gatewayFactory = function ($settings, $service) {
             $http = new \Tests\Fakes\FakeLetsPeppolHttpClient(200);
-            $gateway = new \App\Gateways\LetsPeppol\LetsPeppolGatewayClient(
+            $gateway = new \Core\Gateways\LetsPeppol\LetsPeppolGatewayClient(
                 $settings['base_url'],
                 [],
                 $http

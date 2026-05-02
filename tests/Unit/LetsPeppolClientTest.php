@@ -1,6 +1,6 @@
 <?php
 
-use App\Adapters\LetsPeppol\LetsPeppolClient;
+use Core\Adapters\LetsPeppol\LetsPeppolClient;
 use GuzzleHttp\ClientInterface;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

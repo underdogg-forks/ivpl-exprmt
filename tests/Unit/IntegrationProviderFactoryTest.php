@@ -1,8 +1,8 @@
 <?php
 
-use App\Contracts\IntegrationProviderInterface;
-use App\Providers\ExceptionHandlingDecorator;
-use App\Services\Integrations\IntegrationProviderFactory;
+use Core\Contracts\IntegrationProviderInterface;
+use Core\Providers\ExceptionHandlingDecorator;
+use Core\Services\Integrations\IntegrationProviderFactory;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

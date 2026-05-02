@@ -1,8 +1,8 @@
 <?php
 
-use App\Contracts\IntegrationProviderInterface;
-use App\Services\Clients\ClientsService;
-use App\Services\Integrations\IntegrationProviderFactory;
+use Core\Contracts\IntegrationProviderInterface;
+use Core\Services\Clients\ClientsService;
+use Core\Services\Integrations\IntegrationProviderFactory;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Fakes\FakeIntegrationRepository;

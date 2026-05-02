@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\RequestMethod;
+use Core\Enums\RequestMethod;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

@@ -84,9 +84,9 @@ class MY_Loader extends MX_Loader
     }
 
     /**
-     * Load a namespaced App\ service directly (convenience wrapper).
+     * Load a namespaced Core\ service directly (convenience wrapper).
      *
-     * @param  string     $className   FQCN, e.g. App\Services\Clients\ClientsService
+     * @param  string     $className   FQCN, e.g. Core\Services\Clients\ClientsService
      * @param  mixed|null $params
      * @param  string|null $object_name
      * @return $this
