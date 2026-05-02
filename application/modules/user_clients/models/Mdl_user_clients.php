@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\UserClients\Models;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }

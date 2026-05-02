@@ -1,8 +1,16 @@
 <?php
 
+namespace Modules\Clients\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
+
+use Core\Services\Integrations\IntegrationSettingsService;
+use Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
+use Core\Services\Integrations\IntegrationProviderFactory;
+use Core\Providers\LetsPeppolProvider;
+use Core\Services\Clients\ClientsService;
 
 /*
  * InvoicePlane
@@ -14,7 +22,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Clients extends Admin_Controller
+class Clients extends \Admin_Controller
 {
     private const CLIENT_TITLE = 'client_title';
 
@@ -417,16 +425,16 @@ class Clients extends Admin_Controller
         $this->load->model('integrations/mdl_integrations');
         $this->load->library('crypt');
 
-        $settingsService = new Core\Services\Integrations\IntegrationSettingsService(
+        $settingsService = new IntegrationSettingsService(
             $this->mdl_integrations,
             $this->crypt,
-            new Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory()
+            new LetsPeppolOAuthProviderFactory()
         );
 
-        $providerFactory = (new Core\Services\Integrations\IntegrationProviderFactory())
-            ->register('letspeppol', fn () => new Core\Providers\LetsPeppolProvider($settingsService));
+        $providerFactory = (new IntegrationProviderFactory())
+            ->register('letspeppol', fn () => new LetsPeppolProvider($settingsService));
 
-        $clientsService = new Core\Services\Clients\ClientsService($providerFactory, $this->mdl_integrations);
+        $clientsService = new ClientsService($providerFactory, $this->mdl_integrations);
 
         // ExceptionHandlingDecorator (applied automatically by IntegrationProviderFactory::make())
         // ensures any provider-level exception is caught and logged — no manual try/catch needed.

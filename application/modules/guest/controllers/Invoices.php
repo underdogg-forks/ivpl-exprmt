@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Guest\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Invoices extends Guest_Controller
+class Invoices extends \Guest_Controller
 {
     /**
      * Invoices constructor.

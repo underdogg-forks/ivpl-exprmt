@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Quotes\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Quotes extends Admin_Controller
+class Quotes extends \Admin_Controller
 {
     /**
      * Quotes constructor.

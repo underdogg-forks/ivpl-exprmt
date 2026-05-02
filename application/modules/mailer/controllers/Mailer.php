@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Mailer\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Mailer extends Admin_Controller
+class Mailer extends \Admin_Controller
 {
     private bool $mailer_configured;
 

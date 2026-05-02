@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Sessions\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }

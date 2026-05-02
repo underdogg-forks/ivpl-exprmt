@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\EmailTemplates\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Email_Templates extends Admin_Controller
+class Email_Templates extends \Admin_Controller
 {
     /**
      * Email_Templates constructor.

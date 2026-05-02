@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Clients\Models;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Mdl_Clients extends Response_Model
+class Mdl_Clients extends \Response_Model
 {
     public $table = 'ip_clients';
 

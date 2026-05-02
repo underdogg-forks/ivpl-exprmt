@@ -28,8 +28,8 @@ application/
 ├── core/              MY_* CI core overrides
 ├── helpers/           Global helpers (file_security_helper, pdf_helper, …)
 ├── libraries/         Global libraries (Crypt, QrCode, …)
-├── modules/           HMVC modules (NO namespaces - use MX loader)
-│   ├── core/          Core\ namespace (central module - ONLY namespaced module)
+├── modules/           HMVC modules (ALL NAMESPACED with PSR-4)
+│   ├── core/          Core\ namespace (central module)
 │   │   └── src/
 │   │       ├── Contracts/   Interfaces (IntegrationProviderInterface, GatewayClientInterface, …)
 │   │       ├── Enums/       PHP 8.1+ enums (RequestMethod, …)
@@ -38,7 +38,7 @@ application/
 │   │       │   └── LetsPeppol/
 │   │       │       ├── LetsPeppolGatewayClient.php
 │   │       │       └── Endpoints/         ← Domain-specific operations
-│   │       ├── Helpers/     NEW: Core helper classes
+│   │       ├── Helpers/     Core helper classes
 │   │       │   ├── SecurityHelper.php     ← XSS, CSRF, path traversal protection
 │   │       │   ├── CacheHelper.php        ← Dynamic programming (memoization)
 │   │       │   └── ValidatorHelper.php    ← Input validation (includes email())
@@ -47,16 +47,16 @@ application/
 │   │       └── Services/    Application services
 │   │           ├── Clients/       ClientsService
 │   │           └── Integrations/  IntegrationProviderFactory, IntegrationSettingsService
-│   ├── clients/       NO namespace (uses MX loader)
-│   │   ├── controllers/
-│   │   ├── models/
+│   ├── clients/       Modules\Clients\ namespace (PSR-4)
+│   │   ├── controllers/   Modules\Clients\Controllers\
+│   │   ├── models/        Modules\Clients\Models\
 │   │   ├── views/
 │   │   └── Enums/
-│   ├── invoices/      NO namespace (uses MX loader)
-│   │   ├── controllers/
-│   │   ├── models/
+│   ├── invoices/      Modules\Invoices\ namespace (PSR-4)
+│   │   ├── controllers/   Modules\Invoices\Controllers\
+│   │   ├── models/        Modules\Invoices\Models\
 │   │   └── views/
-│   └── ... (31 modules total, all use MX loader except core)
+│   └── ... (31 modules total, ALL with Modules\ModuleName\ namespace)
 └── third_party/
     └── MX/Namespaced/ Compatibility shims for CI/MX classes under Core\ namespace
 
@@ -81,8 +81,8 @@ tests/
 |---|---|---|
 | CI controllers | PascalCase, extends Admin_Controller | `Clients`, `Invoices` |
 | CI models | `Mdl_` prefix + snake_case | `Mdl_invoices`, `Mdl_integrations` |
-| Module controllers | NO namespace (MX loader) | `class Clients extends Admin_Controller` |
-| Module models | NO namespace (MX loader) | `class Mdl_Clients extends Response_Model` |
+| Module controllers | PSR-4: `Modules\ModuleName\Controllers\` | `Modules\Clients\Controllers\Clients` |
+| Module models | PSR-4: `Modules\ModuleName\Models\` | `Modules\Clients\Models\Mdl_Clients` |
 | Core\ services | PascalCase + `Service` suffix | `ClientsService`, `IntegrationSettingsService` |
 | Core\ providers | PascalCase + `Provider` suffix | `LetsPeppolProvider` |
 | Core\ factories | PascalCase + `Factory` suffix | `IntegrationProviderFactory`, `LetsPeppolClientFactory` |
@@ -549,15 +549,27 @@ See `.junie/guidelines.md` and `REFACTORING_SUMMARY.md` for full details.
 ## Migration Strategy (CI → Laravel)
 
 - New code goes under `application/modules/core/src/` with PSR-4 namespace `Core\`.
-- Modules do NOT use namespaces (CodeIgniter MX HMVC compatibility).
+- All 31 modules now have proper PSR-4 namespaces (`Modules\ModuleName\`).
 - Legacy CI code stays in `application/core/` (MY_* overrides).
 - Compatibility shims in `application/third_party/MX/Namespaced/` bridge the two worlds.
 - Controllers gradually delegate to Core\ services; controllers themselves stay CI for now.
 - Use `Core\Helpers` for all new utility functions (SecurityHelper, CacheHelper, ValidatorHelper).
 
-**Why Modules Aren't Namespaced:**
-- CodeIgniter 3 MX HMVC uses its own loader (not PSR-4)
-- `Modules::run()` expects global controller classes
-- `$this->load->model()` expects global model classes
-- URL routing maps to global classes
-- Adding namespaces breaks MX functionality
+**Module Namespace Syntax (Critical):**
+```php
+<?php
+
+namespace Modules\Clients\Controllers;  // FIRST - after <?php
+
+if (!defined('BASEPATH')) {              // SECOND - after namespace
+    exit('No direct script access allowed');
+}
+
+class Clients extends \Admin_Controller  // Base class with leading \
+```
+
+**Why This Works:**
+- PHP requires namespace as first statement (after `<?php`)
+- Base classes like `\Admin_Controller` must be fully qualified
+- Core classes imported with `use` statements
+- PSR-4 autoloading works alongside CodeIgniter's MX loader

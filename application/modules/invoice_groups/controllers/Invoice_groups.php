@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\InvoiceGroups\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Invoice_Groups extends Admin_Controller
+class Invoice_Groups extends \Admin_Controller
 {
     /**
      * Invoice_Groups constructor.

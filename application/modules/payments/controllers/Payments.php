@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Payments\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Payments extends Admin_Controller
+class Payments extends \Admin_Controller
 {
     /**
      * Payments constructor.

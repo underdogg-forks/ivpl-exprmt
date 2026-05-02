@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Tasks\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Ajax extends Admin_Controller
+class Ajax extends \Admin_Controller
 {
     /**
      * @param null|int $invoice_id

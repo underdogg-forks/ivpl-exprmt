@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Upload\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Upload extends Admin_Controller
+class Upload extends \Admin_Controller
 {
     public $targetPath = UPLOADS_CFILES_FOLDER; // UPLOADS_FOLDER . 'customer_files/';
 

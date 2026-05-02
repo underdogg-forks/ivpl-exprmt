@@ -1,12 +1,14 @@
 <?php
 
+namespace Modules\Integrations\Models;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
 
 
 #[AllowDynamicProperties]
-class Mdl_integrations extends CI_Model implements \Core\Contracts\IntegrationRepositoryInterface
+class Mdl_integrations extends \CI_Model implements \Core\Contracts\IntegrationRepositoryInterface
 {
     public function ensureProvider(string $provider, string $name): int
     {

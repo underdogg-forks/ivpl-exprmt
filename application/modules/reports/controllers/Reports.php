@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Reports\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Reports extends Admin_Controller
+class Reports extends \Admin_Controller
 {
     /**
      * Reports constructor.

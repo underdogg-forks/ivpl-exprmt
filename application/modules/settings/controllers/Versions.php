@@ -1,5 +1,7 @@
 <?php
 
+namespace Modules\Settings\Controllers;
+
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -14,7 +16,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Versions extends Admin_Controller
+class Versions extends \Admin_Controller
 {
     /**
      * Versions constructor.
