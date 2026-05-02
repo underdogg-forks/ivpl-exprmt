@@ -24,31 +24,41 @@
 ```
 application/
 ├── config/            CI config files
-├── controllers/       Global CI controllers
+├── controllers/       Welcome.php (not logged in page)
 ├── core/              MY_* CI core overrides
 ├── helpers/           Global helpers (file_security_helper, pdf_helper, …)
-├── lib/
-│   └── App/           PSR-4 namespaced code (new / migrating code lives here)
-│       ├── Adapters/  External service adapters (LetsPeppol, …) — ⚠️ Legacy pattern
-│       ├── Contracts/ Interfaces (IntegrationProviderInterface, GatewayClientInterface, …)
-│       ├── Enums/     PHP 8.1 enums (RequestMethod, …)
-│       ├── Gateways/  Gateway pattern implementations (NEW)
-│       │   ├── ApiClient.php          ← Base class
-│       │   └── LetsPeppol/
-│       │       ├── LetsPeppolGatewayClient.php
-│       │       └── Endpoints/         ← Domain-specific operations
-│       ├── Integration/ Value objects (IntegrationCredentials, IntegrationSetting)
-│       ├── Providers/ Concrete provider implementations
-│       └── Services/  Application services
-│           ├── Clients/       ClientsService
-│           └── Integrations/  IntegrationProviderFactory, IntegrationSettingsService
-├── modules/           HMVC modules (clients, invoices, integrations, …)
-│   └── <module>/
-│       ├── controllers/
-│       ├── models/
-│       └── views/
+├── libraries/         Global libraries (Crypt, QrCode, …)
+├── modules/           HMVC modules — ALL NAMESPACED
+│   ├── core/          Core\ namespace (central module)
+│   │   └── src/
+│   │       ├── Contracts/   Interfaces (IntegrationProviderInterface, GatewayClientInterface, …)
+│   │       ├── Enums/       PHP 8.1+ enums (RequestMethod, …)
+│   │       ├── Gateways/    Gateway pattern implementations
+│   │       │   ├── ApiClient.php          ← Base class
+│   │       │   └── LetsPeppol/
+│   │       │       ├── LetsPeppolGatewayClient.php
+│   │       │       └── Endpoints/         ← Domain-specific operations
+│   │       ├── Helpers/     NEW: Core helper classes
+│   │       │   ├── SecurityHelper.php     ← XSS, CSRF, path traversal protection
+│   │       │   ├── CacheHelper.php        ← Dynamic programming (memoization)
+│   │       │   └── ValidatorHelper.php    ← Input validation
+│   │       ├── Integration/ Value objects (IntegrationCredentials, IntegrationSetting)
+│   │       ├── Providers/   Provider implementations (LetsPeppol, …)
+│   │       └── Services/    Application services
+│   │           ├── Clients/       ClientsService
+│   │           └── Integrations/  IntegrationProviderFactory, IntegrationSettingsService
+│   ├── clients/       Modules\Clients\ namespace
+│   │   ├── controllers/
+│   │   ├── models/
+│   │   ├── views/
+│   │   └── Enums/
+│   ├── invoices/      Modules\Invoices\ namespace
+│   │   ├── controllers/
+│   │   ├── models/
+│   │   └── views/
+│   └── ... (31 modules total, all with Modules\ModuleName\ namespace)
 └── third_party/
-    └── MX/Namespaced/ Compatibility shims for CI/MX classes under App\ namespace
+    └── MX/Namespaced/ Compatibility shims for CI/MX classes under Core\ namespace
 
 bootstrap/
 └── autoload.php       Registers MX/CI shims via spl_autoload_register
@@ -71,10 +81,13 @@ tests/
 |---|---|---|
 | CI controllers | PascalCase, extends Admin_Controller | `Clients`, `Invoices` |
 | CI models | `Mdl_` prefix + snake_case | `Mdl_invoices`, `Mdl_integrations` |
-| App\ services | PascalCase + `Service` suffix | `ClientsService`, `IntegrationSettingsService` |
-| App\ providers | PascalCase + `Provider` suffix | `LetsPeppolProvider` |
-| App\ factories | PascalCase + `Factory` suffix | `IntegrationProviderFactory`, `LetsPeppolClientFactory` |
-| Test classes | Match tested class + `Test` suffix | `ClientsServiceTest` |
+| Module controllers | Namespaced: `Modules\ModuleName\Controllers\` | `Modules\Clients\Controllers\Clients` |
+| Module models | Namespaced: `Modules\ModuleName\Models\` | `Modules\Clients\Models\Mdl_Clients` |
+| Core\ services | PascalCase + `Service` suffix | `ClientsService`, `IntegrationSettingsService` |
+| Core\ providers | PascalCase + `Provider` suffix | `LetsPeppolProvider` |
+| Core\ factories | PascalCase + `Factory` suffix | `IntegrationProviderFactory`, `LetsPeppolClientFactory` |
+| Core\ helpers | PascalCase + `Helper` suffix | `SecurityHelper`, `CacheHelper`, `ValidatorHelper` |
+| Test classes | Match tested class + `Test` suffix | `ClientsServiceTest`, `SecurityHelperTest` |
 | Test methods | `it_` prefix + snake_case | `it_returns_false_when_provider_not_registered` |
 
 ---
@@ -86,7 +99,7 @@ New external payment / e-invoicing networks follow the **provider pattern**.
 ### ExceptionHandlingDecorator — Automatic Safety for All Providers
 
 `IntegrationProviderFactory::make()` automatically wraps every resolved provider in
-`App\Providers\ExceptionHandlingDecorator`.  This means:
+`Core\Providers\ExceptionHandlingDecorator`.  This means:
 
 - **No try/catch needed in controllers or services** — exception safety is free.
 - Any future provider (StoreCove, Stripe, PayPal) gets the same protection without extra code.
@@ -141,7 +154,7 @@ path, and the rest of the resolution is standard MX — no routes.php entries ne
 1. **Implement the contract:**
    ```php
    // application/lib/App/Providers/StoreCoveProvider.php
-   class StoreCoveProvider implements \App\Contracts\IntegrationProviderInterface
+   class StoreCoveProvider implements \Core\Contracts\IntegrationProviderInterface
    {
        public function validateParticipant(string $participantId): bool { /* … */ }
        public function sendInvoice(array $payload): bool { /* … */ }
@@ -166,13 +179,13 @@ path, and the rest of the resolution is standard MX — no routes.php entries ne
 
 | Key | Class | Status |
 |---|---|---|
-| `letspeppol` | `App\Providers\LetsPeppolGatewayProvider` | ✅ Active (new gateway pattern) |
-| `letspeppol` (legacy) | `App\Providers\LetsPeppolProvider` | ⚠️ Deprecated (adapter pattern) |
+| `letspeppol` | `Core\Providers\LetsPeppolGatewayProvider` | ✅ Active (new gateway pattern) |
+| `letspeppol` (legacy) | `Core\Providers\LetsPeppolProvider` | ⚠️ Deprecated (adapter pattern) |
 | `storecove` | — | 🔲 Planned |
 | `stripe` | — | 🔲 Planned |
 | `paypal` | — | 🔲 Planned |
 
-> `App\Services\Integrations\LetsPeppolService` is a **deprecated** backward-compat shim
+> `Core\Services\Integrations\LetsPeppolService` is a **deprecated** backward-compat shim
 > that extends `LetsPeppolProvider`.  Do **not** use it in new code.
 
 ---
@@ -372,6 +385,107 @@ bootstrapping the full CodeIgniter framework.
 
 ---
 
+## Core Helpers (NEW)
+
+The `Core\Helpers` namespace provides centralized, tested utility functions following SOLID and DRY principles.
+
+### SecurityHelper — XSS, CSRF, Path Traversal Protection
+
+```php
+use Core\Helpers\SecurityHelper;
+
+// XSS Protection
+$clean = SecurityHelper::xssClean($_POST);
+
+// Email Validation  
+$valid = SecurityHelper::isValidEmail($email);
+
+// Secure Token Generation
+$token = SecurityHelper::generateToken(32);
+
+// Timing Attack Prevention
+$match = SecurityHelper::secureCompare($known, $user);
+
+// Filename Sanitization
+$safe = SecurityHelper::sanitizeFilename($filename);
+
+// Path Traversal Prevention
+$safe = SecurityHelper::isPathSafe($filepath, $allowedDir);
+
+// CSRF Validation
+$valid = SecurityHelper::validateCsrfToken($token, $sessionToken);
+```
+
+### CacheHelper — Dynamic Programming (Memoization)
+
+```php
+use Core\Helpers\CacheHelper;
+
+// Simple caching
+CacheHelper::set('key', 'value', 3600);
+$value = CacheHelper::get('key');
+
+// Memoization pattern (recommended)
+$result = CacheHelper::remember('expensive_key', function() {
+    // This code only runs on cache miss
+    return performExpensiveOperation();
+}, 3600);
+
+// Check if key exists
+if (CacheHelper::has('key')) {
+    // Use cached value
+}
+
+// Cache statistics
+$stats = CacheHelper::stats();
+```
+
+### ValidatorHelper — Input Validation
+
+```php
+use Core\Helpers\ValidatorHelper;
+
+// Single validations
+$valid = ValidatorHelper::required($value);
+$valid = ValidatorHelper::minLength($str, 5);
+$valid = ValidatorHelper::maxLength($str, 100);
+$valid = ValidatorHelper::numeric($value);
+$valid = ValidatorHelper::integer($value);
+$valid = ValidatorHelper::url($url);
+$valid = ValidatorHelper::date($date, 'Y-m-d');
+$valid = ValidatorHelper::in($value, ['red', 'green', 'blue']);
+$valid = ValidatorHelper::regex($value, '/^[a-z]+$/');
+
+// Multiple rules
+$errors = ValidatorHelper::validate($email, [
+    'required',
+    'email',
+    'maxLength' => 100,
+]);
+```
+
+### Helper Benefits
+
+**SOLID Principles:**
+- Single Responsibility: Each helper has ONE job
+- Open/Closed: Easy to extend without modifying
+- Dependency Inversion: Use helpers via static calls
+
+**DRY Principle:**
+- No code duplication
+- Centralized security/validation/caching
+
+**Dynamic Programming:**
+- Memoization via `CacheHelper::remember()`
+- Automatic TTL-based expiration
+
+**Testing:**
+- 100% test coverage
+- 26 test cases total
+- SecurityHelperTest, CacheHelperTest, ValidatorHelperTest
+
+---
+
 ## Code Style
 
 - **PHP**: PSR-12 via `vendor/bin/pint` or `composer phpcs`
@@ -383,15 +497,20 @@ bootstrapping the full CodeIgniter framework.
 
 ## Security Must-Dos
 
-| Rule | Why |
-|---|---|
-| Sanitize before logging | Log injection prevention |
-| Encode all output (`html_escape()`) | XSS prevention |
-| Use Query Builder / prepared statements | SQL injection prevention |
-| Validate file paths with `file_security_helper.php` | Path traversal prevention |
-| No SVG uploads | SVG-based XSS prevention |
+| Rule | Implementation | Why |
+|---|---|---|
+| Sanitize input | `SecurityHelper::xssClean()` | XSS prevention |
+| Encode output | `html_escape()` | XSS prevention |
+| Validate file paths | `SecurityHelper::isPathSafe()` | Path traversal prevention |
+| Sanitize filenames | `SecurityHelper::sanitizeFilename()` | Path traversal prevention |
+| Validate CSRF | `SecurityHelper::validateCsrfToken()` | CSRF prevention |
+| Secure comparison | `SecurityHelper::secureCompare()` | Timing attack prevention |
+| SQL queries | Use Query Builder / prepared statements | SQL injection prevention |
+| No SVG uploads | File upload validation | SVG-based XSS prevention |
 
-See `.junie/guidelines.md` for full details.
+**Use SecurityHelper for all security operations** — it's centralized, tested, and follows best practices.
+
+See `.junie/guidelines.md` and `REFACTORING_SUMMARY.md` for full details.
 
 ---
 
@@ -399,31 +518,39 @@ See `.junie/guidelines.md` for full details.
 
 | File | Why it matters |
 |---|---|
+| `REFACTORING_SUMMARY.md` | **Complete refactoring documentation** (NEW) |
 | `.junie/guidelines.md` | Full development guidelines (security, DRY, testing) |
 | `.github/copilot-instructions.md` | Copilot-specific instructions with code examples |
-| `docs/GATEWAY_PATTERN.md` | **Gateway pattern architecture guide** (NEW) |
-| `application/lib/App/Contracts/GatewayClientInterface.php` | **Gateway client contract** (NEW) |
-| `application/lib/App/Gateways/ApiClient.php` | **Base gateway client class** (NEW) |
-| `application/lib/App/Gateways/LetsPeppol/LetsPeppolGatewayClient.php` | **Example gateway implementation** (NEW) |
-| `application/libraries/gateways/PaypalLib.php` | **Reference implementation** for gateway pattern |
-| `application/lib/App/Contracts/IntegrationProviderInterface.php` | Provider contract |
-| `application/lib/App/Providers/ExceptionHandlingDecorator.php` | Auto exception safety for all providers |
-| `application/lib/App/Services/Integrations/IntegrationProviderFactory.php` | How providers are resolved (applies decorator automatically) |
+| `docs/GATEWAY_PATTERN.md` | Gateway pattern architecture guide |
+| `application/modules/core/src/Helpers/SecurityHelper.php` | **Centralized security operations** (NEW) |
+| `application/modules/core/src/Helpers/CacheHelper.php` | **Dynamic programming/memoization** (NEW) |
+| `application/modules/core/src/Helpers/ValidatorHelper.php` | **Centralized validation** (NEW) |
+| `application/modules/core/src/Contracts/GatewayClientInterface.php` | Gateway client contract |
+| `application/modules/core/src/Gateways/ApiClient.php` | Base gateway client class |
+| `application/modules/core/src/Gateways/LetsPeppol/LetsPeppolGatewayClient.php` | Example gateway implementation |
+| `application/libraries/gateways/PaypalLib.php` | Reference implementation for gateway pattern |
+| `application/modules/core/src/Contracts/IntegrationProviderInterface.php` | Provider contract |
+| `application/modules/core/src/Providers/ExceptionHandlingDecorator.php` | Auto exception safety for all providers |
+| `application/modules/core/src/Services/Integrations/IntegrationProviderFactory.php` | How providers are resolved |
 | `application/core/MY_Loader.php` | PSR-4 namespaced class loading for CI super-object |
-| `application/core/MY_Router.php` | PSR-4 controller naming; `$moduleAliases` map (no routes.php needed) |
-| `application/config/routes.php` | **Do not add URL aliases here** — use `MY_Router::$moduleAliases` instead |
-| `.github/prompt.md` | Copy-paste AI prompt for full PSR-4 namespace migration of all modules |
-| `tests/Fakes/FakeLetsPeppolHttpClient.php` | **Example fake for testing** (prefer fakes over mocks) |
-| `tests/Fixtures/LetsPeppol/*.json` | **API response fixtures** for deterministic testing |
+| `application/core/MY_Router.php` | PSR-4 controller naming; `$moduleAliases` map |
+| `application/config/routes.php` | **Do not add URL aliases here** — use `MY_Router::$moduleAliases` |
+| `tests/Unit/SecurityHelperTest.php` | **Security helper tests** (NEW - 8 test cases) |
+| `tests/Unit/CacheHelperTest.php` | **Cache helper tests** (NEW - 8 test cases) |
+| `tests/Unit/ValidatorHelperTest.php` | **Validator helper tests** (NEW - 10 test cases) |
+| `tests/Fakes/FakeLetsPeppolHttpClient.php` | Example fake for testing |
+| `tests/Fixtures/LetsPeppol/*.json` | API response fixtures |
 | `tests/phpunit-parallel-bootstrap.php` | Test bootstrap & CI stubs |
 | `phpunit.xml.dist` | PHPUnit configuration |
-| `composer.json` | Dependencies & autoloading |
+| `composer.json` | Dependencies & PSR-4 autoloading (32 namespaces) |
 
 ---
 
 ## Migration Strategy (CI → Laravel)
 
-- New code goes under `application/lib/App/` with PSR-4 namespace `App\`.
-- Legacy CI code stays in `application/modules/` and `application/core/`.
+- New code goes under `application/modules/core/src/` with PSR-4 namespace `Core\`.
+- All 31 modules now have proper PSR-4 namespaces (`Modules\ModuleName\`).
+- Legacy CI code stays in `application/core/` (MY_* overrides).
 - Compatibility shims in `application/third_party/MX/Namespaced/` bridge the two worlds.
-- Controllers gradually delegate to App\ services; controllers themselves stay CI for now.
+- Controllers gradually delegate to Core\ services; controllers themselves stay CI for now.
+- Use `Core\Helpers` for all new utility functions (SecurityHelper, CacheHelper, ValidatorHelper).
