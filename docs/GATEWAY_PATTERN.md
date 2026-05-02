@@ -149,10 +149,10 @@ Use stateful fakes for HTTP clients:
 
 ```php
 $http = new FakeLetsPeppolHttpClient(200);
-$client = new LetsPeppolGatewayClient('https://api.test', [], $http);
-$client->request('GET', 'participants.validate');
+$gateway = new LetsPeppolGatewayClient('https://api.test', [], $http);
+$gateway->request('GET', 'participants.validate');
 
-$http->assertRequestMade('GET', 'participants.validate');
+$http->assertRequestMade('GET', 'https://api.test/api/participants/validate');
 ```
 
 ### Test Coverage

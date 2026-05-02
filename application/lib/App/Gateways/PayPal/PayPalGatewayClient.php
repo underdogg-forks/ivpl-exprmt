@@ -16,12 +16,14 @@ class PayPalGatewayClient extends ApiClient
 {
     /**
      * PayPal API endpoints mapping.
+     *
+     * Note: Endpoints with path parameters (like {id}) should not use endpoint keys.
+     * Instead, build the full path in the calling code, e.g.:
+     * $gateway->request('POST', "v2/checkout/orders/{$orderId}/capture", $options)
      */
     protected array $endpoints = [
-        'orders.create'  => 'v2/checkout/orders',
-        'orders.capture' => 'v2/checkout/orders/{id}/capture',
-        'orders.get'     => 'v2/checkout/orders/{id}',
-        'oauth.token'    => 'v1/oauth2/token',
+        'orders.create' => 'v2/checkout/orders',
+        'oauth.token'   => 'v1/oauth2/token',
     ];
 
     private string $partnerAttributionId = 'ANGELLFREEInc_SP';
