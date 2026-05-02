@@ -102,14 +102,22 @@ class SecurityHelperTest extends TestCase
         touch($safePath);
         touch($unsafePath);
 
-        // Act & Assert
-        $this->assertTrue(SecurityHelper::isPathSafe($safePath, $allowedDir));
-        $this->assertFalse(SecurityHelper::isPathSafe($unsafePath, $allowedDir));
-
-        // Cleanup
-        unlink($safePath);
-        unlink($unsafePath);
-        rmdir($allowedDir);
+        try {
+            // Act & Assert
+            $this->assertTrue(SecurityHelper::isPathSafe($safePath, $allowedDir));
+            $this->assertFalse(SecurityHelper::isPathSafe($unsafePath, $allowedDir));
+        } finally {
+            // Cleanup - always runs even if assertions fail
+            if (is_file($safePath)) {
+                unlink($safePath);
+            }
+            if (is_file($unsafePath)) {
+                unlink($unsafePath);
+            }
+            if (is_dir($allowedDir)) {
+                rmdir($allowedDir);
+            }
+        }
     }
 
     #[Test]

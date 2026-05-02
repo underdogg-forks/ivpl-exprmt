@@ -6,7 +6,7 @@ namespace Core\Helpers;
 
 /**
  * Validator Helper for input validation
- * 
+ *
  * Single Responsibility: This class only handles validation logic.
  * Open/Closed: Easy to extend with new validation rules without modifying existing ones.
  */
@@ -14,7 +14,7 @@ class ValidatorHelper
 {
     /**
      * Validate required field
-     * 
+     *
      * @param mixed $value Value to validate
      * @return bool True if not empty
      */
@@ -29,7 +29,7 @@ class ValidatorHelper
 
     /**
      * Validate minimum length
-     * 
+     *
      * @param string $value Value to validate
      * @param int $min Minimum length
      * @return bool True if meets minimum
@@ -41,7 +41,7 @@ class ValidatorHelper
 
     /**
      * Validate maximum length
-     * 
+     *
      * @param string $value Value to validate
      * @param int $max Maximum length
      * @return bool True if within maximum
@@ -53,7 +53,7 @@ class ValidatorHelper
 
     /**
      * Validate numeric value
-     * 
+     *
      * @param mixed $value Value to validate
      * @return bool True if numeric
      */
@@ -64,7 +64,7 @@ class ValidatorHelper
 
     /**
      * Validate integer value
-     * 
+     *
      * @param mixed $value Value to validate
      * @return bool True if integer
      */
@@ -75,7 +75,7 @@ class ValidatorHelper
 
     /**
      * Validate URL
-     * 
+     *
      * @param string $value Value to validate
      * @return bool True if valid URL
      */
@@ -86,7 +86,7 @@ class ValidatorHelper
 
     /**
      * Validate email address
-     * 
+     *
      * @param string $value Email to validate
      * @return bool True if valid email
      */
@@ -97,7 +97,7 @@ class ValidatorHelper
 
     /**
      * Validate date format
-     * 
+     *
      * @param string $date Date string
      * @param string $format Expected format (default Y-m-d)
      * @return bool True if valid date in format
@@ -110,7 +110,7 @@ class ValidatorHelper
 
     /**
      * Validate value is in array
-     * 
+     *
      * @param mixed $value Value to validate
      * @param array $allowed Allowed values
      * @return bool True if in array
@@ -122,7 +122,7 @@ class ValidatorHelper
 
     /**
      * Validate regex pattern
-     * 
+     *
      * @param string $value Value to validate
      * @param string $pattern Regex pattern
      * @return bool True if matches pattern
@@ -134,7 +134,7 @@ class ValidatorHelper
 
     /**
      * Validate multiple rules at once
-     * 
+     *
      * @param mixed $value Value to validate
      * @param array $rules Array of validation rules
      * @return array Array of errors (empty if valid)
@@ -160,9 +160,15 @@ class ValidatorHelper
             }
 
             array_unshift($params, $value);
-            
-            if (!call_user_func_array([static::class, $method], $params)) {
-                $errors[] = "Validation failed for rule: {$rule}";
+
+            try {
+                if (!call_user_func_array([static::class, $method], $params)) {
+                    $errors[] = "Validation failed for rule: {$rule}";
+                }
+            } catch (\TypeError $e) {
+                $errors[] = "Validation failed for rule: {$rule} - {$e->getMessage()}";
+            } catch (\Throwable $e) {
+                $errors[] = "Validation failed for rule: {$rule} - {$e->getMessage()}";
             }
         }
 

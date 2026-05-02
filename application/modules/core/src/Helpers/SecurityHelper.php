@@ -6,15 +6,28 @@ namespace Core\Helpers;
 
 /**
  * Security Helper for common security operations
- * 
+ *
  * This class provides centralized security functions to ensure
  * uniform security practices across the application (DRY principle).
  */
 class SecurityHelper
 {
     /**
-     * Sanitize input data to prevent XSS attacks
-     * 
+     * Perform basic sanitization by removing control characters, null bytes, and HTML tags.
+     *
+     * IMPORTANT: This method only performs basic filtering and is NOT sufficient to prevent
+     * all XSS attacks. Specifically:
+     * - strip_tags() only removes complete HTML tags, not partial or malformed markup
+     * - It does NOT neutralize attribute-injection vectors (e.g., `" onmouseover='alert(1)'`)
+     * - It does NOT handle context-specific encoding (HTML, JS, CSS, URL contexts)
+     *
+     * Callers MUST apply proper, context-aware output encoding when rendering user data:
+     * - For HTML text context: use htmlspecialchars() or html_escape()
+     * - For HTML attributes: use attribute encoding
+     * - For JavaScript/CSS/URL contexts: use appropriate encoding for that context
+     *
+     * This method should be considered a basic input filter, not a substitute for output escaping.
+     *
      * @param string|array $data Data to sanitize
      * @return string|array Sanitized data
      */
@@ -38,7 +51,7 @@ class SecurityHelper
 
     /**
      * Validate email address
-     * 
+     *
      * @param string $email Email to validate
      * @return bool True if valid, false otherwise
      */
@@ -49,18 +62,23 @@ class SecurityHelper
 
     /**
      * Generate secure random token
-     * 
-     * @param int $length Token length
+     *
+     * @param int $length Token length (must be a positive integer)
      * @return string Random token
+     * @throws \InvalidArgumentException When length is not positive
      */
     public static function generateToken(int $length = 32): string
     {
+        if ($length <= 0) {
+            throw new \InvalidArgumentException('Token length must be a positive integer, got: ' . $length);
+        }
+
         return bin2hex(random_bytes($length));
     }
 
     /**
      * Constant-time string comparison to prevent timing attacks
-     * 
+     *
      * @param string $known Known string
      * @param string $user User-provided string
      * @return bool True if strings match
@@ -72,7 +90,7 @@ class SecurityHelper
 
     /**
      * Sanitize filename for safe storage
-     * 
+     *
      * @param string $filename Original filename
      * @return string Safe filename
      */
@@ -89,7 +107,7 @@ class SecurityHelper
 
     /**
      * Check if a file path is within allowed directory (prevents path traversal)
-     * 
+     *
      * @param string $filepath File path to check
      * @param string $allowedDir Allowed directory
      * @return bool True if safe, false otherwise
@@ -105,13 +123,13 @@ class SecurityHelper
 
         // Normalize allowed path with trailing separator to prevent prefix bypass
         $allowedPath = rtrim($allowedPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-        
+
         return str_starts_with($realPath . DIRECTORY_SEPARATOR, $allowedPath);
     }
 
     /**
      * Validate CSRF token
-     * 
+     *
      * @param string $token Token to validate
      * @param string $sessionToken Session token
      * @return bool True if valid

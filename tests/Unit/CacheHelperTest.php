@@ -46,7 +46,7 @@ class CacheHelperTest extends TestCase
 
         // Act & Assert
         $this->assertFalse(CacheHelper::has($key));
-        
+
         CacheHelper::set($key, $value);
         $this->assertTrue(CacheHelper::has($key));
     }
@@ -97,7 +97,7 @@ class CacheHelperTest extends TestCase
 
         // Act - First call should execute callback
         $result1 = CacheHelper::remember($key, $callback);
-        
+
         // Second call should use cached value
         $result2 = CacheHelper::remember($key, $callback);
 
@@ -117,14 +117,14 @@ class CacheHelperTest extends TestCase
 
         // Act
         CacheHelper::set($key, $value, $ttl);
-        
+
         // Assert - value should exist immediately
         $this->assertTrue(CacheHelper::has($key));
         $this->assertEquals($value, CacheHelper::get($key));
-        
-        // Manually expire by manipulating time (sleep minimal time)
-        sleep(2);
-        
+
+        // Wait for expiration (minimum time to avoid flakiness)
+        sleep(1);
+
         // Assert - value should be expired
         $this->assertFalse(CacheHelper::has($key));
         $this->assertNull(CacheHelper::get($key));

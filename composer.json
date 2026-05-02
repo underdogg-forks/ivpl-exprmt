@@ -57,6 +57,7 @@
     "autoload": {
         "psr-4": {
             "Core\\": "application/modules/core/src/",
+            "Core\\Adapters\\CodeIgniter\\MX\\": "application/third_party/MX/Namespaced/",
             "Modules\\Clients\\": "application/modules/clients/",
             "Modules\\CustomFields\\": "application/modules/custom_fields/",
             "Modules\\CustomValues\\": "application/modules/custom_values/",

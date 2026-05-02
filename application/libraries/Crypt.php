@@ -47,7 +47,7 @@ class Crypt implements \Core\Contracts\CryptInterface
 
     /**
      * Get the encryption key, decoding if it's base64-encoded.
-     * 
+     *
      * @return string The encryption key
      */
     private function getEncryptionKey(): string

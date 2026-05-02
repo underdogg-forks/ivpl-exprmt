@@ -33,11 +33,11 @@ class Settings extends \Admin_Controller
         $this->load->library('form_validation');
         $this->load->helper('payments_helper');
         $this->load->helper('file_security');
-        
+
         // Security: Check for SVG logos and display warnings
         $this->check_svg_logos();
     }
-    
+
     /**
      * Check for SVG logos and display security warnings
      * This provides a soft migration path for existing SVG logos
@@ -45,14 +45,14 @@ class Settings extends \Admin_Controller
     private function check_svg_logos()
     {
         $logos_to_check = ['login_logo', 'invoice_logo'];
-        
+
         foreach ($logos_to_check as $logo_setting) {
             $logo_file = get_setting($logo_setting);
             if ($logo_file) {
                 $extension = strtolower(pathinfo($logo_file, PATHINFO_EXTENSION));
                 if ($extension === 'svg') {
-                    $this->session->set_flashdata('alert_warning', 
-                        trans('svg_logo_blocked_security') . ' ' . 
+                    $this->session->set_flashdata('alert_warning',
+                        trans('svg_logo_blocked_security') . ' ' .
                         trans('please_remove_and_reupload')
                     );
                 }
@@ -138,7 +138,7 @@ class Settings extends \Admin_Controller
                     $this->session->set_flashdata('alert_error', trans('svg_upload_blocked_security'));
                     redirect('settings');
                 }
-                
+
                 $this->load->library('upload', $upload_config);
 
                 if ( ! $this->upload->do_upload('invoice_logo')) {
@@ -160,7 +160,7 @@ class Settings extends \Admin_Controller
                     $this->session->set_flashdata('alert_error', trans('svg_upload_blocked_security'));
                     redirect('settings');
                 }
-                
+
                 $this->load->library('upload', $upload_config);
 
                 if ( ! $this->upload->do_upload('login_logo')) {

@@ -108,20 +108,20 @@ class Stripe extends Base_Controller
             // Is paid? (intent flow 'succeeded')
             if ($paid) {
                 $this->load->model('payments/mdl_payments');
-                
+
                 // Validate and sanitize the payment_intent ID
                 $payment_intent = (string) $session->payment_intent;
                 if (empty($payment_intent) || strlen($payment_intent) > 255) {
                     log_message('error', __CLASS__ . '::' . __FUNCTION__ . ' - Invalid payment_intent ID format');
                     throw new Exception('Invalid payment intent ID');
                 }
-                
+
                 // Check if this payment_intent has already been processed (deduplication check)
                 $existing_payment = $this->db
                     ->where('payment_external_id', $payment_intent)
                     ->get('ip_payments')
                     ->row();
-                
+
                 if ($existing_payment) {
                     // Duplicate payment attempt detected
                     log_message('warning', __CLASS__ . '::' . __FUNCTION__ . ' - Duplicate payment attempt blocked. Payment intent: ' . sanitize_for_logging($payment_intent) . ' already exists as payment_id: ' . sanitize_for_logging($existing_payment->payment_id));
