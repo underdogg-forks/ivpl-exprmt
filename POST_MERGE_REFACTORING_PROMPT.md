@@ -1533,6 +1533,494 @@ composer dump-autoload -o
     - Early returns prevent unnecessary filesystem checks
     - Memoization provides measurable performance gains
 
+15. **Project Guidelines Adherence (See B.13 for details):**
+    - **`.junie/guidelines.md`:** Defense-in-depth security, DRY principles, test requirements
+    - **`AGENTS.md`:** Naming conventions, repository layout, integration provider pattern
+    - **`.github/copilot-instructions.md`:** PSR-12 standards, type hints, security-first, Query Builder
+    - Validate compliance with provided checklists before committing
+    - Run validation commands (pint, phpstan, phpunit) to verify adherence
+
+##### B.13: Adherence to Project Guidelines and Rules
+
+**Critical Requirement:** All refactoring work must strictly follow the established rules from project documentation.
+
+###### Rules from `.junie/guidelines.md`
+
+**Security Principles - Defense in Depth:**
+
+```php
+// Apply all security layers during refactoring
+class ClientsController extends \Admin_Controller
+{
+    public function save(): void
+    {
+        // Early return: Check permissions first
+        if (!$this->hasPermission('edit_clients')) {
+            show_error('Access denied', 403);
+        }
+        
+        // Layer 1: Global sanitization already applied by Admin_Controller
+        // Layer 2: Format validation
+        $clientName = $this->input->post('client_name');
+        if (!preg_match('/^[\p{L}\p{N}\s\-\.]+$/u', $clientName)) {
+            $this->session->set_flashdata('alert_error', 'Invalid client name format');
+            redirect('clients/form');
+        }
+        
+        // Layer 3: Business logic validation
+        if ($this->client->nameExists($clientName, $this->input->post('client_id'))) {
+            $this->session->set_flashdata('alert_error', 'Client name already exists');
+            redirect('clients/form');
+        }
+        
+        // Happy path - save client
+        $this->client->save($this->input->post('client_id'));
+    }
+}
+```
+
+**DRY Principles:**
+
+When refactoring discovers duplicated code (3+ occurrences), extract to helpers:
+
+```php
+// BEFORE refactoring - duplicated in multiple controllers
+$moduleName = str_replace('_', '', ucwords($segment, '_'));
+$className = str_replace('_', '', ucwords($model, '_'));
+$propertyName = lcfirst($className);
+
+// AFTER refactoring - extract to application/core/MY_String_Helper.php
+function to_pascal_case(string $string): string
+{
+    // Early return: Already PascalCase
+    if (ctype_upper($string[0]) && !str_contains($string, '_')) {
+        return $string;
+    }
+    
+    return str_replace(['_', '-'], '', ucwords($string, '_-'));
+}
+
+function to_camel_case(string $string): string
+{
+    // Early return: Empty string
+    if (empty($string)) {
+        return $string;
+    }
+    
+    return lcfirst($string);
+}
+```
+
+**Test Requirements:**
+
+Every refactored class MUST have tests following the AAA pattern:
+
+```php
+<?php
+
+namespace Tests\Unit\Infrastructure;
+
+use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\Test;
+
+class ModulePathResolverTest extends TestCase
+{
+    private ModulePathResolver $resolver;
+    
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->resolver = new ModulePathResolver();
+    }
+    
+    #[Test]
+    public function it_resolves_lowercase_module_to_pascal_case(): void
+    {
+        // Arrange
+        $urlSegment = 'clients';
+        
+        // Act
+        $path = $this->resolver->resolve($urlSegment);
+        
+        // Assert
+        $this->assertStringContainsString('Clients/', $path);
+    }
+    
+    #[Test]
+    public function it_resolves_snake_case_module_to_pascal_case(): void
+    {
+        // Arrange
+        $urlSegment = 'custom_fields';
+        
+        // Act
+        $path = $this->resolver->resolve($urlSegment);
+        
+        // Assert
+        $this->assertStringContainsString('CustomFields/', $path);
+    }
+    
+    #[Test]
+    public function it_returns_null_for_nonexistent_module(): void
+    {
+        // Arrange
+        $urlSegment = 'nonexistent_module';
+        
+        // Act & Assert
+        $this->expectException(\CodeIgniter\Exceptions\PageNotFoundException::class);
+        $this->resolver->resolve($urlSegment);
+    }
+}
+```
+
+###### Rules from `AGENTS.md`
+
+**Naming Conventions:**
+
+All refactored code must follow established naming patterns:
+
+```php
+// Controllers: PascalCase + Controller suffix
+namespace Modules\Clients\Controllers;
+class ClientsController extends \Admin_Controller { }
+
+// Models: PascalCase, singular, no Mdl_ prefix
+namespace Modules\Clients\Models;
+class Client extends \Response_Model { }
+
+// Services: PascalCase + Service suffix
+namespace Core\Services\Clients;
+class ClientsService { }
+
+// Helpers: PascalCase + Helper suffix
+namespace Core\Helpers;
+class SecurityHelper { }
+
+// Test classes: Match tested class + Test suffix
+namespace Tests\Unit\Controllers\Clients;
+class ClientsControllerTest extends TestCase { }
+
+// Test methods: it_ prefix + snake_case
+#[Test]
+public function it_returns_client_by_id(): void { }
+```
+
+**Repository Layout Compliance:**
+
+Maintain the established module structure:
+
+```
+application/modules/
+├── Clients/              ← PascalCase directory (after refactor)
+│   ├── Controllers/      ← Capitalized
+│   │   └── ClientsController.php
+│   ├── Models/           ← Capitalized
+│   │   └── Client.php
+│   └── Views/            ← Capitalized
+│       └── index.php
+└── Core/                 ← Core namespace
+    └── src/
+        ├── Contracts/
+        ├── Helpers/
+        ├── Providers/
+        └── Services/
+```
+
+**Integration Provider Pattern:**
+
+All new integrations follow the provider pattern:
+
+```php
+// 1. Implement the contract
+class NewProviderGatewayProvider implements IntegrationProviderInterface
+{
+    public function validateParticipant(string $participantId): bool
+    {
+        // Early return: Empty ID
+        if (empty($participantId)) {
+            return false;
+        }
+        
+        $gateway = $this->createGatewayClient();
+        $endpoint = new ParticipantEndpoint($gateway);
+        
+        return $endpoint->validate($participantId);
+    }
+    
+    public function sendInvoice(array $payload): bool
+    {
+        // Early return: Invalid payload
+        if (empty($payload['invoice_id'])) {
+            log_message('error', 'Missing invoice_id in payload');
+            return false;
+        }
+        
+        $gateway = $this->createGatewayClient();
+        $endpoint = new InvoiceEndpoint($gateway);
+        $response = $endpoint->send($payload);
+        
+        return $response->getStatusCode() >= 200 && $response->getStatusCode() < 300;
+    }
+}
+
+// 2. Register in factory
+$factory->register('new_provider', fn() => new NewProviderGatewayProvider($settings));
+
+// 3. Use through interface
+$provider = $factory->make('new_provider');
+$result = $provider->sendInvoice($payload);
+```
+
+###### Rules from `.github/copilot-instructions.md`
+
+**PSR-12 Coding Standards:**
+
+All refactored code must follow PSR-12:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\Clients\Controllers;
+
+use Core\Services\Clients\ClientsService;
+use Core\Helpers\SecurityHelper;
+
+class ClientsController extends \Admin_Controller
+{
+    private ClientsService $clientsService;
+    
+    public function __construct()
+    {
+        parent::__construct();
+        $this->clientsService = new ClientsService();
+    }
+    
+    public function index(): void
+    {
+        // Early return: No permission
+        if (!$this->hasPermission('view_clients')) {
+            show_error('Access denied', 403);
+        }
+        
+        $clients = $this->clientsService->getAll();
+        
+        // Early return: No clients
+        if (empty($clients)) {
+            $this->load->view('clients/empty');
+            return;
+        }
+        
+        $this->load->view('clients/index', ['clients' => $clients]);
+    }
+}
+```
+
+**Type Hints and Strict Comparison:**
+
+```php
+// Always use type hints
+public function getById(int $id): ?object
+{
+    // Early return: Invalid ID
+    if ($id <= 0) {
+        return null;
+    }
+    
+    // Use strict comparison
+    $client = $this->db->where('id', $id)->get('ip_clients')->row();
+    
+    // Strict null check
+    if ($client === null) {
+        return null;
+    }
+    
+    return $client;
+}
+
+// Array type hints
+public function validateBatch(array $clients): array
+{
+    $errors = [];
+    
+    foreach ($clients as $client) {
+        // Strict comparison for validation
+        if ($client['status'] !== 'active') {
+            $errors[] = "Client {$client['id']} is not active";
+        }
+    }
+    
+    return $errors;
+}
+```
+
+**Test Structure (AAA Pattern):**
+
+```php
+#[Test]
+public function it_validates_safe_filename(): void
+{
+    // Arrange
+    $filename = '../../../etc/passwd';
+    
+    // Act
+    $result = validate_safe_filename($filename);
+    
+    // Assert
+    $this->assertFalse($result['valid']);
+    $this->assertEquals('path_traversal', $result['error']);
+}
+```
+
+**Security-First Development:**
+
+```php
+class UploadController extends \Admin_Controller
+{
+    public function uploadInvoiceLogo(): void
+    {
+        // Early return: No file uploaded
+        if (empty($_FILES['logo'])) {
+            show_error('No file uploaded');
+        }
+        
+        // Security Layer 1: Validate filename
+        $filename = basename($_FILES['logo']['name']);
+        $validation = validate_safe_filename($filename);
+        
+        // Early return: Invalid filename
+        if (!$validation['valid']) {
+            log_message('error', 'Invalid filename: ' . sanitize_for_logging($filename));
+            show_error('Invalid filename');
+        }
+        
+        // Security Layer 2: Validate file extension
+        $allowedExtensions = ['png', 'jpg', 'jpeg', 'gif'];
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        
+        // Early return: Invalid extension
+        if (!in_array($extension, $allowedExtensions, true)) {
+            log_message('warning', 'Blocked extension: ' . sanitize_for_logging($extension));
+            show_error('File type not allowed');
+        }
+        
+        // Security Layer 3: Block SVG (XSS vector)
+        if ($extension === 'svg') {
+            log_message('warning', 'Blocked SVG upload');
+            show_error('SVG files not allowed');
+        }
+        
+        // Security Layer 4: Validate path
+        $uploadPath = APPPATH . '../uploads/logos/';
+        $targetPath = $uploadPath . $filename;
+        
+        // Early return: Path traversal attempt
+        if (!validate_file_in_directory($targetPath, $uploadPath)) {
+            log_message('error', 'Path traversal attempt: ' . sanitize_for_logging($targetPath));
+            show_error('Invalid file path');
+        }
+        
+        // Happy path - move uploaded file
+        if (move_uploaded_file($_FILES['logo']['tmp_name'], $targetPath)) {
+            $this->session->set_flashdata('alert_success', 'Logo uploaded successfully');
+        }
+    }
+}
+```
+
+**CodeIgniter 3 Query Builder:**
+
+Always use Query Builder (never raw SQL):
+
+```php
+class Client extends \Response_Model
+{
+    public function getById(int $id): ?object
+    {
+        // Early return: Invalid ID
+        if ($id <= 0) {
+            return null;
+        }
+        
+        // Use Query Builder - prevents SQL injection
+        return $this->db
+            ->where('client_id', $id)
+            ->where('deleted', 0)
+            ->get('ip_clients')
+            ->row();
+    }
+    
+    public function search(string $query): array
+    {
+        // Early return: Empty query
+        if (empty(trim($query))) {
+            return [];
+        }
+        
+        // Use Query Builder with LIKE
+        return $this->db
+            ->like('client_name', $query)
+            ->or_like('client_email', $query)
+            ->where('deleted', 0)
+            ->get('ip_clients')
+            ->result();
+    }
+}
+```
+
+###### Enforcement Checklist
+
+Before committing any refactored code, verify:
+
+**From `.junie/guidelines.md`:**
+- [ ] Defense-in-depth security applied (input sanitization, output encoding, validation)
+- [ ] DRY principle followed (no code duplication, helpers extracted for 3+ occurrences)
+- [ ] All security functions have tests
+- [ ] Early returns used consistently
+- [ ] Helper functions organized in appropriate files
+
+**From `AGENTS.md`:**
+- [ ] Naming conventions followed (Controller suffix, singular models, no Mdl_ prefix)
+- [ ] Repository layout maintained (PascalCase directories, Capitalized subdirectories)
+- [ ] Integration provider pattern used for external services
+- [ ] Test methods use `it_` prefix and snake_case
+- [ ] Module namespaces follow PSR-4 (`Modules\ModuleName\Controllers`)
+
+**From `.github/copilot-instructions.md`:**
+- [ ] PSR-12 coding standards enforced
+- [ ] Type hints on all parameters and return types
+- [ ] Strict comparison (`===`, `!==`) used everywhere
+- [ ] AAA pattern (Arrange, Act, Assert) in all tests
+- [ ] Security-first approach (validate paths, sanitize logs, block SVG)
+- [ ] Query Builder used (no raw SQL)
+
+###### Validation Commands
+
+```bash
+# 1. Verify PSR-12 compliance
+vendor/bin/pint --test
+
+# 2. Run PHPStan static analysis
+vendor/bin/phpstan analyse --level 8
+
+# 3. Run all tests with coverage
+vendor/bin/phpunit --coverage-text --coverage-html=coverage/
+
+# 4. Verify naming conventions
+find application/modules/*/Controllers -name "*.php" | while read file; do
+    if ! grep -q "Controller extends" "$file"; then
+        echo "Missing Controller suffix: $file"
+    fi
+done
+
+# 5. Check for security issues
+grep -rn "echo \$_" application/modules/*/Views/ # Should find none (use html_escape)
+grep -rn "include(\$" application/ # Should find none (path traversal risk)
+
+# 6. Verify early returns pattern
+grep -rn "if.*{$" application/modules/Core/src/ | wc -l # Should be low (use early returns)
+```
+
 ## Success Criteria (Option B: Full PSR-4)
 
 - ✅ **Infrastructure:** MX routing layer refactored to support PSR-4 natively
@@ -1553,6 +2041,9 @@ composer dump-autoload -o
 - ✅ **Staging:** Application works correctly in staging environment
 - ✅ **Performance:** No performance regression (memoization provides gains)
 - ✅ **Documentation:** All docs updated to reflect PSR-4 structure
+- ✅ **`.junie/guidelines.md` Rules:** Security, DRY, testing requirements strictly followed
+- ✅ **`AGENTS.md` Rules:** Naming conventions, repository layout, provider pattern enforced
+- ✅ **`.github/copilot-instructions.md` Rules:** PSR-12, type hints, security-first, Query Builder used
 
 ## References
 
