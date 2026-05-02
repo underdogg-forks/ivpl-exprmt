@@ -1,0 +1,9 @@
+{
+    "valid": true,
+    "participant": {
+        "peppol_id": "0088:123456789",
+        "name": "Test Company AB",
+        "country_code": "SE",
+        "capabilities": ["invoice", "credit_note"]
+    }
+}

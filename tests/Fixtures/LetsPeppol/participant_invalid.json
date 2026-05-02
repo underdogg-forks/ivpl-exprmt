@@ -1,0 +1,5 @@
+{
+    "valid": false,
+    "error": "participant_not_found",
+    "message": "The specified Peppol ID was not found in the registry"
+}
