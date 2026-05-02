@@ -10,12 +10,13 @@ use Psr\Http\Message\ResponseInterface;
 /**
  * Base API client that wraps Guzzle HTTP client for gateway integrations.
  *
- * This class provides a decorated request() method that mimics GuzzleClient::request()
- * while adding common functionality like automatic authorization, header building,
- * and endpoint mapping.
+ * This class provides endpoint mapping, settings storage, and access token management.
+ * The request() method maps logical endpoint names to actual paths and delegates to
+ * the Guzzle HTTP client.
  *
  * Concrete gateway clients (LetsPeppol, PayPal, Stripe) should extend this class
- * and implement the abstract methods for gateway-specific behavior.
+ * and implement buildHeaders() for gateway-specific headers and authorize() for
+ * gateway-specific authentication (OAuth2, bearer token, API key, etc.).
  */
 abstract class ApiClient implements GatewayClientInterface
 {
@@ -44,18 +45,24 @@ abstract class ApiClient implements GatewayClientInterface
      * {@inheritDoc}
      *
      * Maps endpoint keys to actual paths and delegates to the HTTP client.
+     * Supports endpoint keys, relative paths, and absolute URLs.
      */
     public function request(string $method, string $uri, array $options = []): ResponseInterface
     {
         // Map endpoint key to path if it exists in the endpoints array
         $path = $this->endpoints[$uri] ?? $uri;
 
-        // Ensure path starts with /
+        // If the path is an absolute URL (has scheme), use it as-is
+        if (preg_match('/^https?:\/\//i', $path)) {
+            return $this->client->request($method, $path, $options);
+        }
+
+        // Ensure relative path starts with /
         if (!str_starts_with($path, '/')) {
             $path = '/' . $path;
         }
 
-        // Build full URI
+        // Build full URI from base + path
         $fullUri = $this->baseUri . $path;
 
         return $this->client->request($method, $fullUri, $options);

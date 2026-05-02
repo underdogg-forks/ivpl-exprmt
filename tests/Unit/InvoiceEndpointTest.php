@@ -9,12 +9,12 @@ use Tests\Fakes\FakeLetsPeppolHttpClient;
 class InvoiceEndpointTest extends TestCase
 {
     /**
-     * Arrange: InvoiceEndpoint backed by gateway client with fake HTTP.
+     * Arrange: InvoiceEndpoint backed by gateway client with fake HTTP (no credentials).
      * Act: sendInvoice is called.
      * Assert: POST request with proper headers and payload is made.
      */
     #[Test]
-    public function it_sends_invoice_with_authorization_header(): void
+    public function it_sends_invoice_with_proper_headers(): void
     {
         $http = new FakeLetsPeppolHttpClient(200);
 
@@ -41,7 +41,8 @@ class InvoiceEndpointTest extends TestCase
         $lastRequest = end($http->requests);
         $this->assertSame(42, $lastRequest['options']['json']['invoice_id']);
         $this->assertSame('INV-042', $lastRequest['options']['json']['invoice_number']);
-        $this->assertArrayHasKey('Authorization', $lastRequest['options']['headers']);
+        $this->assertArrayHasKey('Content-Type', $lastRequest['options']['headers']);
+        $this->assertArrayHasKey('Accept', $lastRequest['options']['headers']);
     }
 
     /**

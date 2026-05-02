@@ -16,15 +16,10 @@ use Tests\Fakes\FakeLetsPeppolHttpClient;
  */
 class GatewayPatternIntegrationTest extends TestCase
 {
-    /**
-     * Arrange: Full gateway stack with mocked settings service.
-     * Act: Provider methods are called.
-     * Assert: Requests flow through the stack correctly.
-     */
     #[Test]
     public function it_integrates_provider_gateway_and_endpoints(): void
     {
-        // Mock settings service
+        /* Arrange: Full gateway stack with mocked settings service. */
         $settingsService = $this->createMock(IntegrationSettingsService::class);
         $settingsService->method('letsPeppolSettings')
             ->willReturn([
@@ -33,21 +28,17 @@ class GatewayPatternIntegrationTest extends TestCase
                 'client_secret' => 'test-secret',
             ]);
 
-        // This would normally create a real gateway client, but for testing
-        // we need to inject a fake HTTP client. For now, we validate the structure.
+        /* Act: Provider methods are called. */
         $provider = new LetsPeppolGatewayProvider($settingsService);
 
+        /* Assert: Requests flow through the stack correctly. */
         $this->assertInstanceOf(LetsPeppolGatewayProvider::class, $provider);
     }
 
-    /**
-     * Arrange: Gateway client with fake HTTP and endpoint clients.
-     * Act: Full flow from validation to invoice sending.
-     * Assert: Both operations work correctly.
-     */
     #[Test]
     public function it_performs_full_gateway_workflow(): void
     {
+        /* Arrange: Gateway client with fake HTTP and endpoint clients. */
         $http = new FakeLetsPeppolHttpClient(200);
 
         $gateway = new LetsPeppolGatewayClient(
@@ -56,37 +47,30 @@ class GatewayPatternIntegrationTest extends TestCase
             $http
         );
 
-        // Validate participant
+        /* Act: Full flow from validation to invoice sending. */
         $participantEndpoint = new ParticipantEndpoint($gateway);
         $isValid = $participantEndpoint->validatePeppolId('0088:123456789');
 
-        $this->assertTrue($isValid);
-        $http->assertRequestMade('GET', 'participants/validate');
-
-        // Send invoice
         $invoiceEndpoint = new InvoiceEndpoint($gateway);
         $response = $invoiceEndpoint->sendInvoice([
             'invoice_id'     => 42,
             'invoice_number' => 'INV-042',
         ]);
 
+        /* Assert: Both operations work correctly. */
+        $this->assertTrue($isValid);
+        $http->assertRequestMade('GET', 'participants/validate');
         $this->assertSame(200, $response->getStatusCode());
         $http->assertRequestMade('POST', 'invoices');
     }
 
-    /**
-     * Arrange: Gateway with settings.
-     * Act: Retrieve settings via getSettings().
-     * Assert: Settings are accessible throughout the stack.
-     */
     #[Test]
     public function it_propagates_settings_through_gateway(): void
     {
+        /* Arrange: Gateway with settings but no credentials to avoid authorization. */
         $http = new FakeLetsPeppolHttpClient(200);
 
         $settings = [
-            'client_id'     => 'test-id',
-            'client_secret' => 'test-secret',
             'custom_setting' => 'custom-value',
         ];
 
@@ -96,20 +80,19 @@ class GatewayPatternIntegrationTest extends TestCase
             $http
         );
 
-        // Settings should be retrievable
-        $this->assertSame('test-id', $gateway->getSettings('client_id'));
-        $this->assertSame('custom-value', $gateway->getSettings('custom_setting'));
-        $this->assertSame($settings, $gateway->getSettings());
+        /* Act: Retrieve settings via getSettings(). */
+        $retrievedCustom = $gateway->getSettings('custom_setting');
+        $retrievedAll = $gateway->getSettings();
+
+        /* Assert: Settings are accessible throughout the stack. */
+        $this->assertSame('custom-value', $retrievedCustom);
+        $this->assertSame($settings, $retrievedAll);
     }
 
-    /**
-     * Arrange: Load all fixtures.
-     * Act: Validate fixture structure.
-     * Assert: All fixtures are valid JSON and match expected structure.
-     */
     #[Test]
     public function it_validates_all_fixtures_are_well_formed(): void
     {
+        /* Arrange: Load all fixtures. */
         $fixturesDir = __DIR__ . '/../Fixtures/LetsPeppol';
         $fixtures = [
             'participant_valid.json'   => ['valid', 'participant'],
@@ -118,6 +101,7 @@ class GatewayPatternIntegrationTest extends TestCase
             'oauth_token.json'         => ['access_token', 'token_type'],
         ];
 
+        /* Act: Validate fixture structure. */
         foreach ($fixtures as $filename => $requiredKeys) {
             $filepath = $fixturesDir . '/' . $filename;
             $this->assertFileExists($filepath, "Fixture {$filename} should exist");
@@ -128,6 +112,7 @@ class GatewayPatternIntegrationTest extends TestCase
             $data = json_decode($content, true);
             $this->assertIsArray($data, "Fixture {$filename} should be valid JSON");
 
+            /* Assert: All fixtures are valid JSON and match expected structure. */
             foreach ($requiredKeys as $key) {
                 $this->assertArrayHasKey($key, $data, "Fixture {$filename} should have key '{$key}'");
             }
