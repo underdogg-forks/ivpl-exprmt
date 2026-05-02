@@ -4,6 +4,8 @@ if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
 
+namespace Modules\Integrations\Controllers;
+
 use Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
 use Core\Services\Integrations\IntegrationSettingsService;
 

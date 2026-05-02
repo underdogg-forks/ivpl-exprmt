@@ -5,6 +5,8 @@ if ( ! defined('BASEPATH')) {
 }
 
 
+
+namespace Modules\Integrations\Models;
 #[AllowDynamicProperties]
 class Mdl_integrations extends CI_Model implements \Core\Contracts\IntegrationRepositoryInterface
 {
