@@ -498,16 +498,16 @@ $errors = ValidatorHelper::validate($str, [
 
 | Rule | Implementation | Why |
 |---|---|---|
-| Sanitize input | `SecurityHelper::xssClean()` | XSS prevention |
+| Sanitize input | CodeIgniter `$this->security->xss_clean()` (global sanitization in `Admin_Controller::filter_input()`) | XSS prevention |
 | Encode output | `html_escape()` | XSS prevention |
-| Validate file paths | `SecurityHelper::isPathSafe()` | Path traversal prevention |
-| Sanitize filenames | `SecurityHelper::sanitizeFilename()` | Path traversal prevention |
+| Validate file paths | `validate_file_in_directory()` from `file_security_helper.php` | Path traversal prevention |
+| Validate/sanitize filenames | `validate_safe_filename()` and `sanitize_filename_for_header()` from `file_security_helper.php` | Path traversal and header injection prevention |
 | Validate CSRF | `SecurityHelper::validateCsrfToken()` | CSRF prevention |
 | Secure comparison | `SecurityHelper::secureCompare()` | Timing attack prevention |
 | SQL queries | Use Query Builder / prepared statements | SQL injection prevention |
 | No SVG uploads | File upload validation | SVG-based XSS prevention |
 
-**Use SecurityHelper for all security operations** — it's centralized, tested, and follows best practices.
+**Do not replace established CI or `file_security_helper.php` protections with weaker wrapper helpers.** Use CodeIgniter XSS filtering for request data and the existing file/path validation helpers for filesystem-related security checks.
 
 See `.junie/guidelines.md` and `REFACTORING_SUMMARY.md` for full details.
 
