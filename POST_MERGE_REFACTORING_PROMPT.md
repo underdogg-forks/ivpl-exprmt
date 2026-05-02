@@ -399,21 +399,721 @@ composer dump-autoload
 - ✅ **Backward compatible:** Old code keeps working during transition
 - ✅ **Gradual:** Can migrate module by module if needed
 
-##### B.7: Estimated Effort (Full PSR-4)
+##### B.7: PHPUnit Test Compatibility Strategy
+
+**Critical Requirement:** All PHPUnit tests must work flawlessly after PSR-4 refactoring.
+
+###### Test Bootstrap Configuration
+
+Update `tests/phpunit-parallel-bootstrap.php` to support PSR-4 autoloading:
+
+```php
+<?php
+/**
+ * PHPUnit bootstrap for PSR-4 refactored codebase
+ * Loads Composer autoloader and defines CI stubs for unit tests
+ */
+
+// Early return: Check Composer autoloader exists
+if (!file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    die('Composer dependencies not installed. Run: composer install' . PHP_EOL);
+}
+
+// Load Composer PSR-4 autoloader
+require_once __DIR__ . '/../vendor/autoload.php';
+
+// Define CI constants for tests
+if (!defined('BASEPATH')) {
+    define('BASEPATH', __DIR__ . '/../system/');
+}
+if (!defined('APPPATH')) {
+    define('APPPATH', __DIR__ . '/../application/');
+}
+if (!defined('ENVIRONMENT')) {
+    define('ENVIRONMENT', 'testing');
+}
+
+// Stub CI base classes for unit tests (avoid full CI bootstrap)
+if (!class_exists('CI_Model')) {
+    class CI_Model {}
+}
+if (!class_exists('CI_Controller')) {
+    class CI_Controller {}
+}
+if (!class_exists('Admin_Controller')) {
+    class Admin_Controller extends CI_Controller {}
+}
+if (!class_exists('Response_Model')) {
+    class Response_Model extends CI_Model {}
+}
+```
+
+###### PHPUnit Configuration
+
+Update `phpunit.xml.dist` to match PSR-4 structure:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/phpunit-parallel-bootstrap.php"
+         colors="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         stopOnFailure="false">
+    <testsuites>
+        <testsuite name="Unit Tests">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature Tests">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory suffix=".php">application/modules/Core/src</directory>
+            <directory suffix=".php">application/modules/*/Controllers</directory>
+            <directory suffix=".php">application/modules/*/Models</directory>
+        </include>
+    </source>
+</phpunit>
+```
+
+###### Test Namespace Strategy
+
+**Controllers Tests:**
+```php
+// tests/Unit/Controllers/Clients/ClientsControllerTest.php
+<?php
+
+namespace Tests\Unit\Controllers\Clients;
+
+use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\Test;
+use Modules\Clients\Controllers\ClientsController;
+
+class ClientsControllerTest extends TestCase
+{
+    private ClientsController $controller;
+    
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Early return: Skip if CI dependencies not available
+        if (!class_exists('\Admin_Controller')) {
+            $this->markTestSkipped('CI base classes not available');
+        }
+        
+        $this->controller = new ClientsController();
+    }
+    
+    #[Test]
+    public function it_instantiates_without_errors(): void
+    {
+        // Arrange - done in setUp()
+        
+        // Act & Assert
+        $this->assertInstanceOf(ClientsController::class, $this->controller);
+        $this->assertInstanceOf(\Admin_Controller::class, $this->controller);
+    }
+}
+```
+
+**Models Tests:**
+```php
+// tests/Unit/Models/Clients/ClientTest.php
+<?php
+
+namespace Tests\Unit\Models\Clients;
+
+use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\Test;
+use Modules\Clients\Models\Client;
+
+class ClientTest extends TestCase
+{
+    private Client $model;
+    
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Early return: Skip if CI dependencies not available
+        if (!class_exists('\Response_Model')) {
+            $this->markTestSkipped('CI base classes not available');
+        }
+        
+        $this->model = new Client();
+    }
+    
+    #[Test]
+    public function it_extends_response_model(): void
+    {
+        // Arrange - done in setUp()
+        
+        // Act & Assert
+        $this->assertInstanceOf(Client::class, $this->model);
+        $this->assertInstanceOf(\Response_Model::class, $this->model);
+    }
+}
+```
+
+###### Test Execution Validation
+
+**Pre-Refactoring Test Run:**
+```bash
+# Establish baseline - all tests must pass before refactoring
+vendor/bin/phpunit --testdox
+
+# Expected output:
+# ✓ All existing tests pass
+# ✓ No PSR-4 autoloading errors
+# ✓ No namespace resolution errors
+```
+
+**Post-Refactoring Test Run:**
+```bash
+# After directory renaming - verify tests still pass
+composer dump-autoload -o
+vendor/bin/phpunit --testdox
+
+# Expected output:
+# ✓ All tests still pass
+# ✓ PSR-4 autoloading works for Clients/ Controllers/ Models/
+# ✓ No class-not-found errors
+```
+
+**Continuous Validation:**
+```bash
+# Run after each phase of refactoring
+# Phase 1: Infrastructure changes
+vendor/bin/phpunit tests/Unit/Infrastructure/
+
+# Phase 2: Directory renaming (per module)
+vendor/bin/phpunit tests/Unit/Controllers/Clients/
+vendor/bin/phpunit tests/Unit/Models/Clients/
+
+# Phase 3: Class renaming
+vendor/bin/phpunit --filter ClientsController
+vendor/bin/phpunit --filter Client
+
+# Phase 4: Full suite
+vendor/bin/phpunit
+```
+
+##### B.8: Dynamic Programming Principles
+
+**Memoization Pattern:** Cache expensive computations to avoid redundant work.
+
+###### Module Path Resolution Cache
+
+```php
+// application/core/MY_Router.php
+class MY_Router extends MX_Router
+{
+    private static array $modulePathCache = [];
+    
+    protected function _set_module_path(string $urlSegment): string
+    {
+        // Early return: Check cache first (memoization)
+        if (isset(self::$modulePathCache[$urlSegment])) {
+            return self::$modulePathCache[$urlSegment];
+        }
+        
+        // Early return: Module doesn't exist
+        if (!$this->moduleExists($urlSegment)) {
+            show_404();
+        }
+        
+        $moduleName = $this->toPascalCase($urlSegment);
+        $modulePath = APPPATH . "modules/{$moduleName}/";
+        
+        // Early return: Path doesn't exist
+        if (!is_dir($modulePath)) {
+            show_404();
+        }
+        
+        // Cache result for future lookups (dynamic programming)
+        self::$modulePathCache[$urlSegment] = $modulePath;
+        
+        return $modulePath;
+    }
+}
+```
+
+###### Class Name Conversion Cache
+
+```php
+// application/third_party/MX/Loader.php
+class MX_Loader extends CI_Loader
+{
+    private static array $classNameCache = [];
+    
+    private function toClassName(string $file): string
+    {
+        // Early return: Check cache (memoization)
+        if (isset(self::$classNameCache[$file])) {
+            return self::$classNameCache[$file];
+        }
+        
+        // Remove "Mdl_" prefix, convert to PascalCase
+        $file = preg_replace('/^Mdl_/i', '', $file);
+        $className = $this->toPascalCase($file);
+        
+        // Cache result (dynamic programming)
+        self::$classNameCache[$file] = $className;
+        
+        return $className;
+    }
+}
+```
+
+###### Benefits of Memoization:
+- ✅ **Performance:** Avoid repeated string conversions and filesystem checks
+- ✅ **Scalability:** O(1) lookups after first access
+- ✅ **Predictability:** Consistent results for same inputs
+- ✅ **Memory-efficient:** Cache only computed results, not intermediate steps
+
+##### B.9: DRY Programming Principles
+
+**Don't Repeat Yourself:** Extract common patterns into reusable functions.
+
+###### Centralized String Conversion
+
+```php
+// application/core/MY_String_Helper.php
+<?php
+
+if (!function_exists('to_pascal_case')) {
+    /**
+     * Convert snake_case or kebab-case to PascalCase
+     * 
+     * @param string $string Input string
+     * @return string PascalCase string
+     */
+    function to_pascal_case(string $string): string
+    {
+        // Early return: Already PascalCase
+        if (ctype_upper($string[0]) && !str_contains($string, '_')) {
+            return $string;
+        }
+        
+        return str_replace(['_', '-'], '', ucwords($string, '_-'));
+    }
+}
+
+if (!function_exists('to_camel_case')) {
+    /**
+     * Convert PascalCase to camelCase
+     * 
+     * @param string $string Input string
+     * @return string camelCase string
+     */
+    function to_camel_case(string $string): string
+    {
+        // Early return: Empty string
+        if (empty($string)) {
+            return $string;
+        }
+        
+        return lcfirst($string);
+    }
+}
+
+if (!function_exists('to_singular')) {
+    /**
+     * Convert plural to singular form (simple English rules)
+     * 
+     * @param string $word Plural word
+     * @return string Singular word
+     */
+    function to_singular(string $word): string
+    {
+        // Early return: Already singular (no 's' at end)
+        if (!str_ends_with($word, 's')) {
+            return $word;
+        }
+        
+        // Special cases (early returns)
+        $specialCases = [
+            'News' => 'News',
+            'Series' => 'Series',
+            'Species' => 'Species',
+        ];
+        
+        if (isset($specialCases[$word])) {
+            return $specialCases[$word];
+        }
+        
+        // -ies → -y (e.g., Categories → Category)
+        if (str_ends_with($word, 'ies')) {
+            return substr($word, 0, -3) . 'y';
+        }
+        
+        // -ses → -s (e.g., Classes → Class)
+        if (str_ends_with($word, 'ses')) {
+            return substr($word, 0, -2);
+        }
+        
+        // Default: Remove trailing 's'
+        return substr($word, 0, -1);
+    }
+}
+```
+
+###### Use Helper Functions Everywhere
+
+```php
+// MY_Router.php - DRY
+private function toPascalCase(string $string): string
+{
+    return to_pascal_case($string); // Reuse helper
+}
+
+// MX/Loader.php - DRY
+private function toPascalCase(string $string): string
+{
+    return to_pascal_case($string); // Reuse helper
+}
+
+private function toPropertyName(string $class): string
+{
+    return to_camel_case($class); // Reuse helper
+}
+
+// MX/Modules.php - DRY
+private static function toPascalCase(string $string): string
+{
+    return to_pascal_case($string); // Reuse helper
+}
+```
+
+###### Benefits of DRY:
+- ✅ **Single source of truth:** One place to fix bugs
+- ✅ **Consistency:** Same behavior everywhere
+- ✅ **Testability:** Test once, use everywhere
+- ✅ **Maintainability:** Change once, update everywhere
+
+##### B.10: SOLID Programming Principles
+
+**Single Responsibility Principle (SRP):** Each class has one reason to change.
+
+###### Router: Path Resolution Only
+
+```php
+// application/core/MY_Router.php
+class MY_Router extends MX_Router
+{
+    // SRP: Only responsible for routing URL → Module Path
+    protected function _set_module_path(string $urlSegment): string
+    {
+        $resolver = new ModulePathResolver();
+        return $resolver->resolve($urlSegment);
+    }
+}
+
+// application/core/ModulePathResolver.php
+class ModulePathResolver
+{
+    private array $cache = [];
+    
+    // SRP: Only responsible for resolving module paths
+    public function resolve(string $urlSegment): string
+    {
+        // Early return: Cache hit
+        if (isset($this->cache[$urlSegment])) {
+            return $this->cache[$urlSegment];
+        }
+        
+        // Early return: Module doesn't exist
+        if (!$this->moduleExists($urlSegment)) {
+            show_404();
+        }
+        
+        $moduleName = to_pascal_case($urlSegment);
+        $modulePath = APPPATH . "modules/{$moduleName}/";
+        
+        // Early return: Path doesn't exist
+        if (!is_dir($modulePath)) {
+            show_404();
+        }
+        
+        $this->cache[$urlSegment] = $modulePath;
+        return $modulePath;
+    }
+    
+    private function moduleExists(string $segment): bool
+    {
+        $pascalCase = to_pascal_case($segment);
+        return is_dir(APPPATH . "modules/{$pascalCase}");
+    }
+}
+```
+
+**Open/Closed Principle (OCP):** Open for extension, closed for modification.
+
+###### Strategy Pattern for Model Loading
+
+```php
+// application/third_party/MX/Loader.php
+class MX_Loader extends CI_Loader
+{
+    private ModelLoadingStrategy $strategy;
+    
+    public function __construct()
+    {
+        // OCP: Can swap strategy without modifying loader
+        $this->strategy = new PSR4ModelLoadingStrategy();
+    }
+    
+    public function model($model, $name = '', $db_conn = false)
+    {
+        // Delegate to strategy (OCP)
+        return $this->strategy->load($model, $name, $db_conn);
+    }
+}
+
+// application/third_party/MX/Strategies/PSR4ModelLoadingStrategy.php
+interface ModelLoadingStrategy
+{
+    public function load(string $model, string $name, $db_conn): mixed;
+}
+
+class PSR4ModelLoadingStrategy implements ModelLoadingStrategy
+{
+    public function load(string $model, string $name, $db_conn): mixed
+    {
+        // Early return: Already loaded
+        if ($this->isLoaded($model, $name)) {
+            return $this;
+        }
+        
+        [$namespace, $class] = $this->parseModelPath($model);
+        
+        // Early return: Class doesn't exist
+        if (!class_exists($namespace . '\\' . $class)) {
+            return $this->fallbackToLegacy($model, $name, $db_conn);
+        }
+        
+        return $this->instantiateModel($namespace, $class, $name);
+    }
+}
+```
+
+**Liskov Substitution Principle (LSP):** Subtypes must be substitutable for their base types.
+
+###### Consistent Model Interface
+
+```php
+// All models extend same base and implement same interface
+namespace Modules\Clients\Models;
+
+class Client extends \Response_Model
+{
+    // LSP: Must have same method signature as base
+    public function get_by_id(int $id): ?object
+    {
+        // Early return: Invalid ID
+        if ($id <= 0) {
+            return null;
+        }
+        
+        return $this->db->where('id', $id)->get($this->table)->row();
+    }
+}
+
+namespace Modules\Invoices\Models;
+
+class Invoice extends \Response_Model
+{
+    // LSP: Same signature - substitutable
+    public function get_by_id(int $id): ?object
+    {
+        // Early return: Invalid ID
+        if ($id <= 0) {
+            return null;
+        }
+        
+        return $this->db->where('id', $id)->get($this->table)->row();
+    }
+}
+```
+
+**Interface Segregation Principle (ISP):** Clients shouldn't depend on interfaces they don't use.
+
+###### Focused Interfaces
+
+```php
+// Small, focused interfaces (ISP)
+interface Identifiable
+{
+    public function get_by_id(int $id): ?object;
+}
+
+interface Listable
+{
+    public function get_all(): array;
+}
+
+interface Searchable
+{
+    public function search(string $query): array;
+}
+
+// Models implement only what they need
+class Client extends \Response_Model implements Identifiable, Listable, Searchable
+{
+    // Implements all three
+}
+
+class Setting extends \Response_Model implements Identifiable
+{
+    // Only implements Identifiable (ISP)
+}
+```
+
+**Dependency Inversion Principle (DIP):** Depend on abstractions, not concretions.
+
+###### Inject Dependencies
+
+```php
+// Controllers depend on abstractions (DIP)
+class ClientsController extends \Admin_Controller
+{
+    private ClientRepositoryInterface $clientRepository;
+    
+    public function __construct(ClientRepositoryInterface $repo = null)
+    {
+        parent::__construct();
+        
+        // DIP: Depend on interface, not concrete class
+        $this->clientRepository = $repo ?? new DatabaseClientRepository();
+    }
+    
+    public function index(): void
+    {
+        // Early return: No clients
+        $clients = $this->clientRepository->getAll();
+        if (empty($clients)) {
+            $this->load->view('clients/empty');
+            return;
+        }
+        
+        $this->load->view('clients/index', ['clients' => $clients]);
+    }
+}
+
+interface ClientRepositoryInterface
+{
+    public function getAll(): array;
+    public function getById(int $id): ?object;
+}
+
+class DatabaseClientRepository implements ClientRepositoryInterface
+{
+    // Concrete implementation
+}
+
+class CachedClientRepository implements ClientRepositoryInterface
+{
+    // Alternative implementation (DIP enables easy swap)
+}
+```
+
+##### B.11: Early Return Patterns Throughout
+
+**Every function uses early returns for guard clauses:**
+
+```php
+// Example 1: Router validation
+protected function _set_module_path(string $urlSegment): string
+{
+    // Early return: Cache hit
+    if (isset(self::$cache[$urlSegment])) {
+        return self::$cache[$urlSegment];
+    }
+    
+    // Early return: Invalid input
+    if (empty($urlSegment)) {
+        show_404();
+    }
+    
+    // Early return: Module doesn't exist
+    if (!$this->moduleExists($urlSegment)) {
+        show_404();
+    }
+    
+    // Happy path - only reached if all guards pass
+    return $this->resolveModulePath($urlSegment);
+}
+
+// Example 2: Model loading
+public function model($model, $name = '', $db_conn = false)
+{
+    // Early return: Already loaded
+    if ($this->isLoaded($model, $name)) {
+        return $this;
+    }
+    
+    // Early return: Invalid model name
+    if (empty($model)) {
+        log_message('error', 'Empty model name provided');
+        return $this;
+    }
+    
+    // Happy path
+    return $this->loadModel($model, $name, $db_conn);
+}
+
+// Example 3: Controller action
+public function view(int $id): void
+{
+    // Early return: Invalid ID
+    if ($id <= 0) {
+        show_404();
+    }
+    
+    // Early return: Client not found
+    $client = $this->clientRepository->getById($id);
+    if ($client === null) {
+        show_404();
+    }
+    
+    // Early return: No permission
+    if (!$this->hasPermission('view_clients')) {
+        show_error('Access denied', 403);
+    }
+    
+    // Happy path - only executed if all guards pass
+    $this->load->view('clients/view', ['client' => $client]);
+}
+```
+
+**Benefits of Early Returns:**
+- ✅ **Readability:** Validate preconditions first, happy path last
+- ✅ **Reduced nesting:** No deeply nested if/else chains
+- ✅ **Clear intent:** Each guard clause is a separate validation
+- ✅ **Easier debugging:** Guard failures are isolated and logged
+- ✅ **Performance:** Skip unnecessary work when preconditions fail
+
+##### B.12: Estimated Effort (Full PSR-4)
 
 - **Infrastructure Updates (MY_Router, MX_Loader, MX_Modules):** 12-16 hours
+- **Helper Functions (DRY principles):** 4-6 hours
 - **Directory Renaming (31 modules × 4 subdirs):** 4-6 hours (mostly automated)
 - **Controller Renaming (51 files):** 8-12 hours
 - **Model Renaming (43 files):** 10-15 hours
-- **Testing & Validation:** 20-30 hours
+- **Test Updates & Validation:** 20-30 hours
 - **Documentation Updates:** 4-6 hours
-- **Total:** 58-85 hours (1.5-2 weeks for one developer)
+- **Total:** 62-91 hours (1.5-2.5 weeks for one developer)
 
 **Note:** This is actually **less hands-on work** than Option A because:
 - No need to update hundreds of `$this->load->model()` calls (MX_Loader handles it)
 - No need to update hundreds of `Modules::run()` calls (routing handles it)
 - Automated directory renaming script reduces manual work
 - Clean PSR-4 structure reduces long-term maintenance burden
+- Memoization improves runtime performance
+- DRY principles reduce code duplication
+- SOLID principles improve testability
 
 **Recommendation:** Use Option B (full PSR-4) because:
 - **PSR-4 is the standard:** Modern PHP expects PSR-4 compliance
@@ -421,6 +1121,10 @@ composer dump-autoload
 - **Future Laravel migration:** Directory structure already matches Laravel expectations
 - **Less work than it seems:** Smart refactoring of MX layer eliminates most manual updates
 - **One-time investment:** Pays dividends in maintainability and developer onboarding
+- **Test compatibility:** PHPUnit tests work flawlessly with PSR-4
+- **Performance gains:** Dynamic programming (memoization) improves speed
+- **Code quality:** DRY and SOLID principles reduce bugs and improve maintainability
+- **Early returns:** Clearer, more maintainable code throughout
 
 ## Test Coverage Requirements
 
@@ -761,42 +1465,73 @@ composer dump-autoload -o
 
 1. **Infrastructure First:** Update MX routing layer before touching any files
 2. **Automated Directory Renaming:** Use the provided script, don't do manually
-3. **Early Return Patterns:** All new router/loader code uses early returns
+3. **Early Return Patterns:** All new router/loader code uses early returns - validate preconditions first, happy path last
 4. **Backward Compatibility:** Old `$this->load->model()` and `Modules::run()` calls keep working
 5. **PSR-4 Leading:** When in doubt, follow PSR-4 conventions over CI conventions
 
-6. **Watch for edge cases:**
-   - Models with compound names: `Mdl_invoice_tax_rates` → `InvoiceTaxRate`
-   - Modules with underscores: `custom_fields` → `CustomFields` directory
-   - Controllers with underscores: `User_clients` → `UserClientsController` class
-   - Recursive model loading: One model loading another (handle in MX_Loader)
-   - AJAX endpoints: Ensure they still resolve correctly after routing changes
+6. **Dynamic Programming (Memoization):**
+   - Cache module path resolutions to avoid repeated filesystem checks
+   - Cache class name conversions to avoid repeated string operations
+   - Use static arrays for in-memory caching
+   - Clear benefits: O(1) lookups after first access, improved performance
 
-7. **Directory Renaming Order (Script implements these safety measures):**
-   - **Always use two-step `.tmp` suffix** to avoid case-sensitivity issues
-   - Example: `clients` → `clients.tmp` → `Clients`
-   - This prevents problems on case-insensitive filesystems (macOS, Windows)
-   - **Clean up `.tmp` directories** before renaming to handle failed previous runs (see script lines 638-640)
-   - **Validate paths** before `rm -rf` operations using `-n` test
-   - Apply this pattern to **both module directories and subdirectories**
+7. **DRY Principles:**
+   - Extract `to_pascal_case()`, `to_camel_case()`, `to_singular()` into shared helpers
+   - Reuse helpers in MY_Router, MX_Loader, MX_Modules
+   - Single source of truth for string conversions
+   - Test once, use everywhere
 
-8. **Testing Strategy:**
-   - Unit tests for MX routing layer (mock CI super-object)
-   - Integration tests for controllers (test actual HTTP requests)
-   - Test database operations in models (use test database)
-   - Mock external dependencies (APIs, email services)
+8. **SOLID Principles:**
+   - **SRP:** Each class has one responsibility (ModulePathResolver, ModelLoadingStrategy)
+   - **OCP:** Use strategy pattern for extensibility without modification
+   - **LSP:** All models have consistent interfaces, substitutable for base types
+   - **ISP:** Small, focused interfaces (Identifiable, Listable, Searchable)
+   - **DIP:** Depend on abstractions (interfaces), not concrete implementations
 
-9. **Code Review Focus:**
-   - Verify PSR-4 autoloading works without MY_Loader hacks
-   - Check that early returns are used consistently
-   - Ensure no performance regressions in routing layer
-   - Validate IDE autocomplete works (test with PHPStorm/VS Code)
+9. **PHPUnit Test Compatibility:**
+   - Update `tests/phpunit-parallel-bootstrap.php` to support PSR-4
+   - Configure `phpunit.xml.dist` with correct source paths
+   - Run tests after each phase to ensure flawless operation
+   - Use `markTestSkipped()` for CI-dependent tests in isolation
 
-10. **Performance Considerations:**
-    - Cache module path resolution results
+10. **Watch for edge cases:**
+    - Models with compound names: `Mdl_invoice_tax_rates` → `InvoiceTaxRate`
+    - Modules with underscores: `custom_fields` → `CustomFields` directory
+    - Controllers with underscores: `User_clients` → `UserClientsController` class
+    - Recursive model loading: One model loading another (handle in MX_Loader)
+    - AJAX endpoints: Ensure they still resolve correctly after routing changes
+
+11. **Directory Renaming Order (Script implements these safety measures):**
+    - **Always use two-step `.tmp` suffix** to avoid case-sensitivity issues
+    - Example: `clients` → `clients.tmp` → `Clients`
+    - This prevents problems on case-insensitive filesystems (macOS, Windows)
+    - **Clean up `.tmp` directories** before renaming to handle failed previous runs
+    - **Validate paths** before `rm -rf` operations using `-n` test
+    - Apply this pattern to **both module directories and subdirectories**
+
+12. **Testing Strategy:**
+    - Unit tests for MX routing layer (mock CI super-object)
+    - Integration tests for controllers (test actual HTTP requests)
+    - Test database operations in models (use test database)
+    - Mock external dependencies (APIs, email services)
+    - Run `composer dump-autoload -o` before test runs
+    - Validate 100% test coverage with `vendor/bin/phpunit --coverage-text`
+
+13. **Code Review Focus:**
+    - Verify PSR-4 autoloading works without MY_Loader hacks
+    - Check that early returns are used consistently (guard clauses first)
+    - Ensure no performance regressions (memoization should improve performance)
+    - Validate IDE autocomplete works (test with PHPStorm/VS Code)
+    - Verify DRY principles: No code duplication in string conversion
+    - Check SOLID compliance: Classes have single responsibility
+
+14. **Performance Considerations:**
+    - Cache module path resolution results (dynamic programming)
+    - Cache class name conversions (memoization)
     - Use opcache in production
     - Profile before/after to ensure no slowdowns
     - Early returns prevent unnecessary filesystem checks
+    - Memoization provides measurable performance gains
 
 ## Success Criteria (Option B: Full PSR-4)
 
@@ -806,13 +1541,17 @@ composer dump-autoload -o
 - ✅ **Controllers:** All have `Controller` suffix and proper PSR-4 namespaces
 - ✅ **Models:** All are singular with no `Mdl_` prefix and proper PSR-4 namespaces
 - ✅ **Backward Compatibility:** Old code patterns still work without modification
-- ✅ **Early Returns:** All routing code uses early return pattern
+- ✅ **Early Returns:** All routing code uses early return pattern consistently
 - ✅ **Tests:** 100% coverage for infrastructure, controllers, and models
+- ✅ **Test Compatibility:** PHPUnit tests work flawlessly with PSR-4 autoloading
+- ✅ **Dynamic Programming:** Memoization used for expensive operations (module path resolution, class name conversion)
+- ✅ **DRY Programming:** Common patterns extracted into reusable helper functions
+- ✅ **SOLID Principles:** Single responsibility, open/closed, Liskov substitution, interface segregation, dependency inversion
 - ✅ **Autoloading:** Native PSR-4 autoloading works without custom loaders
 - ✅ **IDE Support:** Full autocomplete and navigation in modern IDEs
 - ✅ **Linters:** All static analysis tools pass (PHPStan Level 8+)
 - ✅ **Staging:** Application works correctly in staging environment
-- ✅ **Performance:** No performance regression in routing/loading
+- ✅ **Performance:** No performance regression (memoization provides gains)
 - ✅ **Documentation:** All docs updated to reflect PSR-4 structure
 
 ## References
