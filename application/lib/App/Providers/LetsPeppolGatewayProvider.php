@@ -14,9 +14,13 @@ use App\Services\Integrations\IntegrationSettingsService;
  * Implements the generic IntegrationProviderInterface using the new gateway pattern.
  * Follows the architectural pattern from PaypalLib.php with request(), buildHeaders(),
  * and authorize() methods centralized in the gateway client.
+ *
+ * Uses IntegrationSettingsService's token cache to avoid unnecessary OAuth requests.
  */
 class LetsPeppolGatewayProvider implements IntegrationProviderInterface
 {
+    private ?LetsPeppolGatewayClient $gateway = null;
+
     public function __construct(
         private IntegrationSettingsService $settingsService
     ) {
@@ -29,7 +33,7 @@ class LetsPeppolGatewayProvider implements IntegrationProviderInterface
      */
     public function validateParticipant(string $participantId): bool
     {
-        $gateway = $this->createGatewayClient();
+        $gateway = $this->getGatewayClient();
 
         if ($gateway === null) {
             return false;
@@ -47,7 +51,7 @@ class LetsPeppolGatewayProvider implements IntegrationProviderInterface
      */
     public function sendInvoice(array $payload): bool
     {
-        $gateway = $this->createGatewayClient();
+        $gateway = $this->getGatewayClient();
 
         if ($gateway === null) {
             return false;
@@ -60,13 +64,17 @@ class LetsPeppolGatewayProvider implements IntegrationProviderInterface
     }
 
     /**
-     * Create and configure a gateway client from stored settings.
+     * Get or create the gateway client (singleton per provider instance).
      *
      * Returns null if required settings are missing (base_url, credentials).
-     * The gateway client handles authorization automatically on construction.
+     * Uses the cached token from IntegrationSettingsService to avoid re-authorization.
      */
-    private function createGatewayClient(): ?LetsPeppolGatewayClient
+    private function getGatewayClient(): ?LetsPeppolGatewayClient
     {
+        if ($this->gateway !== null) {
+            return $this->gateway;
+        }
+
         $settings = $this->settingsService->letsPeppolSettings();
 
         if (empty($settings['base_url'])) {
@@ -77,6 +85,17 @@ class LetsPeppolGatewayProvider implements IntegrationProviderInterface
             return null;
         }
 
-        return new LetsPeppolGatewayClient($settings['base_url'], $settings);
+        // Get cached token from IntegrationSettingsService (or create new one)
+        $token = $this->settingsService->activeTokenOrCreate();
+
+        // Create gateway client WITHOUT credentials to skip auto-authorization
+        $this->gateway = new LetsPeppolGatewayClient($settings['base_url'], []);
+
+        // If we have a cached token, inject it directly to avoid OAuth call
+        if ($token) {
+            $this->gateway->setAccessToken($token);
+        }
+
+        return $this->gateway;
     }
 }
