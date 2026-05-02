@@ -89,16 +89,18 @@ class SecurityHelperTest extends TestCase
     #[Test]
     public function it_detects_path_traversal(): void
     {
-        // Arrange
-        $allowedDir = '/tmp/uploads';
-        $safePath = '/tmp/uploads/file.txt';
-        $unsafePath = '/etc/passwd';
+        // Arrange - use sys_get_temp_dir for portability
+        $tempBase = sys_get_temp_dir();
+        $allowedDir = $tempBase . '/test_uploads_' . uniqid();
+        $safePath = $allowedDir . '/file.txt';
+        $unsafePath = $tempBase . '/file_outside.txt';
 
-        // Create test directory
+        // Create test directory and files
         if (!is_dir($allowedDir)) {
             mkdir($allowedDir, 0755, true);
         }
         touch($safePath);
+        touch($unsafePath);
 
         // Act & Assert
         $this->assertTrue(SecurityHelper::isPathSafe($safePath, $allowedDir));
@@ -106,6 +108,7 @@ class SecurityHelperTest extends TestCase
 
         // Cleanup
         unlink($safePath);
+        unlink($unsafePath);
         rmdir($allowedDir);
     }
 

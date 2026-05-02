@@ -56,37 +56,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Core\\": "application/modules/core/src/",
-            "Modules\\Clients\\": "application/modules/clients/",
-            "Modules\\CustomFields\\": "application/modules/custom_fields/",
-            "Modules\\CustomValues\\": "application/modules/custom_values/",
-            "Modules\\Dashboard\\": "application/modules/dashboard/",
-            "Modules\\EmailTemplates\\": "application/modules/email_templates/",
-            "Modules\\Families\\": "application/modules/families/",
-            "Modules\\Filter\\": "application/modules/filter/",
-            "Modules\\Guest\\": "application/modules/guest/",
-            "Modules\\Import\\": "application/modules/import/",
-            "Modules\\Integrations\\": "application/modules/integrations/",
-            "Modules\\InvoiceGroups\\": "application/modules/invoice_groups/",
-            "Modules\\Invoices\\": "application/modules/invoices/",
-            "Modules\\Layout\\": "application/modules/layout/",
-            "Modules\\Mailer\\": "application/modules/mailer/",
-            "Modules\\PaymentMethods\\": "application/modules/payment_methods/",
-            "Modules\\Payments\\": "application/modules/payments/",
-            "Modules\\Products\\": "application/modules/products/",
-            "Modules\\Projects\\": "application/modules/projects/",
-            "Modules\\Quotes\\": "application/modules/quotes/",
-            "Modules\\Reports\\": "application/modules/reports/",
-            "Modules\\Sessions\\": "application/modules/sessions/",
-            "Modules\\Settings\\": "application/modules/settings/",
-            "Modules\\Setup\\": "application/modules/setup/",
-            "Modules\\Tasks\\": "application/modules/tasks/",
-            "Modules\\TaxRates\\": "application/modules/tax_rates/",
-            "Modules\\Units\\": "application/modules/units/",
-            "Modules\\Upload\\": "application/modules/upload/",
-            "Modules\\UserClients\\": "application/modules/user_clients/",
-            "Modules\\Users\\": "application/modules/users/",
-            "Modules\\Welcome\\": "application/modules/welcome/"
+            "Core\\": "application/modules/core/src/"
         },
         "files": [
             "bootstrap/autoload.php"

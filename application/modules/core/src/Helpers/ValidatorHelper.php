@@ -85,6 +85,17 @@ class ValidatorHelper
     }
 
     /**
+     * Validate email address
+     * 
+     * @param string $value Email to validate
+     * @return bool True if valid email
+     */
+    public static function email(string $value): bool
+    {
+        return filter_var($value, FILTER_VALIDATE_EMAIL) !== false;
+    }
+
+    /**
      * Validate date format
      * 
      * @param string $date Date string
@@ -143,14 +154,14 @@ class ValidatorHelper
             }
 
             $method = $rule;
-            if (!method_exists(self::class, $method)) {
+            if (!method_exists(static::class, $method)) {
                 $errors[] = "Unknown validation rule: {$rule}";
                 continue;
             }
 
             array_unshift($params, $value);
             
-            if (!call_user_func_array([self::class, $method], $params)) {
+            if (!call_user_func_array([static::class, $method], $params)) {
                 $errors[] = "Validation failed for rule: {$rule}";
             }
         }
