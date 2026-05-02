@@ -7,6 +7,7 @@ use App\Gateways\LetsPeppol\Endpoints\InvoiceEndpoint;
 use App\Gateways\LetsPeppol\Endpoints\ParticipantEndpoint;
 use App\Gateways\LetsPeppol\LetsPeppolGatewayClient;
 use App\Services\Integrations\IntegrationSettingsService;
+use Closure;
 
 /**
  * LetsPeppol gateway provider.
@@ -16,13 +17,15 @@ use App\Services\Integrations\IntegrationSettingsService;
  * and authorize() methods centralized in the gateway client.
  *
  * Uses IntegrationSettingsService's token cache to avoid unnecessary OAuth requests.
+ * Supports optional gateway factory injection for testing.
  */
 class LetsPeppolGatewayProvider implements IntegrationProviderInterface
 {
     private ?LetsPeppolGatewayClient $gateway = null;
 
     public function __construct(
-        private IntegrationSettingsService $settingsService
+        private IntegrationSettingsService $settingsService,
+        private ?Closure $gatewayFactory = null
     ) {
     }
 
@@ -68,6 +71,7 @@ class LetsPeppolGatewayProvider implements IntegrationProviderInterface
      *
      * Returns null if required settings are missing (base_url, credentials).
      * Uses the cached token from IntegrationSettingsService to avoid re-authorization.
+     * Can use an injected factory for testing.
      */
     private function getGatewayClient(): ?LetsPeppolGatewayClient
     {
@@ -85,7 +89,13 @@ class LetsPeppolGatewayProvider implements IntegrationProviderInterface
             return null;
         }
 
-        // Get cached token from IntegrationSettingsService (or create new one)
+        // Use injected factory if available (for testing)
+        if ($this->gatewayFactory !== null) {
+            $this->gateway = ($this->gatewayFactory)($settings, $this->settingsService);
+            return $this->gateway;
+        }
+
+        // Production path: create gateway with cached token
         $token = $this->settingsService->activeTokenOrCreate();
 
         // Create gateway client WITHOUT credentials to skip auto-authorization

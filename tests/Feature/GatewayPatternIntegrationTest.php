@@ -19,7 +19,7 @@ class GatewayPatternIntegrationTest extends TestCase
     #[Test]
     public function it_integrates_provider_gateway_and_endpoints(): void
     {
-        /* Arrange: Full gateway stack with mocked settings service. */
+        /* Arrange: Full gateway stack with mocked settings service and fake HTTP. */
         $settingsService = $this->createMock(IntegrationSettingsService::class);
         $settingsService->method('letsPeppolSettings')
             ->willReturn([
@@ -28,11 +28,34 @@ class GatewayPatternIntegrationTest extends TestCase
                 'client_secret' => 'test-secret',
             ]);
 
-        /* Act: Provider methods are called. */
-        $provider = new LetsPeppolGatewayProvider($settingsService);
+        $settingsService->method('activeTokenOrCreate')
+            ->willReturn('integration-test-token');
+
+        // Create a fake HTTP client to track requests
+        $http = new FakeLetsPeppolHttpClient(200);
+
+        // Inject factory that uses our fake HTTP client
+        $gatewayFactory = function ($settings) use ($http) {
+            $gateway = new LetsPeppolGatewayClient(
+                $settings['base_url'],
+                [],
+                $http
+            );
+            $gateway->setAccessToken('integration-test-token');
+            return $gateway;
+        };
+
+        $provider = new LetsPeppolGatewayProvider($settingsService, $gatewayFactory);
+
+        /* Act: Provider methods are called through the full stack. */
+        $participantValid = $provider->validateParticipant('0088:123456789');
+        $invoiceSent = $provider->sendInvoice(['invoice_id' => 42]);
 
         /* Assert: Requests flow through the stack correctly. */
-        $this->assertInstanceOf(LetsPeppolGatewayProvider::class, $provider);
+        $this->assertTrue($participantValid);
+        $this->assertTrue($invoiceSent);
+        $http->assertRequestMade('GET', 'https://api.letspeppol.test/api/participants/validate');
+        $http->assertRequestMade('POST', 'https://api.letspeppol.test/api/invoices');
     }
 
     #[Test]
