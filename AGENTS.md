@@ -457,9 +457,8 @@ $valid = ValidatorHelper::in($value, ['red', 'green', 'blue']);
 $valid = ValidatorHelper::regex($value, '/^[a-z]+$/');
 
 // Multiple rules
-$errors = ValidatorHelper::validate($email, [
+$errors = ValidatorHelper::validate($str, [
     'required',
-    'email',
     'maxLength' => 100,
 ]);
 ```
