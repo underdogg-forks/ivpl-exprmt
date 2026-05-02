@@ -8,7 +8,9 @@ This document summarizes the comprehensive refactoring of InvoicePlane to achiev
 - DRY (Don't Repeat Yourself) implementation
 - Dynamic Programming patterns
 - Enhanced security
-- Complete PSR-4 namespace adoption
+- Complete PSR-4 namespace adoption for Core module
+
+**Note**: Module namespaces were initially added but reverted due to CodeIgniter MX HMVC compatibility requirements. Modules continue to use CodeIgniter's MX loader system without PSR-4 namespaces.
 
 ---
 
@@ -42,31 +44,34 @@ application/modules/core/src/
 **Impact:**
 - ✅ Removed `application/lib` directory
 - ✅ Moved `App\` namespace to `Core\`
-- ✅ Updated 150+ files with new namespace references
+- ✅ Updated 60+ files with new namespace references
 - ✅ Updated composer.json autoloading
+- ⚠️ Module namespaces NOT added (CodeIgniter MX compatibility)
 
 ---
 
-### 2. Module Namespacing
+### 2. Module Organization (No Namespaces)
 
-All 31 modules now have proper PSR-4 namespaces:
+CodeIgniter 3 uses MX HMVC extension which has its own class loading mechanism. Modules remain WITHOUT namespaces:
 
 ```php
-// Before
+// Modules continue to use standard CodeIgniter loading
+class Clients extends Admin_Controller { }
 class Mdl_Clients extends Response_Model { }
 
-// After
-namespace Modules\Clients\Models;
-
-class Mdl_Clients extends Response_Model { }
+// NOT namespaced (would break MX loader)
 ```
 
-**Modules Updated:**
-- clients, custom_fields, custom_values, dashboard, email_templates
-- families, filter, guest, import, integrations, invoice_groups
-- invoices, layout, mailer, payment_methods, payments, products
-- projects, quotes, reports, sessions, settings, setup, tasks
-- tax_rates, units, upload, user_clients, users, welcome
+**Why No Module Namespaces:**
+- CodeIgniter MX expects global classes
+- `Modules::run()` requires non-namespaced controllers
+- `$this->load->model()` expects global model classes
+- URL routing expects global controller classes
+
+**Only Core Module is Namespaced:**
+- `Core\` namespace for `application/modules/core/src/`
+- PSR-4 autoloading for new modern code
+- All other modules use CodeIgniter MX loader
 
 ---
 
@@ -338,14 +343,13 @@ application/
 {
     "autoload": {
         "psr-4": {
-            "Core\\": "application/modules/core/src/",
-            "Modules\\Clients\\": "application/modules/clients/",
-            "Modules\\Invoices\\": "application/modules/invoices/",
-            ... (all 31 modules)
+            "Core\\": "application/modules/core/src/"
         }
     }
 }
 ```
+
+**Note**: Module PSR-4 entries were removed as CodeIgniter MX HMVC uses its own loader system. Only the Core namespace uses PSR-4 autoloading.
 
 ---
 
@@ -435,9 +439,11 @@ use Core\Helpers\ValidatorHelper;
 ### Using Module Classes
 
 ```php
-// Importing from modules
-use Modules\Clients\Models\Mdl_Clients;
-use Modules\Invoices\Controllers\Invoices;
+// Modules are NOT namespaced - use CodeIgniter's loader
+$this->load->model('clients/mdl_clients');
+$this->load->controller('invoices');
+// Or use Modules::run() for HMVC
+Modules::run('clients/view', $client_id);
 ```
 
 ### Replacing Duplicated Code
