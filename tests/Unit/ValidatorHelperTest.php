@@ -70,6 +70,17 @@ class ValidatorHelperTest extends TestCase
     }
 
     #[Test]
+    public function it_validates_email(): void
+    {
+        // Arrange & Act & Assert
+        $this->assertTrue(ValidatorHelper::email('test@example.com'));
+        $this->assertTrue(ValidatorHelper::email('user.name+tag@example.co.uk'));
+        $this->assertFalse(ValidatorHelper::email('invalid-email'));
+        $this->assertFalse(ValidatorHelper::email('missing@domain'));
+        $this->assertFalse(ValidatorHelper::email('@example.com'));
+    }
+
+    #[Test]
     public function it_validates_date(): void
     {
         // Arrange & Act & Assert

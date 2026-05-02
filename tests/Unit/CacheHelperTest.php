@@ -120,12 +120,14 @@ class CacheHelperTest extends TestCase
         
         // Assert - value should exist immediately
         $this->assertTrue(CacheHelper::has($key));
+        $this->assertEquals($value, CacheHelper::get($key));
         
-        // Wait for TTL to expire
+        // Manually expire by manipulating time (sleep minimal time)
         sleep(2);
         
         // Assert - value should be expired
         $this->assertFalse(CacheHelper::has($key));
+        $this->assertNull(CacheHelper::get($key));
     }
 
     #[Test]

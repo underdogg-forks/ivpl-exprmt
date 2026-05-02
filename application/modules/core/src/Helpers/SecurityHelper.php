@@ -103,7 +103,10 @@ class SecurityHelper
             return false;
         }
 
-        return str_starts_with($realPath, $allowedPath);
+        // Normalize allowed path with trailing separator to prevent prefix bypass
+        $allowedPath = rtrim($allowedPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        
+        return str_starts_with($realPath . DIRECTORY_SEPARATOR, $allowedPath);
     }
 
     /**

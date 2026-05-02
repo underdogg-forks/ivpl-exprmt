@@ -23,7 +23,19 @@ class CacheHelper
      */
     public static function get(string $key): mixed
     {
-        return self::$cache[$key] ?? null;
+        if (!isset(self::$cache[$key])) {
+            return null;
+        }
+
+        $item = self::$cache[$key];
+        
+        // Check if expired
+        if ($item['expires'] > 0 && $item['expires'] < time()) {
+            self::delete($key);
+            return null;
+        }
+
+        return $item['value'];
     }
 
     /**
