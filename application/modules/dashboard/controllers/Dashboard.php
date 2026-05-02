@@ -4,6 +4,8 @@ if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
 
+namespace Modules\Dashboard\Controllers;
+
 /*
  * InvoicePlane
  *
