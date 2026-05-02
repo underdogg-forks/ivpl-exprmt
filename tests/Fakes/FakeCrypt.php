@@ -2,7 +2,7 @@
 
 namespace Tests\Fakes;
 
-use App\Contracts\CryptInterface;
+use Core\Contracts\CryptInterface;
 
 /**
  * Transparent fake for CryptInterface.

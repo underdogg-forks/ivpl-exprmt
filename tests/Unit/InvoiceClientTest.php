@@ -1,7 +1,7 @@
 <?php
 
-use App\Adapters\LetsPeppol\Endpoints\InvoiceClient;
-use App\Adapters\LetsPeppol\LetsPeppolClient;
+use Core\Adapters\LetsPeppol\Endpoints\InvoiceClient;
+use Core\Adapters\LetsPeppol\LetsPeppolClient;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Fakes\FakeLetsPeppolHttpClient;

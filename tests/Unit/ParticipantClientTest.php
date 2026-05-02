@@ -1,7 +1,7 @@
 <?php
 
-use App\Adapters\LetsPeppol\Endpoints\ParticipantClient;
-use App\Adapters\LetsPeppol\LetsPeppolClient;
+use Core\Adapters\LetsPeppol\Endpoints\ParticipantClient;
+use Core\Adapters\LetsPeppol\LetsPeppolClient;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Fakes\FakeLetsPeppolHttpClient;

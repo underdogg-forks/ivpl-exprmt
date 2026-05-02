@@ -1,7 +1,7 @@
 <?php
 
-use App\Gateways\LetsPeppol\LetsPeppolGatewayClient;
-use App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
+use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
+use Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
 use League\OAuth2\Client\Provider\GenericProvider;
 use League\OAuth2\Client\Token\AccessToken;
 use PHPUnit\Framework\Attributes\Test;

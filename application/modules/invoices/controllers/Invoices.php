@@ -370,14 +370,14 @@ class Invoices extends Admin_Controller
         $this->load->model('integrations/mdl_integrations');
         $this->load->library('crypt');
 
-        $settingsService = new App\Services\Integrations\IntegrationSettingsService(
+        $settingsService = new Core\Services\Integrations\IntegrationSettingsService(
             $this->mdl_integrations,
             $this->crypt,
-            new App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory()
+            new Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory()
         );
 
-        $providerFactory = (new App\Services\Integrations\IntegrationProviderFactory())
-            ->register('letspeppol', fn () => new App\Providers\LetsPeppolProvider($settingsService));
+        $providerFactory = (new Core\Services\Integrations\IntegrationProviderFactory())
+            ->register('letspeppol', fn () => new Core\Providers\LetsPeppolProvider($settingsService));
 
         // ExceptionHandlingDecorator (applied automatically by IntegrationProviderFactory::make())
         // catches any provider-level exception and returns false — no manual try/catch needed.

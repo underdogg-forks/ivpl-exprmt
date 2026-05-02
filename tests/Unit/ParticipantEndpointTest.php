@@ -1,7 +1,7 @@
 <?php
 
-use App\Gateways\LetsPeppol\Endpoints\ParticipantEndpoint;
-use App\Gateways\LetsPeppol\LetsPeppolGatewayClient;
+use Core\Gateways\LetsPeppol\Endpoints\ParticipantEndpoint;
+use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Fakes\FakeLetsPeppolHttpClient;

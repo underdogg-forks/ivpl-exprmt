@@ -1,7 +1,7 @@
 <?php
 
-use App\Adapters\LetsPeppol\Endpoints\LetsPeppolClient;
-use App\Enums\RequestMethod;
+use Core\Adapters\LetsPeppol\Endpoints\LetsPeppolClient;
+use Core\Enums\RequestMethod;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

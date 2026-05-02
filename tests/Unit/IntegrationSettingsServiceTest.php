@@ -1,7 +1,7 @@
 <?php
 
-use App\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
-use App\Services\Integrations\IntegrationSettingsService;
+use Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
+use Core\Services\Integrations\IntegrationSettingsService;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Fakes\FakeCrypt;

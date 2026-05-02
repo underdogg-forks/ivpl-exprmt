@@ -1,10 +1,10 @@
 <?php
 
-use App\Gateways\LetsPeppol\LetsPeppolGatewayClient;
-use App\Gateways\LetsPeppol\Endpoints\InvoiceEndpoint;
-use App\Gateways\LetsPeppol\Endpoints\ParticipantEndpoint;
-use App\Providers\LetsPeppolGatewayProvider;
-use App\Services\Integrations\IntegrationSettingsService;
+use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
+use Core\Gateways\LetsPeppol\Endpoints\InvoiceEndpoint;
+use Core\Gateways\LetsPeppol\Endpoints\ParticipantEndpoint;
+use Core\Providers\LetsPeppolGatewayProvider;
+use Core\Services\Integrations\IntegrationSettingsService;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Fakes\FakeLetsPeppolHttpClient;

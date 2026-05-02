@@ -2,7 +2,7 @@
 
 namespace Tests\Fakes;
 
-use App\Adapters\LetsPeppol\Endpoints\InvoiceClient;
+use Core\Adapters\LetsPeppol\Endpoints\InvoiceClient;
 
 /**
  * Fake for InvoiceClient that records submissions without HTTP.

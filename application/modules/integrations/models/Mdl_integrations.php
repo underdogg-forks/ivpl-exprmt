@@ -6,7 +6,7 @@ if ( ! defined('BASEPATH')) {
 
 
 #[AllowDynamicProperties]
-class Mdl_integrations extends CI_Model implements \App\Contracts\IntegrationRepositoryInterface
+class Mdl_integrations extends CI_Model implements \Core\Contracts\IntegrationRepositoryInterface
 {
     public function ensureProvider(string $provider, string $name): int
     {
@@ -25,7 +25,7 @@ class Mdl_integrations extends CI_Model implements \App\Contracts\IntegrationRep
         return (int) $this->db->insert_id();
     }
 
-    public function saveEncryptedSettings(string $provider, array $settings, array $encryptedKeys, \App\Contracts\CryptInterface $crypt): void
+    public function saveEncryptedSettings(string $provider, array $settings, array $encryptedKeys, \Core\Contracts\CryptInterface $crypt): void
     {
         $integrationId = $this->ensureProvider($provider, ucfirst($provider));
         foreach ($settings as $key => $value) {
@@ -54,7 +54,7 @@ class Mdl_integrations extends CI_Model implements \App\Contracts\IntegrationRep
         }
     }
 
-    public function settings(string $provider, \App\Contracts\CryptInterface $crypt): array
+    public function settings(string $provider, \Core\Contracts\CryptInterface $crypt): array
     {
         $rows = $this->db->select('s.setting_key, s.setting_value, s.is_encrypted')
             ->from('ip_integration_settings s')

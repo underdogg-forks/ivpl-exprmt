@@ -14,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Crypt implements \App\Contracts\CryptInterface
+class Crypt implements \Core\Contracts\CryptInterface
 {
     public function salt(): string
     {

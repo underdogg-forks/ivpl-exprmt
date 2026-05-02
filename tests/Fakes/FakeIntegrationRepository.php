@@ -2,8 +2,8 @@
 
 namespace Tests\Fakes;
 
-use App\Contracts\CryptInterface;
-use App\Contracts\IntegrationRepositoryInterface;
+use Core\Contracts\CryptInterface;
+use Core\Contracts\IntegrationRepositoryInterface;
 
 /**
  * In-memory fake for IntegrationRepositoryInterface.
