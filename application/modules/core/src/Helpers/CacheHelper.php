@@ -19,11 +19,12 @@ class CacheHelper
      * Get value from cache
      *
      * @param string $key Cache key
-     * @return mixed|null Cached value or null if not found
+     * @return mixed|null Cached value, or null on cache miss / expiry.
+     *                    Note: null cannot be distinguished from a stored null — use has() if needed.
      */
     public static function get(string $key): mixed
     {
-        if (!isset(self::$cache[$key])) {
+
             return null;
         }
 
