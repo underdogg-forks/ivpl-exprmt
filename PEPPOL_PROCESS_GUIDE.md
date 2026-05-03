@@ -5,6 +5,8 @@
 > **Goal:** Understand complete Peppol workflows from provider setup to invoice tracking, including edge cases
 >
 > **API Endpoints:** All processes tagged with specific LetsPeppol API endpoints for implementation
+>
+> **⚠️ Architecture Requirement:** All polling methods (`checkInvoiceTransmissionStatus()`, `checkInvoiceReceipt()`) **MUST** be implemented as **service classes** with **comprehensive PHPUnit tests**. Do not implement polling logic directly in controllers.
 
 ---
 
@@ -318,6 +320,65 @@ Display current status from database (already updated)
 
 ## InvoicePlane v1 vs v2: Implementation Approaches
 
+### Service Layer Architecture (MANDATORY)
+
+**⚠️ CRITICAL REQUIREMENT:** All polling operations **MUST** be implemented in **service classes** with **comprehensive PHPUnit tests**.
+
+**Why Service Layer?**
+- **Testability**: Service methods are easy to unit test with mocked dependencies
+- **Reusability**: Controllers, jobs, and CLI commands can all use the same service
+- **Maintainability**: Business logic centralized in one place, not scattered across controllers
+- **Security**: Services enforce consistent throttling, validation, and error handling
+
+**Required Services for Peppol Integration:**
+
+| Service | Purpose | Test Coverage Required |
+|---------|---------|------------------------|
+| `TransmissionPollingService` | Poll `transmissions.status` endpoint | ✅ Unit tests with mocked gateway |
+| `ReceiptPollingService` | Poll `transmissions.receipt` endpoint | ✅ Unit tests with mocked gateway |
+| `PayloadBuilderService` | Build UBL 2.1 XML payloads | ✅ Unit tests for validation |
+| `ParticipantValidationService` | Validate Peppol IDs via API | ✅ Unit tests with mocked API |
+
+**Example Test Structure:**
+```php
+#[Test]
+public function it_polls_transmission_status_with_throttling(): void
+{
+    // Arrange - Mock database and gateway
+    $mockDb = $this->createMock(\CI_DB_query_builder::class);
+    $mockGateway = $this->createMock(LetsPeppolGatewayClient::class);
+    $service = new TransmissionPollingService($mockDb, $mockGateway);
+    
+    // Act - Call service method
+    $result = $service->checkInvoiceTransmissionStatus(1);
+    
+    // Assert - Verify behavior
+    $this->assertArrayHasKey('status', $result);
+}
+```
+
+**❌ DON'T DO THIS (Inline Controller Logic):**
+```php
+// BAD: Polling logic directly in controller (not testable)
+public function view($invoice_id) {
+    $gateway = new LetsPeppolGatewayClient(...);
+    $response = $gateway->request('GET', 'transmissions/' . $tx_id);
+    $this->db->update(...); // Mixed concerns
+}
+```
+
+**✅ DO THIS (Service Layer with Tests):**
+```php
+// GOOD: Delegate to tested service
+public function view($invoice_id) {
+    $pollingService = new TransmissionPollingService($this->db, $this->gateway);
+    $transmission = $pollingService->checkInvoiceTransmissionStatus($invoice_id);
+    // Controller handles display only
+}
+```
+
+---
+
 ### Key Difference: Status Update Strategy
 
 | Aspect | InvoicePlane v1 (CodeIgniter) | InvoicePlane v2 (Laravel + Filament) |
@@ -326,6 +387,7 @@ Display current status from database (already updated)
 | **Receipt Checking** | On-demand (when user views delivered invoice) | Background jobs (scheduled polling) |
 | **Polling Frequency** | Every page load (with 60s throttle) | Every 5min (status), 10min (receipts) |
 | **Cron Jobs** | ❌ Not required | ✅ Required (Laravel Scheduler) |
+| **Service Layer** | ✅ `TransmissionPollingService`, `ReceiptPollingService` | ✅ `TransmissionPollingService`, `ReceiptPollingService` |
 | **Infrastructure** | Simpler (no job queue needed) | More robust (queue workers, Redis) |
 | **User Experience** | Manual refresh via button or page load | Automatic updates + real-time notifications |
 | **Server Load** | Lower (polls only active invoices) | Higher (polls all active transmissions) |
@@ -1109,85 +1171,294 @@ FAILED     FAILED    TIMEOUT   REJECTED
 
 For v1, use **on-demand polling** triggered by user interactions. This avoids cron job requirements while keeping data fresh when needed.
 
+**⚠️ Architecture Requirement:** Implement polling logic in a **service class** with **PHPUnit tests** (not inline in controllers).
+
+**Service Layer (application/modules/core/src/Services/Peppol/TransmissionPollingService.php):**
+
 ```php
+<?php
+
+namespace Core\Services\Peppol;
+
+use Core\Enums\TransmissionStatus;
+use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
+use Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint;
+
 /**
- * Poll transmission status when user views invoice.
- * Triggered on invoice page load or manual refresh button.
- *
- * @param int $invoiceId
- * @return array Updated transmission data
+ * Service for polling Peppol transmission status updates.
+ * 
+ * Handles on-demand polling with throttling to prevent API rate limit issues.
  */
-public function checkInvoiceTransmissionStatus(int $invoiceId): array
+class TransmissionPollingService
 {
-    // Get latest transmission for this invoice
-    $transmission = $this->db
-        ->where('invoice_id', $invoiceId)
-        ->order_by('sent_at', 'DESC')
-        ->limit(1)
-        ->get('ip_peppol_invoice_transmissions')
-        ->row_array();
+    private $db;
+    private LetsPeppolGatewayClient $gateway;
+    private int $throttleSeconds = 60; // 1 minute between checks
     
-    if (!$transmission) {
-        return ['status' => 'NO_TRANSMISSION'];
+    public function __construct($db, LetsPeppolGatewayClient $gateway)
+    {
+        $this->db = $db;
+        $this->gateway = $gateway;
     }
     
-    // Only poll if status is non-final AND not recently checked
-    $activeStatuses = [
-        TransmissionStatus::QUEUED->value,
-        TransmissionStatus::PROCESSING->value,
-        TransmissionStatus::SENT->value,
-    ];
-    
-    $lastChecked = strtotime($transmission['updated_at'] ?? $transmission['sent_at']);
-    $throttleSeconds = 60; // Don't poll more than once per minute per transmission
-    
-    if (!in_array($transmission['status'], $activeStatuses)) {
-        return $transmission; // Already in final state
-    }
-    
-    if ((time() - $lastChecked) < $throttleSeconds) {
-        return $transmission; // Checked too recently
-    }
-    
-    try {
-        // API Call: transmissions.status
-        $gateway = new LetsPeppolGatewayClient($this->baseUrl, $this->settings);
-        $txEndpoint = new TransmissionEndpoint($gateway);
+    /**
+     * Poll transmission status when user views invoice.
+     * 
+     * @param int $invoiceId Invoice ID to check transmission for
+     * @return array Updated transmission data
+     * @throws \RuntimeException if database query fails
+     */
+    public function checkInvoiceTransmissionStatus(int $invoiceId): array
+    {
+        // Get latest transmission for this invoice
+        $transmission = $this->db
+            ->where('invoice_id', $invoiceId)
+            ->order_by('sent_at', 'DESC')
+            ->limit(1)
+            ->get('ip_peppol_invoice_transmissions')
+            ->row_array();
         
-        $response = $txEndpoint->getStatus($transmission['transmission_id']);
-        $status = json_decode($response->getBody(), true);
+        if (!$transmission) {
+            return ['status' => 'NO_TRANSMISSION'];
+        }
         
-        // Update local record
-        $updates = [
-            'status' => $status['status'],
-            'updated_at' => date('Y-m-d H:i:s'),
+        // Only poll if status is non-final AND not recently checked
+        $activeStatuses = [
+            TransmissionStatus::QUEUED->value,
+            TransmissionStatus::PROCESSING->value,
+            TransmissionStatus::SENT->value,
         ];
         
-        // Track state transitions
-        if ($status['status'] === TransmissionStatus::DELIVERED->value && empty($transmission['delivered_at'])) {
-            $updates['delivered_at'] = date('Y-m-d H:i:s');
-            
-            // Optionally mark invoice as sent
-            $this->db->where('invoice_id', $transmission['invoice_id'])
-                ->update('ip_invoices', ['invoice_status_id' => 2]); // Sent status
+        if (!in_array($transmission['status'], $activeStatuses)) {
+            return $transmission; // Already in final state
         }
         
-        if (in_array($status['status'], [TransmissionStatus::FAILED->value, TransmissionStatus::REJECTED->value])) {
-            $updates['failed_at'] = date('Y-m-d H:i:s');
-            $updates['error_code'] = $status['error_code'] ?? 'UNKNOWN';
-            $updates['error_message'] = $status['error_message'] ?? 'No details available';
+        // Throttle: Don't poll too frequently
+        $lastChecked = strtotime($transmission['updated_at'] ?? $transmission['sent_at']);
+        if ((time() - $lastChecked) < $this->throttleSeconds) {
+            return $transmission; // Checked too recently
         }
         
-        $this->db->where('id', $transmission['id'])
-            ->update('ip_peppol_invoice_transmissions', $updates);
+        // Poll API for status update
+        return $this->pollTransmissionStatus($transmission);
+    }
+    
+    /**
+     * Poll the Peppol network for transmission status.
+     * 
+     * @param array $transmission Transmission record
+     * @return array Updated transmission data
+     */
+    private function pollTransmissionStatus(array $transmission): array
+    {
+        try {
+            // API Call: transmissions.status
+            $txEndpoint = new TransmissionEndpoint($this->gateway);
+            $response = $txEndpoint->getStatus($transmission['transmission_id']);
+            $status = json_decode($response->getBody(), true);
             
-        log_message('info', "Updated transmission {$transmission['transmission_id']}: {$status['status']}");
+            // Build update data
+            $updates = [
+                'status' => $status['status'],
+                'updated_at' => date('Y-m-d H:i:s'),
+            ];
+            
+            // Track state transitions
+            if ($status['status'] === TransmissionStatus::DELIVERED->value && empty($transmission['delivered_at'])) {
+                $updates['delivered_at'] = date('Y-m-d H:i:s');
+                
+                // Mark invoice as sent
+                $this->db->where('invoice_id', $transmission['invoice_id'])
+                    ->update('ip_invoices', ['invoice_status_id' => 2]);
+            }
+            
+            if (in_array($status['status'], [TransmissionStatus::FAILED->value, TransmissionStatus::REJECTED->value])) {
+                $updates['failed_at'] = date('Y-m-d H:i:s');
+                $updates['error_code'] = $status['error_code'] ?? 'UNKNOWN';
+                $updates['error_message'] = $status['error_message'] ?? 'No details available';
+            }
+            
+            // Update database
+            $this->db->where('id', $transmission['id'])
+                ->update('ip_peppol_invoice_transmissions', $updates);
+                
+            log_message('info', "Updated transmission {$transmission['transmission_id']}: {$status['status']}");
+            
+            return array_merge($transmission, $updates);
+            
+        } catch (\Throwable $e) {
+            log_message('error', "Failed to poll transmission {$transmission['transmission_id']}: " . $e->getMessage());
+            return $transmission; // Return unchanged on error
+        }
+    }
+    
+    /**
+     * Set throttle time between polls (useful for testing).
+     * 
+     * @param int $seconds Seconds between polls
+     * @return void
+     */
+    public function setThrottleSeconds(int $seconds): void
+    {
+        $this->throttleSeconds = $seconds;
+    }
+}
+```
+
+**Controller Usage (application/modules/invoices/controllers/Invoices.php):**
+
+```php
+public function view($invoice_id)
+{
+    // ... existing view code ...
+    
+    // Poll transmission status (service handles throttling)
+    $pollingService = new TransmissionPollingService($this->db, $this->gateway);
+    $transmission = $pollingService->checkInvoiceTransmissionStatus($invoice_id);
+    
+    $this->layout->set('transmission', $transmission);
+    $this->layout->buffer('content', 'invoices/view');
+    $this->layout->render();
+}
+```
+
+**PHPUnit Tests (tests/Unit/TransmissionPollingServiceTest.php):**
+
+```php
+<?php
+
+namespace Tests\Unit;
+
+use Core\Services\Peppol\TransmissionPollingService;
+use Core\Enums\TransmissionStatus;
+use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
+use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\Test;
+
+class TransmissionPollingServiceTest extends TestCase
+{
+    private $mockDb;
+    private $mockGateway;
+    private TransmissionPollingService $service;
+    
+    protected function setUp(): void
+    {
+        $this->mockDb = $this->createMock(\CI_DB_query_builder::class);
+        $this->mockGateway = $this->createMock(LetsPeppolGatewayClient::class);
+        $this->service = new TransmissionPollingService($this->mockDb, $this->mockGateway);
+        $this->service->setThrottleSeconds(0); // Disable throttling for tests
+    }
+    
+    #[Test]
+    public function it_returns_no_transmission_status_when_no_transmission_exists(): void
+    {
+        // Arrange
+        $this->mockDb->method('where')->willReturnSelf();
+        $this->mockDb->method('order_by')->willReturnSelf();
+        $this->mockDb->method('limit')->willReturnSelf();
+        $this->mockDb->method('get')->willReturnSelf();
+        $this->mockDb->method('row_array')->willReturn(null);
         
-        return array_merge($transmission, $updates);
+        // Act
+        $result = $this->service->checkInvoiceTransmissionStatus(1);
         
-    } catch (\Throwable $e) {
-        log_message('error', "Failed to poll transmission {$transmission['transmission_id']}: " . $e->getMessage());
-        return $transmission; // Return unchanged on error
+        // Assert
+        $this->assertEquals(['status' => 'NO_TRANSMISSION'], $result);
+    }
+    
+    #[Test]
+    public function it_returns_existing_transmission_when_status_is_final(): void
+    {
+        // Arrange
+        $transmission = [
+            'id' => 1,
+            'invoice_id' => 1,
+            'transmission_id' => 'tx_123',
+            'status' => TransmissionStatus::DELIVERED->value,
+            'sent_at' => '2026-05-03 10:00:00',
+            'delivered_at' => '2026-05-03 10:05:00',
+        ];
+        
+        $this->mockDb->method('where')->willReturnSelf();
+        $this->mockDb->method('order_by')->willReturnSelf();
+        $this->mockDb->method('limit')->willReturnSelf();
+        $this->mockDb->method('get')->willReturnSelf();
+        $this->mockDb->method('row_array')->willReturn($transmission);
+        
+        // Act
+        $result = $this->service->checkInvoiceTransmissionStatus(1);
+        
+        // Assert
+        $this->assertEquals($transmission, $result);
+    }
+    
+    #[Test]
+    public function it_polls_api_when_status_is_active_and_throttle_passed(): void
+    {
+        // Arrange
+        $transmission = [
+            'id' => 1,
+            'invoice_id' => 1,
+            'transmission_id' => 'tx_123',
+            'status' => TransmissionStatus::PROCESSING->value,
+            'sent_at' => '2026-05-03 09:00:00',
+            'updated_at' => '2026-05-03 09:00:00',
+        ];
+        
+        $this->mockDb->method('where')->willReturnSelf();
+        $this->mockDb->method('order_by')->willReturnSelf();
+        $this->mockDb->method('limit')->willReturnSelf();
+        $this->mockDb->method('get')->willReturnSelf();
+        $this->mockDb->method('row_array')->willReturn($transmission);
+        
+        // Mock API response
+        $mockResponse = $this->createMock(\Psr\Http\Message\ResponseInterface::class);
+        $mockResponse->method('getBody')->willReturn(json_encode([
+            'status' => TransmissionStatus::DELIVERED->value,
+        ]));
+        
+        $mockEndpoint = $this->createMock(\Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint::class);
+        $mockEndpoint->expects($this->once())
+            ->method('getStatus')
+            ->with('tx_123')
+            ->willReturn($mockResponse);
+        
+        // Act
+        $result = $this->service->checkInvoiceTransmissionStatus(1);
+        
+        // Assert
+        $this->assertEquals(TransmissionStatus::DELIVERED->value, $result['status']);
+    }
+    
+    #[Test]
+    public function it_returns_unchanged_transmission_on_api_error(): void
+    {
+        // Arrange
+        $transmission = [
+            'id' => 1,
+            'invoice_id' => 1,
+            'transmission_id' => 'tx_123',
+            'status' => TransmissionStatus::PROCESSING->value,
+            'sent_at' => '2026-05-03 09:00:00',
+            'updated_at' => '2026-05-03 09:00:00',
+        ];
+        
+        $this->mockDb->method('where')->willReturnSelf();
+        $this->mockDb->method('order_by')->willReturnSelf();
+        $this->mockDb->method('limit')->willReturnSelf();
+        $this->mockDb->method('get')->willReturnSelf();
+        $this->mockDb->method('row_array')->willReturn($transmission);
+        
+        // Mock API throwing exception
+        $mockEndpoint = $this->createMock(\Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint::class);
+        $mockEndpoint->method('getStatus')->willThrowException(new \Exception('Network error'));
+        
+        // Act
+        $result = $this->service->checkInvoiceTransmissionStatus(1);
+        
+        // Assert
+        $this->assertEquals($transmission, $result);
+        $this->assertEquals(TransmissionStatus::PROCESSING->value, $result['status']);
     }
 }
 ```
@@ -1195,6 +1466,8 @@ public function checkInvoiceTransmissionStatus(int $invoiceId): array
 **InvoicePlane v2 (Laravel + Filament - With Background Jobs):**
 
 For v2, use Laravel's queue system with scheduled jobs for automatic status updates across all transmissions.
+
+**⚠️ Architecture Requirement:** Use a **service class** with **PHPUnit tests** (same principle as v1).
 
 **Scheduled Job Configuration (app/Console/Kernel.php):**
 ```php
@@ -1215,7 +1488,7 @@ protected function schedule(Schedule $schedule): void
 namespace App\Jobs;
 
 use App\Models\InvoiceTransmission;
-use App\Services\Peppol\TransmissionService;
+use App\Services\Peppol\TransmissionPollingService;
 use Core\Enums\TransmissionStatus;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -1228,7 +1501,7 @@ class PollPeppolTransmissions implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function handle(TransmissionService $transmissionService): void
+    public function handle(TransmissionPollingService $pollingService): void
     {
         $activeStatuses = [
             TransmissionStatus::QUEUED,
@@ -1246,7 +1519,7 @@ class PollPeppolTransmissions implements ShouldQueue
 
         foreach ($transmissions as $transmission) {
             try {
-                $transmissionService->updateStatus($transmission);
+                $pollingService->updateTransmissionStatus($transmission);
             } catch (\Throwable $e) {
                 Log::warning("Failed to poll transmission {$transmission->transmission_id}: {$e->getMessage()}");
             }
@@ -1255,35 +1528,165 @@ class PollPeppolTransmissions implements ShouldQueue
 }
 ```
 
-**Service Method (app/Services/Peppol/TransmissionService.php):**
+**Service Layer (app/Services/Peppol/TransmissionPollingService.php):**
 ```php
-public function updateStatus(InvoiceTransmission $transmission): void
+<?php
+
+namespace App\Services\Peppol;
+
+use App\Models\InvoiceTransmission;
+use Core\Enums\TransmissionStatus;
+use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
+use Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint;
+use Illuminate\Support\Facades\Log;
+
+/**
+ * Service for polling Peppol transmission status updates.
+ * 
+ * Handles background polling for Laravel v2 with exponential backoff.
+ */
+class TransmissionPollingService
 {
-    $gateway = new LetsPeppolGatewayClient($this->baseUrl, $this->settings);
-    $txEndpoint = new TransmissionEndpoint($gateway);
+    public function __construct(
+        private LetsPeppolGatewayClient $gateway
+    ) {}
     
-    $response = $txEndpoint->getStatus($transmission->transmission_id);
-    $status = json_decode($response->getBody(), true);
+    /**
+     * Update transmission status by polling the API.
+     * 
+     * @param InvoiceTransmission $transmission Eloquent model
+     * @return void
+     * @throws \Exception if API call fails
+     */
+    public function updateTransmissionStatus(InvoiceTransmission $transmission): void
+    {
+        // API Call: transmissions.status
+        $txEndpoint = new TransmissionEndpoint($this->gateway);
+        $response = $txEndpoint->getStatus($transmission->transmission_id);
+        $status = json_decode($response->getBody(), true);
+        
+        // Update model
+        $transmission->status = TransmissionStatus::from($status['status']);
+        $transmission->updated_at = now();
+        
+        // Track state transitions
+        if ($status['status'] === TransmissionStatus::DELIVERED->value && !$transmission->delivered_at) {
+            $transmission->delivered_at = now();
+            $transmission->invoice->update(['status' => 'sent']);
+            
+            // Dispatch notification event
+            event(new \App\Events\InvoiceDelivered($transmission));
+        }
+        
+        if (in_array($status['status'], [TransmissionStatus::FAILED->value, TransmissionStatus::REJECTED->value])) {
+            $transmission->failed_at = now();
+            $transmission->error_code = $status['error_code'] ?? 'UNKNOWN';
+            $transmission->error_message = $status['error_message'] ?? 'No details available';
+            
+            // Dispatch notification event
+            event(new \App\Events\InvoiceTransmissionFailed($transmission));
+        }
+        
+        $transmission->save();
+        
+        Log::info("Updated transmission {$transmission->transmission_id}: {$status['status']}");
+    }
+}
+```
+
+**PHPUnit Tests (tests/Feature/TransmissionPollingServiceTest.php):**
+```php
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Models\InvoiceTransmission;
+use App\Models\Invoice;
+use App\Services\Peppol\TransmissionPollingService;
+use Core\Enums\TransmissionStatus;
+use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+class TransmissionPollingServiceTest extends TestCase
+{
+    use RefreshDatabase;
     
-    // Update model
-    $transmission->status = TransmissionStatus::from($status['status']);
-    $transmission->updated_at = now();
+    private TransmissionPollingService $service;
+    private $mockGateway;
     
-    // Track state transitions
-    if ($status['status'] === TransmissionStatus::DELIVERED->value && !$transmission->delivered_at) {
-        $transmission->delivered_at = now();
-        $transmission->invoice->update(['status' => 'sent']);
+    protected function setUp(): void
+    {
+        parent::setUp();
+        
+        $this->mockGateway = $this->createMock(LetsPeppolGatewayClient::class);
+        $this->service = new TransmissionPollingService($this->mockGateway);
     }
     
-    if (in_array($status['status'], [TransmissionStatus::FAILED->value, TransmissionStatus::REJECTED->value])) {
-        $transmission->failed_at = now();
-        $transmission->error_code = $status['error_code'] ?? 'UNKNOWN';
-        $transmission->error_message = $status['error_message'] ?? 'No details available';
+    /** @test */
+    public function it_updates_transmission_status_from_api(): void
+    {
+        // Arrange
+        $invoice = Invoice::factory()->create();
+        $transmission = InvoiceTransmission::factory()->create([
+            'invoice_id' => $invoice->id,
+            'transmission_id' => 'tx_123',
+            'status' => TransmissionStatus::PROCESSING,
+        ]);
+        
+        // Mock API response
+        $mockResponse = $this->createMock(\Psr\Http\Message\ResponseInterface::class);
+        $mockResponse->method('getBody')->willReturn(json_encode([
+            'status' => TransmissionStatus::DELIVERED->value,
+        ]));
+        
+        $mockEndpoint = $this->createMock(\Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint::class);
+        $mockEndpoint->expects($this->once())
+            ->method('getStatus')
+            ->with('tx_123')
+            ->willReturn($mockResponse);
+        
+        // Act
+        $this->service->updateTransmissionStatus($transmission);
+        
+        // Assert
+        $transmission->refresh();
+        $this->assertEquals(TransmissionStatus::DELIVERED, $transmission->status);
+        $this->assertNotNull($transmission->delivered_at);
     }
     
-    $transmission->save();
-    
-    Log::info("Updated transmission {$transmission->transmission_id}: {$status['status']}");
+    /** @test */
+    public function it_stores_error_details_on_failed_transmission(): void
+    {
+        // Arrange
+        $invoice = Invoice::factory()->create();
+        $transmission = InvoiceTransmission::factory()->create([
+            'invoice_id' => $invoice->id,
+            'transmission_id' => 'tx_456',
+            'status' => TransmissionStatus::PROCESSING,
+        ]);
+        
+        // Mock API response with failure
+        $mockResponse = $this->createMock(\Psr\Http\Message\ResponseInterface::class);
+        $mockResponse->method('getBody')->willReturn(json_encode([
+            'status' => TransmissionStatus::FAILED->value,
+            'error_code' => 'VALIDATION_ERROR',
+            'error_message' => 'Invalid VAT number',
+        ]));
+        
+        $mockEndpoint = $this->createMock(\Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint::class);
+        $mockEndpoint->method('getStatus')->willReturn($mockResponse);
+        
+        // Act
+        $this->service->updateTransmissionStatus($transmission);
+        
+        // Assert
+        $transmission->refresh();
+        $this->assertEquals(TransmissionStatus::FAILED, $transmission->status);
+        $this->assertEquals('VALIDATION_ERROR', $transmission->error_code);
+        $this->assertEquals('Invalid VAT number', $transmission->error_message);
+        $this->assertNotNull($transmission->failed_at);
+    }
 }
 ```
 
@@ -1709,73 +2112,331 @@ Receive and process application responses (acceptances/rejections) from recipien
 
 For v1, check for receipts when user views a delivered invoice, avoiding cron job requirements.
 
+**⚠️ Architecture Requirement:** Implement polling logic in a **service class** with **PHPUnit tests** (not inline in controllers).
+
+**Service Layer (application/modules/core/src/Services/Peppol/ReceiptPollingService.php):**
+
 ```php
+<?php
+
+namespace Core\Services\Peppol;
+
+use Core\Enums\TransmissionStatus;
+use Core\Enums\ReceiptStatus;
+use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
+use Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint;
+
 /**
- * Check for and fetch receipt when user views delivered invoice.
- * Triggered on invoice view page load or manual "Check Receipt" button.
- *
- * @param int $invoiceId
- * @return array|null Receipt data if available
+ * Service for polling Peppol transmission receipts.
+ * 
+ * Handles on-demand receipt checking with throttling to prevent API rate limits.
  */
-public function checkInvoiceReceipt(int $invoiceId): ?array
+class ReceiptPollingService
 {
-    // Get delivered transmission without receipt
-    $transmission = $this->db
-        ->where('invoice_id', $invoiceId)
-        ->where('status', TransmissionStatus::DELIVERED->value)
-        ->where('receipt_json IS NULL')
-        ->order_by('delivered_at', 'DESC')
-        ->limit(1)
-        ->get('ip_peppol_invoice_transmissions')
-        ->row_array();
+    private $db;
+    private LetsPeppolGatewayClient $gateway;
+    private int $throttleSeconds = 300; // 5 minutes between checks
     
-    if (!$transmission) {
-        return null; // No eligible transmission
+    public function __construct($db, LetsPeppolGatewayClient $gateway)
+    {
+        $this->db = $db;
+        $this->gateway = $gateway;
     }
     
-    // Throttle: Don't check more than once every 5 minutes per transmission
-    $lastChecked = strtotime($transmission['updated_at']);
-    if ((time() - $lastChecked) < 300) {
-        return null;
+    /**
+     * Check for and fetch receipt when user views delivered invoice.
+     * 
+     * @param int $invoiceId Invoice ID to check receipt for
+     * @return array|null Receipt data if available, null otherwise
+     * @throws \RuntimeException if database query fails
+     */
+    public function checkInvoiceReceipt(int $invoiceId): ?array
+    {
+        // Get delivered transmission without receipt
+        $transmission = $this->db
+            ->where('invoice_id', $invoiceId)
+            ->where('status', TransmissionStatus::DELIVERED->value)
+            ->where('receipt_json IS NULL')
+            ->order_by('delivered_at', 'DESC')
+            ->limit(1)
+            ->get('ip_peppol_invoice_transmissions')
+            ->row_array();
+        
+        if (!$transmission) {
+            return null; // No eligible transmission
+        }
+        
+        // Throttle: Don't check too frequently
+        $lastChecked = strtotime($transmission['updated_at']);
+        if ((time() - $lastChecked) < $this->throttleSeconds) {
+            return null; // Checked too recently
+        }
+        
+        // Poll API for receipt
+        return $this->pollTransmissionReceipt($transmission);
     }
     
-    try {
-        // API Call: transmissions.receipt
-        $gateway = new LetsPeppolGatewayClient($this->baseUrl, $this->settings);
-        $txEndpoint = new TransmissionEndpoint($gateway);
-        
-        $response = $txEndpoint->getReceipt($transmission['transmission_id']);
-        $receipt = json_decode($response->getBody(), true);
-        
-        if ($receipt['available']) {
-            // Store receipt
+    /**
+     * Poll the Peppol network for transmission receipt.
+     * 
+     * @param array $transmission Transmission record
+     * @return array|null Receipt data if available
+     */
+    private function pollTransmissionReceipt(array $transmission): ?array
+    {
+        try {
+            // API Call: transmissions.receipt
+            $txEndpoint = new TransmissionEndpoint($this->gateway);
+            $response = $txEndpoint->getReceipt($transmission['transmission_id']);
+            $receipt = json_decode($response->getBody(), true);
+            
+            if ($receipt['available']) {
+                // Store receipt
+                $this->db->where('id', $transmission['id'])->update('ip_peppol_invoice_transmissions', [
+                    'receipt_json' => json_encode($receipt),
+                    'receipt_received_at' => date('Y-m-d H:i:s'),
+                    'receipt_status' => $receipt['status'] ?? ReceiptStatus::RECEIVED->value,
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+                
+                log_message('info', "Receipt received for transmission {$transmission['transmission_id']}");
+                
+                return $receipt;
+            }
+            
+            // Not available yet - update check timestamp
             $this->db->where('id', $transmission['id'])->update('ip_peppol_invoice_transmissions', [
-                'receipt_json' => json_encode($receipt),
-                'receipt_received_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ]);
             
-            // Process receipt type
-            $this->processReceipt($transmission, $receipt);
+            return null;
             
-            return $receipt;
+        } catch (\Throwable $e) {
+            log_message('debug', "No receipt yet for {$transmission['transmission_id']}: " . $e->getMessage());
+            return null; // Return null on error (not ready yet)
         }
+    }
+    
+    /**
+     * Set throttle time between receipt checks (useful for testing).
+     * 
+     * @param int $seconds Seconds between checks
+     * @return void
+     */
+    public function setThrottleSeconds(int $seconds): void
+    {
+        $this->throttleSeconds = $seconds;
+    }
+}
+```
+
+**Controller Usage (application/modules/invoices/controllers/Invoices.php):**
+
+```php
+public function view($invoice_id)
+{
+    // ... existing view code ...
+    
+    // Check for receipt (service handles throttling)
+    $receiptService = new ReceiptPollingService($this->db, $this->gateway);
+    $receipt = $receiptService->checkInvoiceReceipt($invoice_id);
+    
+    $this->layout->set('receipt', $receipt);
+    $this->layout->buffer('content', 'invoices/view');
+    $this->layout->render();
+}
+```
+
+**PHPUnit Tests (tests/Unit/ReceiptPollingServiceTest.php):**
+
+```php
+<?php
+
+namespace Tests\Unit;
+
+use Core\Services\Peppol\ReceiptPollingService;
+use Core\Enums\TransmissionStatus;
+use Core\Enums\ReceiptStatus;
+use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
+use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\Test;
+
+class ReceiptPollingServiceTest extends TestCase
+{
+    private $mockDb;
+    private $mockGateway;
+    private ReceiptPollingService $service;
+    
+    protected function setUp(): void
+    {
+        $this->mockDb = $this->createMock(\CI_DB_query_builder::class);
+        $this->mockGateway = $this->createMock(LetsPeppolGatewayClient::class);
+        $this->service = new ReceiptPollingService($this->mockDb, $this->mockGateway);
+        $this->service->setThrottleSeconds(0); // Disable throttling for tests
+    }
+    
+    #[Test]
+    public function it_returns_null_when_no_eligible_transmission_exists(): void
+    {
+        // Arrange
+        $this->mockDb->method('where')->willReturnSelf();
+        $this->mockDb->method('order_by')->willReturnSelf();
+        $this->mockDb->method('limit')->willReturnSelf();
+        $this->mockDb->method('get')->willReturnSelf();
+        $this->mockDb->method('row_array')->willReturn(null);
         
-        // Not available yet - update check timestamp
-        $this->db->where('id', $transmission['id'])->update('ip_peppol_invoice_transmissions', [
-            'updated_at' => date('Y-m-d H:i:s'),
-        ]);
+        // Act
+        $result = $this->service->checkInvoiceReceipt(1);
         
-        return null;
+        // Assert
+        $this->assertNull($result);
+    }
+    
+    #[Test]
+    public function it_returns_null_when_transmission_was_checked_recently(): void
+    {
+        // Arrange
+        $transmission = [
+            'id' => 1,
+            'invoice_id' => 1,
+            'transmission_id' => 'tx_123',
+            'status' => TransmissionStatus::DELIVERED->value,
+            'delivered_at' => date('Y-m-d H:i:s', time() - 600),
+            'updated_at' => date('Y-m-d H:i:s', time() - 120), // Checked 2 min ago
+        ];
         
-    } catch (\Throwable $e) {
-        log_message('debug', "No receipt yet for {$transmission['transmission_id']}");
-        return null;
+        // Reset throttle to 5 minutes for this test
+        $this->service->setThrottleSeconds(300);
+        
+        $this->mockDb->method('where')->willReturnSelf();
+        $this->mockDb->method('order_by')->willReturnSelf();
+        $this->mockDb->method('limit')->willReturnSelf();
+        $this->mockDb->method('get')->willReturnSelf();
+        $this->mockDb->method('row_array')->willReturn($transmission);
+        
+        // Act
+        $result = $this->service->checkInvoiceReceipt(1);
+        
+        // Assert
+        $this->assertNull($result); // Throttled
+    }
+    
+    #[Test]
+    public function it_fetches_and_stores_receipt_when_available(): void
+    {
+        // Arrange
+        $transmission = [
+            'id' => 1,
+            'invoice_id' => 1,
+            'transmission_id' => 'tx_123',
+            'status' => TransmissionStatus::DELIVERED->value,
+            'delivered_at' => '2026-05-03 10:00:00',
+            'updated_at' => '2026-05-03 09:00:00', // Old check
+        ];
+        
+        $receiptData = [
+            'available' => true,
+            'status' => ReceiptStatus::ACKNOWLEDGED->value,
+            'type' => 'APPLICATION_RESPONSE',
+            'message' => 'Invoice accepted',
+        ];
+        
+        $this->mockDb->method('where')->willReturnSelf();
+        $this->mockDb->method('order_by')->willReturnSelf();
+        $this->mockDb->method('limit')->willReturnSelf();
+        $this->mockDb->method('get')->willReturnSelf();
+        $this->mockDb->method('row_array')->willReturn($transmission);
+        $this->mockDb->expects($this->once())->method('update');
+        
+        // Mock API response
+        $mockResponse = $this->createMock(\Psr\Http\Message\ResponseInterface::class);
+        $mockResponse->method('getBody')->willReturn(json_encode($receiptData));
+        
+        $mockEndpoint = $this->createMock(\Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint::class);
+        $mockEndpoint->expects($this->once())
+            ->method('getReceipt')
+            ->with('tx_123')
+            ->willReturn($mockResponse);
+        
+        // Act
+        $result = $this->service->checkInvoiceReceipt(1);
+        
+        // Assert
+        $this->assertNotNull($result);
+        $this->assertEquals(ReceiptStatus::ACKNOWLEDGED->value, $result['status']);
+        $this->assertTrue($result['available']);
+    }
+    
+    #[Test]
+    public function it_returns_null_when_receipt_not_yet_available(): void
+    {
+        // Arrange
+        $transmission = [
+            'id' => 1,
+            'invoice_id' => 1,
+            'transmission_id' => 'tx_123',
+            'status' => TransmissionStatus::DELIVERED->value,
+            'delivered_at' => '2026-05-03 10:00:00',
+            'updated_at' => '2026-05-03 09:00:00',
+        ];
+        
+        $receiptData = ['available' => false];
+        
+        $this->mockDb->method('where')->willReturnSelf();
+        $this->mockDb->method('order_by')->willReturnSelf();
+        $this->mockDb->method('limit')->willReturnSelf();
+        $this->mockDb->method('get')->willReturnSelf();
+        $this->mockDb->method('row_array')->willReturn($transmission);
+        
+        // Mock API response
+        $mockResponse = $this->createMock(\Psr\Http\Message\ResponseInterface::class);
+        $mockResponse->method('getBody')->willReturn(json_encode($receiptData));
+        
+        $mockEndpoint = $this->createMock(\Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint::class);
+        $mockEndpoint->method('getReceipt')->willReturn($mockResponse);
+        
+        // Act
+        $result = $this->service->checkInvoiceReceipt(1);
+        
+        // Assert
+        $this->assertNull($result); // Not available yet
+    }
+    
+    #[Test]
+    public function it_returns_null_on_api_error(): void
+    {
+        // Arrange
+        $transmission = [
+            'id' => 1,
+            'invoice_id' => 1,
+            'transmission_id' => 'tx_123',
+            'status' => TransmissionStatus::DELIVERED->value,
+            'delivered_at' => '2026-05-03 10:00:00',
+            'updated_at' => '2026-05-03 09:00:00',
+        ];
+        
+        $this->mockDb->method('where')->willReturnSelf();
+        $this->mockDb->method('order_by')->willReturnSelf();
+        $this->mockDb->method('limit')->willReturnSelf();
+        $this->mockDb->method('get')->willReturnSelf();
+        $this->mockDb->method('row_array')->willReturn($transmission);
+        
+        // Mock API throwing exception
+        $mockEndpoint = $this->createMock(\Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint::class);
+        $mockEndpoint->method('getReceipt')->willThrowException(new \Exception('Network error'));
+        
+        // Act
+        $result = $this->service->checkInvoiceReceipt(1);
+        
+        // Assert
+        $this->assertNull($result); // Gracefully handle error
     }
 }
 ```
 
 **InvoicePlane v2 (Laravel + Filament - Background Job):**
+
+**⚠️ Architecture Requirement:** Use a **service class** with **PHPUnit tests** (same principle as v1).
 
 **Scheduled Job Configuration (app/Console/Kernel.php):**
 ```php
@@ -1796,9 +2457,8 @@ protected function schedule(Schedule $schedule): void
 namespace App\Jobs;
 
 use App\Models\InvoiceTransmission;
+use App\Services\Peppol\ReceiptPollingService;
 use Core\Enums\TransmissionStatus;
-use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
-use Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -1809,7 +2469,7 @@ class PollPeppolReceipts implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 
-    public function handle(): void
+    public function handle(ReceiptPollingService $receiptService): void
     {
         $transmissions = InvoiceTransmission::query()
             ->where('status', TransmissionStatus::DELIVERED)
@@ -1821,25 +2481,168 @@ class PollPeppolReceipts implements ShouldQueue
 
         foreach ($transmissions as $transmission) {
             try {
-                $gateway = app(LetsPeppolGatewayClient::class);
-                $txEndpoint = new TransmissionEndpoint($gateway);
-                
-                $response = $txEndpoint->getReceipt($transmission->transmission_id);
-                $receipt = json_decode($response->getBody(), true);
-                
-                if ($receipt['available']) {
-                    $transmission->update([
-                        'receipt_json' => json_encode($receipt),
-                        'receipt_received_at' => now(),
-                    ]);
-                    
-                    // Dispatch event for notification
-                    event(new ReceiptReceived($transmission, $receipt));
-                }
+                $receiptService->fetchAndStoreReceipt($transmission);
             } catch (\Throwable $e) {
                 Log::debug("No receipt yet for {$transmission->transmission_id}");
             }
         }
+    }
+}
+```
+
+**Service Layer (app/Services/Peppol/ReceiptPollingService.php):**
+```php
+<?php
+
+namespace App\Services\Peppol;
+
+use App\Models\InvoiceTransmission;
+use Core\Enums\ReceiptStatus;
+use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
+use Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint;
+use Illuminate\Support\Facades\Log;
+
+/**
+ * Service for polling Peppol transmission receipts.
+ */
+class ReceiptPollingService
+{
+    public function __construct(
+        private LetsPeppolGatewayClient $gateway
+    ) {}
+    
+    /**
+     * Fetch and store receipt for a transmission.
+     * 
+     * @param InvoiceTransmission $transmission Eloquent model
+     * @return array|null Receipt data if available
+     * @throws \Exception if API call fails
+     */
+    public function fetchAndStoreReceipt(InvoiceTransmission $transmission): ?array
+    {
+        // API Call: transmissions.receipt
+        $txEndpoint = new TransmissionEndpoint($this->gateway);
+        $response = $txEndpoint->getReceipt($transmission->transmission_id);
+        $receipt = json_decode($response->getBody(), true);
+        
+        if ($receipt['available']) {
+            $transmission->update([
+                'receipt_json' => json_encode($receipt),
+                'receipt_received_at' => now(),
+                'receipt_status' => $receipt['status'] ?? ReceiptStatus::RECEIVED->value,
+            ]);
+            
+            Log::info("Receipt received for transmission {$transmission->transmission_id}");
+            
+            // Dispatch event for notification
+            event(new \App\Events\ReceiptReceived($transmission, $receipt));
+            
+            return $receipt;
+        }
+        
+        return null; // Not available yet
+    }
+}
+```
+
+**PHPUnit Tests (tests/Feature/ReceiptPollingServiceTest.php):**
+```php
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Models\InvoiceTransmission;
+use App\Models\Invoice;
+use App\Services\Peppol\ReceiptPollingService;
+use Core\Enums\TransmissionStatus;
+use Core\Enums\ReceiptStatus;
+use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+class ReceiptPollingServiceTest extends TestCase
+{
+    use RefreshDatabase;
+    
+    private ReceiptPollingService $service;
+    private $mockGateway;
+    
+    protected function setUp(): void
+    {
+        parent::setUp();
+        
+        $this->mockGateway = $this->createMock(LetsPeppolGatewayClient::class);
+        $this->service = new ReceiptPollingService($this->mockGateway);
+    }
+    
+    /** @test */
+    public function it_fetches_and_stores_receipt_when_available(): void
+    {
+        // Arrange
+        $invoice = Invoice::factory()->create();
+        $transmission = InvoiceTransmission::factory()->create([
+            'invoice_id' => $invoice->id,
+            'transmission_id' => 'tx_123',
+            'status' => TransmissionStatus::DELIVERED,
+            'delivered_at' => now()->subHours(2),
+        ]);
+        
+        $receiptData = [
+            'available' => true,
+            'status' => ReceiptStatus::ACKNOWLEDGED->value,
+            'type' => 'APPLICATION_RESPONSE',
+            'message' => 'Invoice accepted',
+        ];
+        
+        // Mock API response
+        $mockResponse = $this->createMock(\Psr\Http\Message\ResponseInterface::class);
+        $mockResponse->method('getBody')->willReturn(json_encode($receiptData));
+        
+        $mockEndpoint = $this->createMock(\Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint::class);
+        $mockEndpoint->expects($this->once())
+            ->method('getReceipt')
+            ->with('tx_123')
+            ->willReturn($mockResponse);
+        
+        // Act
+        $result = $this->service->fetchAndStoreReceipt($transmission);
+        
+        // Assert
+        $this->assertNotNull($result);
+        $transmission->refresh();
+        $this->assertNotNull($transmission->receipt_json);
+        $this->assertNotNull($transmission->receipt_received_at);
+        $this->assertEquals(ReceiptStatus::ACKNOWLEDGED->value, $transmission->receipt_status);
+    }
+    
+    /** @test */
+    public function it_returns_null_when_receipt_not_available(): void
+    {
+        // Arrange
+        $invoice = Invoice::factory()->create();
+        $transmission = InvoiceTransmission::factory()->create([
+            'invoice_id' => $invoice->id,
+            'transmission_id' => 'tx_456',
+            'status' => TransmissionStatus::DELIVERED,
+            'delivered_at' => now()->subMinutes(10),
+        ]);
+        
+        $receiptData = ['available' => false];
+        
+        // Mock API response
+        $mockResponse = $this->createMock(\Psr\Http\Message\ResponseInterface::class);
+        $mockResponse->method('getBody')->willReturn(json_encode($receiptData));
+        
+        $mockEndpoint = $this->createMock(\Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint::class);
+        $mockEndpoint->method('getReceipt')->willReturn($mockResponse);
+        
+        // Act
+        $result = $this->service->fetchAndStoreReceipt($transmission);
+        
+        // Assert
+        $this->assertNull($result);
+        $transmission->refresh();
+        $this->assertNull($transmission->receipt_json); // Not stored
     }
 }
 ```
@@ -2554,25 +3357,60 @@ Complete reference of which API endpoints are used in which processes and edge c
 
 ### Phase 3: Status Updates & Receipt Handling (10-15 hours)
 
+**⚠️ SERVICE LAYER REQUIREMENT:** All polling logic MUST be in testable service classes.
+
 **InvoicePlane v1 (On-Demand Polling - No Cron Jobs Required):**
-- [ ] On-demand status polling (triggered by invoice view page load)
-- [ ] Throttling mechanism (60s between checks per transmission)
-- [ ] Manual refresh button ("Check Status Now")
-- [ ] On-demand receipt checking (triggered when viewing delivered invoices)
-- [ ] Receipt throttling (5min between checks)
-- [ ] Manual receipt check button ("Check for Receipt")
+- [ ] **`TransmissionPollingService`** (service class with PHPUnit tests)
+  - [ ] `checkInvoiceTransmissionStatus()` method
+  - [ ] Throttling mechanism (60s between checks per transmission)
+  - [ ] Database update logic with state transitions
+  - [ ] Unit tests (4+ test cases covering all scenarios)
+- [ ] **`ReceiptPollingService`** (service class with PHPUnit tests)
+  - [ ] `checkInvoiceReceipt()` method
+  - [ ] Receipt throttling (5min between checks)
+  - [ ] Receipt processing logic
+  - [ ] Unit tests (5+ test cases covering all scenarios)
+- [ ] Controller integration (delegate to services)
+  - [ ] On-demand status polling (triggered by invoice view page load)
+  - [ ] Manual refresh button ("Check Status Now")
+  - [ ] On-demand receipt checking (triggered when viewing delivered invoices)
+  - [ ] Manual receipt check button ("Check for Receipt")
 - [ ] Token refresh on API calls (automatic retry on 401)
 - [ ] Flash notifications for status changes
 - [ ] Cleanup on invoice deletion (cascade)
 
 **InvoicePlane v2 (Background Jobs with Laravel Queue):**
-- [ ] Scheduled status polling job (every 5min) with exponential backoff
-- [ ] Scheduled receipt polling job (every 10min)
-- [ ] Scheduled token refresh job (hourly)
+- [ ] **`TransmissionPollingService`** (service class with PHPUnit/Pest tests)
+  - [ ] `updateTransmissionStatus()` method for background jobs
+  - [ ] Integration with Laravel events
+  - [ ] Feature tests (2+ test cases)
+- [ ] **`ReceiptPollingService`** (service class with PHPUnit/Pest tests)
+  - [ ] `fetchAndStoreReceipt()` method for background jobs
+  - [ ] Integration with Laravel events
+  - [ ] Feature tests (2+ test cases)
+- [ ] Background jobs (delegate to services)
+  - [ ] Scheduled status polling job (every 5min) with exponential backoff
+  - [ ] Scheduled receipt polling job (every 10min)
+  - [ ] Scheduled token refresh job (hourly)
 - [ ] Event-driven receipt notifications (Filament notifications)
 - [ ] Scheduled cleanup job (archive old records daily)
 - [ ] Queue monitoring dashboard
 - [ ] Failed job retry interface
+
+**Service Files to Create:**
+```
+InvoicePlane v1 (CodeIgniter):
+├── application/modules/core/src/Services/Peppol/TransmissionPollingService.php
+├── application/modules/core/src/Services/Peppol/ReceiptPollingService.php
+└── tests/Unit/TransmissionPollingServiceTest.php (4+ tests)
+└── tests/Unit/ReceiptPollingServiceTest.php (5+ tests)
+
+InvoicePlane v2 (Laravel):
+├── app/Services/Peppol/TransmissionPollingService.php
+├── app/Services/Peppol/ReceiptPollingService.php
+├── tests/Feature/TransmissionPollingServiceTest.php (2+ tests)
+└── tests/Feature/ReceiptPollingServiceTest.php (2+ tests)
+```
 
 ### Phase 4: Testing (15-25 hours)
 - [ ] Unit tests for all services (target: 100% coverage)
