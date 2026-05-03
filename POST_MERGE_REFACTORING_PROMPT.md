@@ -118,6 +118,143 @@ Modules::run('clients/index');
 
 **Philosophy:** PSR-4 is the leading principle. CodeIgniter conventions are adapted to fit PSR-4, not vice versa.
 
+##### B.0: Architecture Philosophy - Why MY_* and Not MX_*?
+
+**Critical Understanding: The MY_* Layer**
+
+CodeIgniter 3 has a specific extension mechanism where custom core classes must be prefixed with `MY_` (configurable via `$config['subclass_prefix']`). This is **not optional** - it's how CI3 discovers and loads core overrides.
+
+**Why Refactor MY_Router Instead of MX_Router?**
+
+```
+CodeIgniter Core Loading Hierarchy:
+1. CI_Router (CodeIgniter core)
+   ↓
+2. MX_Router (Modular Extensions HMVC - extends CI_Router)
+   ↓
+3. MY_Router (YOUR custom extensions - extends MX_Router)
+```
+
+**Key Points:**
+
+1. **MX_Router is library code** - It's from the Modular Extensions HMVC library (`application/third_party/MX/`). We don't modify third-party libraries directly.
+
+2. **MY_Router is YOUR extension point** - This is where you customize routing behavior for your application. CI3 automatically loads `application/core/MY_Router.php` and uses it instead of the base router.
+
+3. **Same pattern for all core classes:**
+   - `MY_Loader` extends `MX_Loader` (for PSR-4 model loading)
+   - `MY_Router` extends `MX_Router` (for PSR-4 module resolution)
+   - This is the CI3 way - the `MY_*` prefix is CI3's extension mechanism
+
+**The MY_* Layer Purpose:**
+
+> **Yes, the MY_* layer exists solely to keep CI3 happy!**
+
+The `MY_*` classes act as an **adapter layer** between CI3's conventions and PSR-4 standards:
+
+- CI3 expects: `application/core/MY_Router.php`
+- PSR-4 expects: `Modules\Clients\Controllers\ClientsController`
+- MY_Router bridges these two worlds transparently
+
+**Without MY_* classes:** CI3 won't load your extensions.  
+**With MY_* classes:** Everything works, and your application code stays PSR-4 compliant.
+
+##### B.0.1: Refactoring Base Classes - The Real PSR-4 Win
+
+**Current State (CI3 Legacy Naming):**
+
+```php
+// application/core/Admin_Controller.php
+class Admin_Controller extends CI_Controller { }
+
+// application/core/Response_Model.php  
+class Response_Model extends CI_Model { }
+
+// Usage in modules
+class ClientsController extends \Admin_Controller { }
+class Client extends \Response_Model { }
+```
+
+**Target State (True PSR-4):**
+
+```php
+// application/core/AdminController.php
+class AdminController extends CI_Controller { }
+
+// application/core/ResponseModel.php
+class ResponseModel extends CI_Model { }
+
+// Usage in modules
+class ClientsController extends \AdminController { }
+class Client extends \ResponseModel { }
+```
+
+**Why This Matters:**
+
+✅ **PSR-4 Compliant:** Class names match file names without underscores  
+✅ **Modern PHP Standards:** PascalCase for all classes  
+✅ **Consistent Naming:** `ClientsController`, `AdminController`, `ResponseModel` all follow the same pattern  
+✅ **Better IDE Support:** Full autocomplete and navigation
+
+**The Refactoring Steps:**
+
+1. **Rename Base Class Files:**
+   ```bash
+   mv application/core/Admin_Controller.php application/core/AdminController.php
+   mv application/core/Response_Model.php application/core/ResponseModel.php
+   ```
+
+2. **Update Class Definitions:**
+   ```php
+   // AdminController.php
+   class AdminController extends CI_Controller { }
+   
+   // ResponseModel.php
+   class ResponseModel extends CI_Model { }
+   ```
+
+3. **Update All Extends Statements:**
+   ```php
+   // Before
+   class ClientsController extends \Admin_Controller { }
+   class Client extends \Response_Model { }
+   
+   // After
+   class ClientsController extends \AdminController { }
+   class Client extends \ResponseModel { }
+   ```
+
+4. **Add Use Statements (Optional but Recommended):**
+   ```php
+   namespace Modules\Clients\Controllers;
+   
+   use AdminController;
+   use Core\Services\Clients\ClientsService;
+   
+   class ClientsController extends AdminController { }
+   ```
+
+**The Complete Picture:**
+
+```
+CI3 Layer (Necessary for Framework):
+├── MY_Router extends MX_Router     ← Adapter: CI3 → PSR-4 routing
+├── MY_Loader extends MX_Loader     ← Adapter: CI3 → PSR-4 autoloading
+└── CI3 autoloads these via MY_* prefix
+
+Application Layer (Pure PSR-4):
+├── AdminController                 ← Base controller (PSR-4 naming)
+├── ResponseModel                   ← Base model (PSR-4 naming)
+├── Modules\Clients\Controllers\ClientsController
+└── Modules\Clients\Models\Client
+
+Result: Clean PSR-4 everywhere except the thin MY_* adapter layer
+```
+
+**Summary:**
+
+> The `MY_*` layer is a **thin compatibility shim** for CI3. Everything else - your base classes, controllers, models, services - follows pure PSR-4 standards. This is the best of both worlds: CI3 compatibility where required, modern standards everywhere else.
+
 ##### B.1: Directory Structure Changes
 
 Rename all module directories to match PSR-4 capitalization:
