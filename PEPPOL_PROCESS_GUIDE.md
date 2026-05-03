@@ -79,14 +79,21 @@ This guide follows a real-world implementation story, showing how each API endpo
 > I click "Send via Peppol". InvoicePlane calls **`invoices.send`** with the payload. I get a `transmission_id` back: `tx_abc123`. The invoice enters the network! 🚀
 
 **Day 3 (5 minutes later): Where Is My Invoice?**
-> I refresh the invoice page. InvoicePlane polls **`transmissions.status`** with my `transmission_id`. 
+> **v1:** I refresh the invoice page. InvoicePlane automatically polls **`transmissions.status`** with my `transmission_id` (throttled to max 1 check per minute).
+> 
+> **v2:** The background job already polled it. I just open the invoice page and see the updated status.
+>
 > Status: **PROCESSING** → "Your invoice is being validated by the network"
 
 **Day 3 (10 minutes later): Still Waiting...**
 > I check **`invoices.status`** with my invoice ID. Status: **SENT** → "Invoice delivered to recipient's Access Point"
 
 **Day 3 (2 hours later): Did They Get It?**
-> I call **`transmissions.receipt`** to check for application responses. I get a receipt! Type: **APPLICATION_RESPONSE**, Status: **ACCEPTED**. The client accepted my invoice! ✅
+> **v1:** I view the invoice page. InvoicePlane checks **`transmissions.receipt`** automatically (throttled to max 1 check per 5 minutes).
+>
+> **v2:** The background job already fetched it. I open the invoice and see the receipt notification.
+>
+> I get a receipt! Type: **APPLICATION_RESPONSE**, Status: **ACCEPTED**. The client accepted my invoice! ✅
 
 **Day 4: Oops, Wrong Amount**
 > Client calls: "The amount should be €1,600, not €1,500". I need to cancel and send a credit note.
@@ -117,6 +124,140 @@ This guide follows a real-world implementation story, showing how each API endpo
 
 **Month 3: Archiving Old Documents**
 > I have 6 months of Peppol invoices. I use **`documents.list`** to find all delivered invoices, then **`documents.archive`** for invoices older than 90 days. If I need them later, I can **`documents.download`** the UBL XML.
+
+---
+
+## What Happens with `transmission_id` After Sending?
+
+### The Flow
+
+1. **User clicks "Send via Peppol"** → InvoicePlane calls `invoices.send`
+2. **Provider returns `transmission_id`** → Unique tracking identifier (e.g., `TXN-2026-05-03-ABC123`)
+3. **InvoicePlane stores it** → Links transmission_id to invoice_id in database
+4. **Used for tracking** → All subsequent API calls use this ID
+
+### Database Storage
+
+**Both v1 and v2 use same table structure:**
+
+```sql
+-- ip_peppol_invoice_transmissions table
+CREATE TABLE ip_peppol_invoice_transmissions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    invoice_id INT NOT NULL,                    -- Links to ip_invoices
+    transmission_id VARCHAR(255) NOT NULL,      -- From provider (TXN-xxx)
+    status VARCHAR(50) NOT NULL,                -- QUEUED, PROCESSING, DELIVERED, etc.
+    sent_at DATETIME NOT NULL,
+    updated_at DATETIME DEFAULT NULL,
+    delivered_at DATETIME DEFAULT NULL,
+    failed_at DATETIME DEFAULT NULL,
+    receipt_json TEXT DEFAULT NULL,             -- Application response (ACCEPTED/REJECTED)
+    receipt_received_at DATETIME DEFAULT NULL,
+    error_code VARCHAR(50) DEFAULT NULL,
+    error_message TEXT DEFAULT NULL,
+    payload_json TEXT NOT NULL,                 -- Original UBL payload
+    INDEX idx_invoice_id (invoice_id),
+    INDEX idx_transmission_id (transmission_id),
+    INDEX idx_status (status)
+);
+```
+
+### How Status Updates Work
+
+**InvoicePlane v1 (On-Demand):**
+```
+User opens invoice page
+    ↓
+Controller loads invoice
+    ↓
+Check: transmission exists? status non-final? last_check > 60s ago?
+    ↓ YES
+Call checkInvoiceTransmissionStatus($invoiceId)
+    ↓
+API: transmissions.status (transmission_id)
+    ↓
+Update database record
+    ↓
+Display updated status to user
+```
+
+**Throttling prevents excessive API calls:**
+- Max 1 status check per minute per transmission
+- Max 1 receipt check per 5 minutes per transmission
+- User can force refresh with "Refresh Status" button (bypasses throttle)
+
+**InvoicePlane v2 (Background Jobs):**
+```
+Laravel Scheduler (every 5 minutes)
+    ↓
+Dispatch PollPeppolTransmissions job
+    ↓
+Query: All active transmissions (QUEUED, PROCESSING, SENT)
+    ↓
+Foreach transmission:
+    ├─ Calculate age (time since sent_at)
+    ├─ Apply exponential backoff:
+    │   ├─ Age < 50min: Poll every 5min
+    │   ├─ Age 50min-3h: Poll every 15min  
+    │   ├─ Age > 3h: Poll every hour
+    │   └─ Age > 24h: Mark as TIMEOUT
+    ├─ API: transmissions.status
+    ├─ Update database
+    └─ Dispatch ReceiptReceived event (triggers notification)
+    ↓
+User opens invoice page
+    ↓
+Display current status from database (already updated)
+```
+
+### UI Display Differences
+
+**v1: Invoice View Page**
+```
+┌─────────────────────────────────────────────────┐
+│ Invoice #INV-2026-001          Status: DELIVERED│
+├─────────────────────────────────────────────────┤
+│ Peppol Transmission:                            │
+│   ● Queued:     2026-05-03 06:00:00            │
+│   ● Processing: 2026-05-03 06:00:15            │
+│   ● Sent:       2026-05-03 06:01:30            │
+│   ● Delivered:  2026-05-03 06:45:12 ✓          │
+│                                                  │
+│ Transmission ID: TXN-2026-05-03-ABC123         │
+│ Last checked: 5 seconds ago (auto)             │
+│ [Refresh Status Now] [View Log] [Get Receipt]  │
+└─────────────────────────────────────────────────┘
+```
+
+**v2: Filament Invoice Resource**
+```
+┌─────────────────────────────────────────────────┐
+│ Invoice #INV-2026-001                           │
+│ Status: 🟢 DELIVERED (Updated 2 min ago)        │
+├─────────────────────────────────────────────────┤
+│ Peppol Timeline:                                │
+│   ● Queued     → 06:00:00                      │
+│   ● Processing → 06:00:15 (15s)                │
+│   ● Sent       → 06:01:30 (1m 15s)             │
+│   ● Delivered  → 06:45:12 (43m 42s)            │
+│                                                  │
+│ Receipt: ✅ ACCEPTED by recipient               │
+│ Background job last ran 2 minutes ago          │
+│ [Force Refresh] [View Full Log]                │
+└─────────────────────────────────────────────────┘
+```
+
+### Error Scenarios
+
+**v1: User sees errors immediately when viewing invoice**
+- Failed validation: Red banner with error details
+- Timeout: Yellow warning with "Contact support" link
+- Receipt rejected: Orange alert with rejection reason
+
+**v2: User gets proactive Filament notifications**
+- Real-time bell notification: "Invoice INV-001 delivered"
+- Email notification option: "Invoice INV-002 failed - action required"
+- Dashboard widget: "3 transmissions need attention"
 
 ---
 
@@ -171,6 +312,109 @@ This guide follows a real-world implementation story, showing how each API endpo
 │ 7. RECEIPT MANAGEMENT: Receive Confirmations & Rejections                      │
 │    → transmissions.receipt (application responses)                             │
 └──────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## InvoicePlane v1 vs v2: Implementation Approaches
+
+### Key Difference: Status Update Strategy
+
+| Aspect | InvoicePlane v1 (CodeIgniter) | InvoicePlane v2 (Laravel + Filament) |
+|--------|-------------------------------|--------------------------------------|
+| **Status Updates** | On-demand (when user views invoice) | Background jobs (scheduled polling) |
+| **Receipt Checking** | On-demand (when user views delivered invoice) | Background jobs (scheduled polling) |
+| **Polling Frequency** | Every page load (with 60s throttle) | Every 5min (status), 10min (receipts) |
+| **Cron Jobs** | ❌ Not required | ✅ Required (Laravel Scheduler) |
+| **Infrastructure** | Simpler (no job queue needed) | More robust (queue workers, Redis) |
+| **User Experience** | Manual refresh via button or page load | Automatic updates + real-time notifications |
+| **Server Load** | Lower (polls only active invoices) | Higher (polls all active transmissions) |
+| **Scalability** | Good for <100 active transmissions | Excellent for 1000+ active transmissions |
+| **Error Handling** | Immediate feedback on page | Background logging + Filament notifications |
+| **Token Refresh** | On-demand (retry on 401) | Scheduled hourly job |
+
+### Why Different Approaches?
+
+**InvoicePlane v1 (On-Demand Polling):**
+- ✅ No cron job configuration required (easier deployment)
+- ✅ Lower infrastructure requirements
+- ✅ Status updates when users actually need them
+- ✅ Built-in throttling prevents API rate limiting
+- ⚠️ Status only updates when invoice is viewed
+- ⚠️ Not suitable for high-volume automated workflows
+
+**InvoicePlane v2 (Background Jobs):**
+- ✅ Automatic updates without user interaction
+- ✅ Real-time Filament notifications on status changes
+- ✅ Better for high-volume users (100+ invoices/day)
+- ✅ Exponential backoff for stuck transmissions
+- ⚠️ Requires queue workers and task scheduler
+- ⚠️ Higher server resource requirements
+
+### When to Use Each Approach
+
+**Use v1 (On-Demand) if:**
+- You send <50 invoices per day
+- Users actively monitor invoice status
+- You want minimal infrastructure
+- Cron jobs are difficult to configure
+
+**Use v2 (Background Jobs) if:**
+- You send 100+ invoices per day
+- You need proactive notifications
+- You have queue infrastructure
+- You want hands-off automation
+
+### Controller Integration Example
+
+**v1 Controller (On-Demand):**
+```php
+// application/modules/invoices/controllers/Invoices.php
+public function view($invoiceId)
+{
+    $this->load->model('mdl_invoices');
+    $this->load->library('peppol/transmission_service');
+    
+    $invoice = $this->mdl_invoices->get_by_id($invoiceId);
+    
+    // Automatically check transmission status on page load (throttled)
+    $transmission = $this->transmission_service->checkInvoiceTransmissionStatus($invoiceId);
+    
+    // Automatically check receipt if delivered (throttled)
+    if ($transmission && $transmission['status'] === 'DELIVERED') {
+        $receipt = $this->transmission_service->checkInvoiceReceipt($invoiceId);
+        $this->view_data['receipt'] = $receipt;
+    }
+    
+    $this->view_data['invoice'] = $invoice;
+    $this->view_data['transmission'] = $transmission;
+    $this->load->view('invoice_view', $this->view_data);
+}
+```
+
+**v2 Controller/Resource (Background):**
+```php
+// Status updates happen automatically in background
+// Filament resource just displays current data
+public static function table(Table $table): Table
+{
+    return $table->columns([
+        TextColumn::make('invoice_number'),
+        BadgeColumn::make('peppolTransmission.status')
+            ->label('Peppol Status')
+            ->getStateUsing(fn ($record) => $record->peppolTransmission?->status)
+            ->colors([
+                'warning' => TransmissionStatus::PROCESSING,
+                'success' => TransmissionStatus::DELIVERED,
+                'danger' => [TransmissionStatus::FAILED, TransmissionStatus::REJECTED],
+            ])
+            ->icons([
+                'heroicon-o-clock' => TransmissionStatus::PROCESSING,
+                'heroicon-o-check-circle' => TransmissionStatus::DELIVERED,
+                'heroicon-o-x-circle' => [TransmissionStatus::FAILED, TransmissionStatus::REJECTED],
+            ]),
+    ]);
+}
 ```
 
 ---
@@ -857,83 +1101,276 @@ FAILED     FAILED    TIMEOUT   REJECTED
 └─────────────────────────────────────────────────┘
 ```
 
-#### Step 5.2: Status Polling (Background Job)
+#### Step 5.2: Status Polling Implementation
+
 **Endpoint:** `transmissions.status`
 
-**Cron Job (runs every 5 minutes):**
+**InvoicePlane v1 (CodeIgniter - Without Cron Jobs):**
+
+For v1, use **on-demand polling** triggered by user interactions. This avoids cron job requirements while keeping data fresh when needed.
+
 ```php
 /**
- * Poll provider API for transmission status updates.
+ * Poll transmission status when user views invoice.
+ * Triggered on invoice page load or manual refresh button.
  *
- * Updates all QUEUED, PROCESSING, or SENT transmissions.
+ * @param int $invoiceId
+ * @return array Updated transmission data
  */
-public function pollTransmissionStatuses(): void
+public function checkInvoiceTransmissionStatus(int $invoiceId): array
 {
-    // Get all active transmissions (not final state)
+    // Get latest transmission for this invoice
+    $transmission = $this->db
+        ->where('invoice_id', $invoiceId)
+        ->order_by('sent_at', 'DESC')
+        ->limit(1)
+        ->get('ip_peppol_invoice_transmissions')
+        ->row_array();
+    
+    if (!$transmission) {
+        return ['status' => 'NO_TRANSMISSION'];
+    }
+    
+    // Only poll if status is non-final AND not recently checked
     $activeStatuses = [
         TransmissionStatus::QUEUED->value,
         TransmissionStatus::PROCESSING->value,
         TransmissionStatus::SENT->value,
     ];
     
-    $transmissions = $this->db
-        ->where_in('status', $activeStatuses)
-        ->where('sent_at >', date('Y-m-d H:i:s', strtotime('-7 days'))) // Only recent
-        ->get('ip_peppol_invoice_transmissions')
-        ->result_array();
+    $lastChecked = strtotime($transmission['updated_at'] ?? $transmission['sent_at']);
+    $throttleSeconds = 60; // Don't poll more than once per minute per transmission
     
-    foreach ($transmissions as $transmission) {
-        try {
-            // API Call: transmissions.status
-            $gateway = new LetsPeppolGatewayClient($this->baseUrl, $this->settings);
-            $txEndpoint = new TransmissionEndpoint($gateway);
+    if (!in_array($transmission['status'], $activeStatuses)) {
+        return $transmission; // Already in final state
+    }
+    
+    if ((time() - $lastChecked) < $throttleSeconds) {
+        return $transmission; // Checked too recently
+    }
+    
+    try {
+        // API Call: transmissions.status
+        $gateway = new LetsPeppolGatewayClient($this->baseUrl, $this->settings);
+        $txEndpoint = new TransmissionEndpoint($gateway);
+        
+        $response = $txEndpoint->getStatus($transmission['transmission_id']);
+        $status = json_decode($response->getBody(), true);
+        
+        // Update local record
+        $updates = [
+            'status' => $status['status'],
+            'updated_at' => date('Y-m-d H:i:s'),
+        ];
+        
+        // Track state transitions
+        if ($status['status'] === TransmissionStatus::DELIVERED->value && empty($transmission['delivered_at'])) {
+            $updates['delivered_at'] = date('Y-m-d H:i:s');
             
-            $response = $txEndpoint->getStatus($transmission['transmission_id']);
-            $status = json_decode($response->getBody(), true);
+            // Optionally mark invoice as sent
+            $this->db->where('invoice_id', $transmission['invoice_id'])
+                ->update('ip_invoices', ['invoice_status_id' => 2]); // Sent status
+        }
+        
+        if (in_array($status['status'], [TransmissionStatus::FAILED->value, TransmissionStatus::REJECTED->value])) {
+            $updates['failed_at'] = date('Y-m-d H:i:s');
+            $updates['error_code'] = $status['error_code'] ?? 'UNKNOWN';
+            $updates['error_message'] = $status['error_message'] ?? 'No details available';
+        }
+        
+        $this->db->where('id', $transmission['id'])
+            ->update('ip_peppol_invoice_transmissions', $updates);
             
-            // Update local record
-            $updates = [
-                'status' => $status['status'],
-                'updated_at' => date('Y-m-d H:i:s'),
-            ];
-            
-            // Track state transitions
-            if ($status['status'] === TransmissionStatus::DELIVERED->value && empty($transmission['delivered_at'])) {
-                $updates['delivered_at'] = date('Y-m-d H:i:s');
-                
-                // Optionally mark invoice as sent
-                $this->db->where('invoice_id', $transmission['invoice_id'])
-                    ->update('ip_invoices', ['invoice_status_id' => 2]); // Sent status
+        log_message('info', "Updated transmission {$transmission['transmission_id']}: {$status['status']}");
+        
+        return array_merge($transmission, $updates);
+        
+    } catch (\Throwable $e) {
+        log_message('error', "Failed to poll transmission {$transmission['transmission_id']}: " . $e->getMessage());
+        return $transmission; // Return unchanged on error
+    }
+}
+```
+
+**InvoicePlane v2 (Laravel + Filament - With Background Jobs):**
+
+For v2, use Laravel's queue system with scheduled jobs for automatic status updates across all transmissions.
+
+**Scheduled Job Configuration (app/Console/Kernel.php):**
+```php
+protected function schedule(Schedule $schedule): void
+{
+    // Poll transmission statuses every 5 minutes
+    $schedule->job(new PollPeppolTransmissions())
+        ->everyFiveMinutes()
+        ->withoutOverlapping()
+        ->onOneServer();
+}
+```
+
+**Job Implementation (app/Jobs/PollPeppolTransmissions.php):**
+```php
+<?php
+
+namespace App\Jobs;
+
+use App\Models\InvoiceTransmission;
+use App\Services\Peppol\TransmissionService;
+use Core\Enums\TransmissionStatus;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+
+class PollPeppolTransmissions implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public function handle(TransmissionService $transmissionService): void
+    {
+        $activeStatuses = [
+            TransmissionStatus::QUEUED,
+            TransmissionStatus::PROCESSING,
+            TransmissionStatus::SENT,
+        ];
+
+        // Get all active transmissions from last 7 days
+        $transmissions = InvoiceTransmission::query()
+            ->whereIn('status', $activeStatuses)
+            ->where('sent_at', '>', now()->subDays(7))
+            ->get();
+
+        Log::info("Polling {$transmissions->count()} active Peppol transmissions");
+
+        foreach ($transmissions as $transmission) {
+            try {
+                $transmissionService->updateStatus($transmission);
+            } catch (\Throwable $e) {
+                Log::warning("Failed to poll transmission {$transmission->transmission_id}: {$e->getMessage()}");
             }
-            
-            if (in_array($status['status'], [TransmissionStatus::FAILED->value, TransmissionStatus::REJECTED->value])) {
-                $updates['failed_at'] = date('Y-m-d H:i:s');
-                $updates['error_code'] = $status['error_code'] ?? 'UNKNOWN';
-                $updates['error_message'] = $status['error_message'] ?? 'No details available';
-            }
-            
-            $this->db->where('id', $transmission['id'])
-                ->update('ip_peppol_invoice_transmissions', $updates);
-                
-            log_message('info', "Updated transmission {$transmission['transmission_id']}: {$status['status']}");
-            
-        } catch (\Throwable $e) {
-            log_message('error', "Failed to poll transmission {$transmission['transmission_id']}: " . $e->getMessage());
         }
     }
 }
 ```
 
-#### Step 5.3: Manual Status Refresh
+**Service Method (app/Services/Peppol/TransmissionService.php):**
+```php
+public function updateStatus(InvoiceTransmission $transmission): void
+{
+    $gateway = new LetsPeppolGatewayClient($this->baseUrl, $this->settings);
+    $txEndpoint = new TransmissionEndpoint($gateway);
+    
+    $response = $txEndpoint->getStatus($transmission->transmission_id);
+    $status = json_decode($response->getBody(), true);
+    
+    // Update model
+    $transmission->status = TransmissionStatus::from($status['status']);
+    $transmission->updated_at = now();
+    
+    // Track state transitions
+    if ($status['status'] === TransmissionStatus::DELIVERED->value && !$transmission->delivered_at) {
+        $transmission->delivered_at = now();
+        $transmission->invoice->update(['status' => 'sent']);
+    }
+    
+    if (in_array($status['status'], [TransmissionStatus::FAILED->value, TransmissionStatus::REJECTED->value])) {
+        $transmission->failed_at = now();
+        $transmission->error_code = $status['error_code'] ?? 'UNKNOWN';
+        $transmission->error_message = $status['error_message'] ?? 'No details available';
+    }
+    
+    $transmission->save();
+    
+    Log::info("Updated transmission {$transmission->transmission_id}: {$status['status']}");
+}
+```
+
+**Exponential Backoff for Stuck Transmissions:**
+```php
+// Add to PollPeppolTransmissions job
+public function handle(TransmissionService $transmissionService): void
+{
+    $transmissions = InvoiceTransmission::query()
+        ->whereIn('status', [TransmissionStatus::QUEUED, TransmissionStatus::PROCESSING, TransmissionStatus::SENT])
+        ->where('sent_at', '>', now()->subDay())
+        ->get();
+
+    foreach ($transmissions as $transmission) {
+        // Calculate backoff based on age
+        $age = $transmission->sent_at->diffInMinutes(now());
+        
+        // First 50 minutes: Check every 5 minutes (10 checks)
+        if ($age < 50 && $age % 5 !== 0) continue;
+        
+        // 50 minutes - 3 hours: Check every 15 minutes (12 checks)
+        if ($age >= 50 && $age < 180 && $age % 15 !== 0) continue;
+        
+        // After 3 hours: Check every hour
+        if ($age >= 180 && $age % 60 !== 0) continue;
+        
+        // Timeout after 24 hours
+        if ($age >= 1440) {
+            $transmission->update([
+                'status' => TransmissionStatus::TIMEOUT,
+                'error_message' => 'Transmission timed out after 24 hours',
+            ]);
+            continue;
+        }
+        
+        try {
+            $transmissionService->updateStatus($transmission);
+        } catch (\Throwable $e) {
+            Log::warning("Failed to poll transmission {$transmission->transmission_id}: {$e->getMessage()}");
+        }
+    }
+}
+```
+
+#### Step 5.3: Manual Status Refresh (Both V1 & V2)
 
 **UI Button:** "Refresh Peppol Status"
 
+**InvoicePlane v1 (CodeIgniter):**
 ```php
-// User clicks button → immediately polls provider
-$status = $this->transmissionService->refreshStatus($transmissionId);
+// Controller: Invoices → view_invoice()
+public function refresh_peppol_status($invoiceId)
+{
+    // Load service
+    $this->load->library('peppol/transmission_service');
+    
+    // User clicks button → immediately polls provider
+    $transmission = $this->transmission_service->checkInvoiceTransmissionStatus($invoiceId);
+    
+    // Display updated status to user
+    $this->session->set_flashdata('alert_success', "Status updated: {$transmission['status']}");
+    redirect('invoices/view/' . $invoiceId);
+}
+```
 
-// Display updated status to user
-flash_message('success', "Status updated: {$status['status']}");
+**InvoicePlane v2 (Laravel + Filament):**
+```php
+// Filament Resource: InvoiceResource → Action
+Tables\Actions\Action::make('refreshPeppolStatus')
+    ->label('Refresh Status')
+    ->icon('heroicon-o-arrow-path')
+    ->action(function (Invoice $record, TransmissionService $service) {
+        $transmission = $record->peppolTransmission;
+        
+        if ($transmission) {
+            $service->updateStatus($transmission);
+            Notification::make()
+                ->title('Status Updated')
+                ->success()
+                ->body("Current status: {$transmission->status->label()}")
+                ->send();
+        }
+    })
+    ->visible(fn (Invoice $record) => 
+        $record->peppolTransmission && 
+        !$record->peppolTransmission->status->isFinal()
+    );
 ```
 
 #### Step 5.4: Where Is My Invoice Right Now?
@@ -1066,7 +1503,7 @@ private function calculateProgress(string $status): int
 | **Recipient AP Unreachable** | Provider returns "endpoint unavailable" | Status: SENT, poll until available or timeout (48h) |
 | **Status Regression** | Status goes from SENT → QUEUED | Invalid, log warning, ignore (keep higher status) |
 | **Transmission ID Not Found** | 404 from provider | Display: "Transmission ID expired or not found. Contact support." |
-| **Polling Too Frequent** | Rate limit on status checks | Implement exponential backoff (5min → 15min → 1h) |
+| **Polling Too Frequent** | Rate limit on status checks | **v1:** Built-in 60s throttle per transmission<br>**v2:** Exponential backoff (5min → 15min → 1h) |
 | **Multiple Status Updates** | Status changes multiple times quickly | Store history in separate table (transmission_status_history) |
 | **Provider Returns Different ID** | transmission_id ≠ stored ID | Log mismatch, use provider ID as source of truth |
 
@@ -1265,44 +1702,147 @@ Receive and process application responses (acceptances/rejections) from recipien
 ### User Journey
 
 #### Step 7.1: Automatic Receipt Polling
+
 **Endpoint:** `transmissions.receipt`
 
-**Cron Job (runs every 10 minutes):**
+**InvoicePlane v1 (CodeIgniter - On-Demand Polling):**
+
+For v1, check for receipts when user views a delivered invoice, avoiding cron job requirements.
+
 ```php
 /**
- * Poll for delivery receipts on delivered transmissions.
+ * Check for and fetch receipt when user views delivered invoice.
+ * Triggered on invoice view page load or manual "Check Receipt" button.
+ *
+ * @param int $invoiceId
+ * @return array|null Receipt data if available
  */
-public function pollDeliveryReceipts(): void
+public function checkInvoiceReceipt(int $invoiceId): ?array
 {
-    $transmissions = $this->db
+    // Get delivered transmission without receipt
+    $transmission = $this->db
+        ->where('invoice_id', $invoiceId)
         ->where('status', TransmissionStatus::DELIVERED->value)
-        ->where('receipt_json IS NULL') // Not yet received
+        ->where('receipt_json IS NULL')
+        ->order_by('delivered_at', 'DESC')
+        ->limit(1)
         ->get('ip_peppol_invoice_transmissions')
-        ->result_array();
+        ->row_array();
     
-    foreach ($transmissions as $transmission) {
-        try {
-            // API Call: transmissions.receipt
-            $gateway = new LetsPeppolGatewayClient($this->baseUrl, $this->settings);
-            $txEndpoint = new TransmissionEndpoint($gateway);
+    if (!$transmission) {
+        return null; // No eligible transmission
+    }
+    
+    // Throttle: Don't check more than once every 5 minutes per transmission
+    $lastChecked = strtotime($transmission['updated_at']);
+    if ((time() - $lastChecked) < 300) {
+        return null;
+    }
+    
+    try {
+        // API Call: transmissions.receipt
+        $gateway = new LetsPeppolGatewayClient($this->baseUrl, $this->settings);
+        $txEndpoint = new TransmissionEndpoint($gateway);
+        
+        $response = $txEndpoint->getReceipt($transmission['transmission_id']);
+        $receipt = json_decode($response->getBody(), true);
+        
+        if ($receipt['available']) {
+            // Store receipt
+            $this->db->where('id', $transmission['id'])->update('ip_peppol_invoice_transmissions', [
+                'receipt_json' => json_encode($receipt),
+                'receipt_received_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
             
-            $response = $txEndpoint->getReceipt($transmission['transmission_id']);
-            $receipt = json_decode($response->getBody(), true);
+            // Process receipt type
+            $this->processReceipt($transmission, $receipt);
             
-            if ($receipt['available']) {
-                // Store receipt
-                $this->db->where('id', $transmission['id'])->update('ip_peppol_invoice_transmissions', [
-                    'receipt_json' => json_encode($receipt),
-                ]);
+            return $receipt;
+        }
+        
+        // Not available yet - update check timestamp
+        $this->db->where('id', $transmission['id'])->update('ip_peppol_invoice_transmissions', [
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+        
+        return null;
+        
+    } catch (\Throwable $e) {
+        log_message('debug', "No receipt yet for {$transmission['transmission_id']}");
+        return null;
+    }
+}
+```
+
+**InvoicePlane v2 (Laravel + Filament - Background Job):**
+
+**Scheduled Job Configuration (app/Console/Kernel.php):**
+```php
+protected function schedule(Schedule $schedule): void
+{
+    // Poll receipts every 10 minutes
+    $schedule->job(new PollPeppolReceipts())
+        ->everyTenMinutes()
+        ->withoutOverlapping()
+        ->onOneServer();
+}
+```
+
+**Job Implementation (app/Jobs/PollPeppolReceipts.php):**
+```php
+<?php
+
+namespace App\Jobs;
+
+use App\Models\InvoiceTransmission;
+use Core\Enums\TransmissionStatus;
+use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
+use Core\Gateways\LetsPeppol\Endpoints\TransmissionEndpoint;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\Log;
+
+class PollPeppolReceipts implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable;
+
+    public function handle(): void
+    {
+        $transmissions = InvoiceTransmission::query()
+            ->where('status', TransmissionStatus::DELIVERED)
+            ->whereNull('receipt_json')
+            ->where('delivered_at', '>', now()->subDays(30))
+            ->get();
+
+        Log::info("Polling receipts for {$transmissions->count()} delivered transmissions");
+
+        foreach ($transmissions as $transmission) {
+            try {
+                $gateway = app(LetsPeppolGatewayClient::class);
+                $txEndpoint = new TransmissionEndpoint($gateway);
                 
-                // Process receipt type
-                $this->processReceipt($transmission, $receipt);
+                $response = $txEndpoint->getReceipt($transmission->transmission_id);
+                $receipt = json_decode($response->getBody(), true);
+                
+                if ($receipt['available']) {
+                    $transmission->update([
+                        'receipt_json' => json_encode($receipt),
+                        'receipt_received_at' => now(),
+                    ]);
+                    
+                    // Dispatch event for notification
+                    event(new ReceiptReceived($transmission, $receipt));
+                }
+            } catch (\Throwable $e) {
+                Log::debug("No receipt yet for {$transmission->transmission_id}");
             }
-        } catch (\Throwable $e) {
-            log_message('debug', "No receipt yet for {$transmission['transmission_id']}");
         }
     }
 }
+```
 
 /**
  * Process received application response.
@@ -2012,12 +2552,27 @@ Complete reference of which API endpoints are used in which processes and edge c
 - [ ] Dashboard → Peppol errors widget
 - [ ] Translations (EN, NL, DE, FR)
 
-### Phase 3: Background Jobs (10-15 hours)
-- [ ] Status polling cron job (5min interval)
-- [ ] Receipt polling cron job (10min interval)
-- [ ] Token refresh job (hourly)
-- [ ] Error notification job (real-time)
-- [ ] Cleanup job (archive old records)
+### Phase 3: Status Updates & Receipt Handling (10-15 hours)
+
+**InvoicePlane v1 (On-Demand Polling - No Cron Jobs Required):**
+- [ ] On-demand status polling (triggered by invoice view page load)
+- [ ] Throttling mechanism (60s between checks per transmission)
+- [ ] Manual refresh button ("Check Status Now")
+- [ ] On-demand receipt checking (triggered when viewing delivered invoices)
+- [ ] Receipt throttling (5min between checks)
+- [ ] Manual receipt check button ("Check for Receipt")
+- [ ] Token refresh on API calls (automatic retry on 401)
+- [ ] Flash notifications for status changes
+- [ ] Cleanup on invoice deletion (cascade)
+
+**InvoicePlane v2 (Background Jobs with Laravel Queue):**
+- [ ] Scheduled status polling job (every 5min) with exponential backoff
+- [ ] Scheduled receipt polling job (every 10min)
+- [ ] Scheduled token refresh job (hourly)
+- [ ] Event-driven receipt notifications (Filament notifications)
+- [ ] Scheduled cleanup job (archive old records daily)
+- [ ] Queue monitoring dashboard
+- [ ] Failed job retry interface
 
 ### Phase 4: Testing (15-25 hours)
 - [ ] Unit tests for all services (target: 100% coverage)
