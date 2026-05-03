@@ -1,0 +1,18 @@
+{
+    "participants": [
+        {
+            "peppol_id": "0088:123456789",
+            "name": "Acme Corporation AB",
+            "country_code": "SE",
+            "match_score": 0.95
+        },
+        {
+            "peppol_id": "0088:987654321",
+            "name": "Acme Corp Ltd",
+            "country_code": "SE",
+            "match_score": 0.87
+        }
+    ],
+    "total": 2,
+    "query": "Acme Corp"
+}

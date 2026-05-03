@@ -1,0 +1,9 @@
+{
+    "invoice_id": 1,
+    "invoice_number": "INV-2026-001",
+    "status": "delivered",
+    "transmission_id": "trans-456",
+    "sent_at": "2026-05-02T01:00:00Z",
+    "delivered_at": "2026-05-02T01:05:30Z",
+    "document_id": "ext-invoice-123"
+}

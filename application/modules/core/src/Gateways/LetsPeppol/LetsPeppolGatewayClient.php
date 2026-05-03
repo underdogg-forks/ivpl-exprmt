@@ -22,8 +22,36 @@ class LetsPeppolGatewayClient extends ApiClient
      * LetsPeppol API endpoints mapping.
      */
     protected array $endpoints = [
-        'participants.validate' => 'api/participants/validate',
-        'invoices.send'        => 'api/invoices',
+        // Participant endpoints
+        'participants.validate'     => 'api/participants/validate',
+        'participants.details'      => 'api/participants',
+        'participants.search'       => 'api/participants/search',
+        'participants.capabilities' => 'api/participants/capabilities',
+        
+        // Invoice endpoints
+        'invoices.send'   => 'api/invoices',
+        'invoices.status' => 'api/invoices',
+        'invoices.cancel' => 'api/invoices/cancel',
+        'invoices.resend' => 'api/invoices/resend',
+        
+        // Credit note endpoints
+        'credit_notes.send'   => 'api/credit-notes',
+        'credit_notes.status' => 'api/credit-notes',
+        'credit_notes.cancel' => 'api/credit-notes/cancel',
+        
+        // Transmission endpoints
+        'transmissions.status' => 'api/transmissions',
+        'transmissions.receipt' => 'api/transmissions/receipt',
+        'transmissions.errors' => 'api/transmissions/errors',
+        'transmissions.list'   => 'api/transmissions',
+        'transmissions.retry'  => 'api/transmissions/retry',
+        
+        // Document endpoints
+        'documents.get'      => 'api/documents',
+        'documents.download' => 'api/documents/download',
+        'documents.metadata' => 'api/documents/metadata',
+        'documents.list'     => 'api/documents',
+        'documents.archive'  => 'api/documents/archive',
     ];
 
     public function __construct(

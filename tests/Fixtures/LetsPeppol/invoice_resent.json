@@ -1,0 +1,7 @@
+{
+    "invoice_id": 1,
+    "original_transmission_id": "trans-456",
+    "new_transmission_id": "trans-457",
+    "status": "queued",
+    "resent_at": "2026-05-02T02:00:00Z"
+}

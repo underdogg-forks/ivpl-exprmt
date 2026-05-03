@@ -1,0 +1,6 @@
+{
+    "invoice_id": 1,
+    "status": "cancelled",
+    "transmission_id": "trans-456",
+    "cancelled_at": "2026-05-02T01:10:00Z"
+}

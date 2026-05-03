@@ -1,0 +1,10 @@
+{
+    "transmission_id": "trans-789",
+    "error_code": "INVALID_RECIPIENT",
+    "error_message": "Recipient Peppol ID not found in SML",
+    "occurred_at": "2026-05-02T02:15:00Z",
+    "details": {
+        "recipient_id": "0088:invalid",
+        "sml_query_result": "not_found"
+    }
+}
