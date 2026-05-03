@@ -3,6 +3,8 @@
 > **Audience:** Users implementing Peppol e-invoicing for the first time with InvoicePlane
 > 
 > **Goal:** Understand complete Peppol workflows from provider setup to invoice tracking, including edge cases
+>
+> **API Endpoints:** All processes tagged with specific LetsPeppol API endpoints for implementation
 
 ---
 
@@ -18,29 +20,164 @@
 
 ---
 
+## Quick Reference: API Endpoints
+
+All LetsPeppol gateway endpoints used throughout this guide:
+
+### Participant Endpoints
+- `participants.validate` → `api/participants/validate` - Validate Peppol ID exists in network
+- `participants.details` → `api/participants` - Get full participant information
+- `participants.search` → `api/participants/search` - Search for participants
+- `participants.capabilities` → `api/participants/capabilities` - Check supported document types
+
+### Invoice Endpoints
+- `invoices.send` → `api/invoices` - Send invoice to Peppol network
+- `invoices.status` → `api/invoices` - Get invoice delivery status
+- `invoices.cancel` → `api/invoices/cancel` - Cancel sent invoice
+- `invoices.resend` → `api/invoices/resend` - Retry invoice transmission
+
+### Credit Note Endpoints
+- `credit_notes.send` → `api/credit-notes` - Send credit note
+- `credit_notes.status` → `api/credit-notes` - Get credit note status
+- `credit_notes.cancel` → `api/credit-notes/cancel` - Cancel credit note
+
+### Transmission Endpoints
+- `transmissions.status` → `api/transmissions` - Track document through network
+- `transmissions.receipt` → `api/transmissions/receipt` - Get delivery receipts
+- `transmissions.errors` → `api/transmissions/errors` - Retrieve error details
+- `transmissions.list` → `api/transmissions` - List all transmissions with filters
+- `transmissions.retry` → `api/transmissions/retry` - Retry failed transmission
+
+### Document Endpoints
+- `documents.get` → `api/documents` - Get document by ID
+- `documents.download` → `api/documents/download` - Download document in specific format
+- `documents.metadata` → `api/documents/metadata` - Get document metadata only
+- `documents.list` → `api/documents` - List received/archived documents
+- `documents.archive` → `api/documents/archive` - Archive old document
+
+---
+
+## My Peppol Journey: A Narrative Guide
+
+This guide follows a real-world implementation story, showing how each API endpoint is used in sequence.
+
+### The Story: Sending My First Peppol Invoice
+
+**Day 1: Setup**
+> I sign up with LetsPeppol. They give me a `client_id` and `client_secret`. I enter these in InvoicePlane's Integrations menu. InvoicePlane tests the OAuth2 connection using `league/oauth2-client` - it works! ✅
+
+**Day 2: Finding My Client**
+> I have a new client: "ACME Corporation" in Norway. I use **`participants.search`** with query "ACME" and country "NO". I find them! Their Peppol ID is `0192:999999999`.
+
+> Before saving, I **`participants.validate`** their ID to ensure they're actually in the network. Valid! ✅
+
+> I want to be sure they can receive invoices, so I check **`participants.capabilities`**. They support invoices and credit notes. Perfect! ✅
+
+**Day 3: Sending My Invoice**
+> I create invoice #INV-001 for €1,500 to ACME. InvoicePlane builds the UBL 2.1 XML payload locally (PayloadBuilderService validates all required fields).
+
+> I click "Send via Peppol". InvoicePlane calls **`invoices.send`** with the payload. I get a `transmission_id` back: `tx_abc123`. The invoice enters the network! 🚀
+
+**Day 3 (5 minutes later): Where Is My Invoice?**
+> I refresh the invoice page. InvoicePlane polls **`transmissions.status`** with my `transmission_id`. 
+> Status: **PROCESSING** → "Your invoice is being validated by the network"
+
+**Day 3 (10 minutes later): Still Waiting...**
+> I check **`invoices.status`** with my invoice ID. Status: **SENT** → "Invoice delivered to recipient's Access Point"
+
+**Day 3 (2 hours later): Did They Get It?**
+> I call **`transmissions.receipt`** to check for application responses. I get a receipt! Type: **APPLICATION_RESPONSE**, Status: **ACCEPTED**. The client accepted my invoice! ✅
+
+**Day 4: Oops, Wrong Amount**
+> Client calls: "The amount should be €1,600, not €1,500". I need to cancel and send a credit note.
+
+> I call **`invoices.cancel`** with reason "Incorrect amount - sending corrected version". Cancelled! ✅
+
+> I create credit note #CN-001 for €1,500 (cancelling the original). I call **`credit_notes.send`**. New transmission starts.
+
+> Then I create corrected invoice #INV-002 for €1,600 and send via **`invoices.send`**.
+
+**Day 5: Tracking the Correction**
+> I check the credit note: **`credit_notes.status`** → **DELIVERED** → **ACCEPTED** ✅
+
+> I check the new invoice: **`invoices.status`** → **DELIVERED** → **ACCEPTED** ✅
+
+> All done! My first Peppol invoices sent successfully!
+
+**Week 2: Compliance Audit**
+> My accountant needs a report of all Peppol transmissions. I use **`transmissions.list`** with filters:
+> - `from_date`: "2026-05-01"
+> - `to_date`: "2026-05-07"  
+> - `status`: null (all statuses)
+
+> I get a complete audit trail with timestamps, statuses, and receipts. Perfect for compliance! 📊
+
+**Month 2: Network Error**
+> An invoice fails with **VALIDATION_ERROR**. I check **`transmissions.errors`** - it shows "Missing tax category". I fix the payload and use **`transmissions.retry`** to resend. Success! ✅
+
+**Month 3: Archiving Old Documents**
+> I have 6 months of Peppol invoices. I use **`documents.list`** to find all delivered invoices, then **`documents.archive`** for invoices older than 90 days. If I need them later, I can **`documents.download`** the UBL XML.
+
+---
+
+## InvoicePlane v2 (Laravel) Architecture Note
+
+**Current (v1):** `ip_clients` table stores all client data including `client_peppol_id`
+
+**Recommended (v2):** Rename `relations` → `participants` for clarity:
+- ✅ **`participants` table** - Clearer intent: Peppol network participants
+- ✅ **Aligns with Peppol terminology** - industry standard naming
+- ✅ **Future-proof** - easily extended for other networks (StoreCove, Tradeshift)
+- ✅ **Database schema**:
+  ```sql
+  CREATE TABLE participants (
+      id BIGINT UNSIGNED PRIMARY KEY,
+      peppol_id VARCHAR(100) UNIQUE NOT NULL,  -- 0192:999999999
+      name VARCHAR(255) NOT NULL,
+      country CHAR(2),  -- ISO 3166-1 alpha-2
+      capabilities JSON,  -- ['invoice', 'credit_note']
+      last_validated_at TIMESTAMP,
+      status ENUM('active', 'inactive', 'suspended'),
+      created_at TIMESTAMP,
+      updated_at TIMESTAMP
+  );
+  ```
+
+**Migration Strategy:** Keep `relations` for backward compatibility, add `participants` as new preferred term. Adapter layer maps between them.
+
+---
+
 ## Process Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ 1. SETUP: Choose Provider & Configure Credentials                           │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 2. PARTICIPANT DISCOVERY: Search & Validate Recipient                       │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 3. PAYLOAD BUILDING: Create UBL-compliant Invoice                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 4. INVOICE TRANSMISSION: Send via Provider API                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 5. TRACKING: Monitor Invoice Through Peppol Network                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 6. ERROR HANDLING: Manage Failures & Retries                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 7. RECEIPT MANAGEMENT: Receive Confirmations & Rejections                  │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│ 1. SETUP: Choose Provider & Configure Credentials (OAuth2)                      │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│ 2. PARTICIPANT DISCOVERY: Search & Validate                                     │
+│    → participants.search, participants.validate, participants.capabilities      │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│ 3. PAYLOAD BUILDING: Create UBL-compliant Invoice                              │
+│    → PayloadBuilderService (local validation, no API call)                     │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│ 4. INVOICE TRANSMISSION: Send via Provider API                                 │
+│    → invoices.send (returns transmission_id)                                   │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│ 5. TRACKING: Monitor Invoice Through Peppol Network                            │
+│    → transmissions.status, invoices.status                                     │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│ 6. ERROR HANDLING: Manage Failures & Retries                                   │
+│    → transmissions.errors, transmissions.retry                                 │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│ 7. RECEIPT MANAGEMENT: Receive Confirmations & Rejections                      │
+│    → transmissions.receipt (application responses)                             │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Process 1: Provider Setup & Configuration
+
+**API Endpoints Used:** None (OAuth2 token endpoint only - provider-specific)
 
 ### Goal
 Connect InvoicePlane to your chosen Peppol Access Point provider using OAuth2 authentication.
@@ -159,12 +296,19 @@ if (!$result) {
 
 ## Process 2: Participant Discovery
 
+**API Endpoints Used:**
+- **`participants.search`** - Find participants by name/ID
+- **`participants.validate`** - Verify Peppol ID exists in network
+- **`participants.details`** - Get full participant information
+- **`participants.capabilities`** - Check supported document types
+
 ### Goal
 Search and validate Peppol participants before sending invoices to ensure delivery capability.
 
 ### User Journey
 
 #### Step 2.1: Add Client with Peppol ID
+**Endpoint:** `participants.validate`
 
 **UI: Clients → Add New Client**
 
@@ -178,7 +322,7 @@ use Core\Gateways\LetsPeppol\Endpoints\ParticipantEndpoint;
 $gateway = new LetsPeppolGatewayClient($baseUrl, $settings);
 $participant = new ParticipantEndpoint($gateway);
 
-// Validate Peppol ID exists in network
+// API Call: participants.validate
 $isValid = $participant->validatePeppolId($peppolId);
 
 if (!$isValid) {
@@ -195,6 +339,7 @@ WHERE client_id = 123;
 ```
 
 #### Step 2.2: Search for Participants
+**Endpoint:** `participants.search`
 
 **UI: Clients → Search Peppol Participants**
 
@@ -205,6 +350,7 @@ Search form:
 
 **Implementation:**
 ```php
+// API Call: participants.search
 $results = $participant->search(
     query: 'ACME Corporation',
     country: 'NO',  // Norway - uses InvoicePlane's country_helper.php
@@ -235,10 +381,12 @@ $results = CacheHelper::remember("peppol_search_{$query}_{$country}", function()
 ```
 
 #### Step 2.3: Get Participant Details
+**Endpoint:** `participants.details`
 
 **Use Case:** User clicks on search result to see full capabilities.
 
 ```php
+// API Call: participants.details
 $details = $participant->getDetails($peppolId);
 
 // Response includes:
@@ -257,18 +405,31 @@ $details = $participant->getDetails($peppolId);
 ]
 ```
 
+#### Step 2.4: Verify Invoice Capability
+**Endpoint:** `participants.capabilities` (alternative to participants.details for capabilities only)
+
+```php
+// API Call: participants.capabilities
+$capabilities = $participant->getCapabilities($peppolId);
+
+// Returns: ['invoice', 'credit_note', 'order_response']
+if (!in_array('invoice', $capabilities)) {
+    show_error('This participant cannot receive invoices via Peppol');
+}
+```
+
 ### Edge Cases & Error Handling
 
-| Scenario | Detection | Resolution |
-|----------|-----------|------------|
-| **Peppol ID Not Found** | 404 from API | Display: "Participant not registered in Peppol network." |
-| **Invalid Peppol ID Format** | Client-side validation | Display: "Invalid format. Use: scheme:identifier (e.g., 0192:999999999)" |
-| **Multiple Matches** | Search returns 100+ results | Implement pagination (30 per page) |
-| **No Matches** | Empty search results | Display: "No participants found. Try broader search." |
-| **Participant Deactivated** | Status: 'inactive' | Display: "Participant no longer active. Verify with recipient." |
-| **Certificate Expired** | certificate_valid_until < now | Display: "Participant certificate expired. Contact recipient." |
-| **Capability Mismatch** | Recipient doesn't support invoice | Display: "Recipient cannot receive invoices via Peppol. Use email instead." |
-| **Country Mismatch** | Wrong country filter | Allow "All Countries" search option |
+| Scenario | Endpoint | Detection | Resolution |
+|----------|----------|-----------|------------|
+| **Peppol ID Not Found** | `participants.validate` | 404 from API | Display: "Participant not registered in Peppol network." |
+| **Invalid Peppol ID Format** | Client-side | Regex: `/^\d{4}:[A-Z0-9]+$/` | Display: "Invalid format. Use: scheme:identifier (e.g., 0192:999999999)" |
+| **Multiple Matches** | `participants.search` | Search returns 100+ results | Implement pagination (30 per page) |
+| **No Matches** | `participants.search` | Empty search results | Display: "No participants found. Try broader search." |
+| **Participant Deactivated** | `participants.details` | Status: 'inactive' | Display: "Participant no longer active. Verify with recipient." |
+| **Certificate Expired** | `participants.details` | certificate_valid_until < now | Display: "Participant certificate expired. Contact recipient." |
+| **Capability Mismatch** | `participants.capabilities` | 'invoice' not in array | Display: "Recipient cannot receive invoices via Peppol. Use email instead." |
+| **Country Mismatch** | `participants.search` | Wrong country filter | Allow "All Countries" search option |
 
 **Real-World Example:**
 
@@ -280,10 +441,11 @@ if (!preg_match('/^\d{4}:[A-Z0-9]+$/', $peppolId)) {
     throw new ValidationException('Invalid Peppol ID format');
 }
 
-// Step 2: Validate in network
+// Step 2: API Call - participants.validate
 $isValid = $participant->validatePeppolId($peppolId);
 if (!$isValid) {
     // Edge case: Maybe typo? Suggest search
+    // API Call: participants.search
     $suggestions = $participant->search(
         query: substr($peppolId, 5), // Search by identifier part
         country: null
@@ -296,7 +458,7 @@ if (!$isValid) {
     }
 }
 
-// Step 3: Check capabilities
+// Step 3: API Call - participants.details
 $details = $participant->getDetails($peppolId);
 if (!in_array(DocumentType::INVOICE->value, $details['capabilities'])) {
     show_error("Recipient cannot receive invoices via Peppol.");
@@ -510,20 +672,27 @@ class PayloadBuilderService
 
 ## Process 4: Invoice Transmission
 
+**API Endpoints Used:**
+- **`invoices.send`** - Send invoice to Peppol network (returns transmission_id)
+- **`invoices.status`** - Check invoice delivery status
+- **`invoices.cancel`** - Cancel sent invoice (before delivery)
+- **`invoices.resend`** - Retry invoice transmission after error
+
 ### Goal
 Send invoice to Peppol network and receive transmission ID for tracking.
 
 ### User Journey
 
 #### Step 4.1: User Clicks "Send via Peppol"
+**Endpoint:** `invoices.send`
 
 **UI: Invoices → View Invoice → Actions → Send via Peppol**
 
 **Workflow:**
 ```
 1. Build payload (Process 3)
-2. Send to provider API
-3. Store transmission record
+2. API Call: invoices.send
+3. Store transmission record with transmission_id
 4. Display confirmation with tracking link
 ```
 
@@ -551,7 +720,7 @@ class PeppolTransmissionService
         // Build UBL payload
         $payload = $this->payloadBuilder->buildInvoicePayload($invoice, $client, $items);
         
-        // Send via provider API
+        // API Call: invoices.send
         $gateway = new LetsPeppolGatewayClient($this->baseUrl, $this->settings);
         $invoiceEndpoint = new InvoiceEndpoint($gateway);
         
@@ -649,6 +818,11 @@ private function sendWithRetry(callable $sendFn, int $maxAttempts = 3): mixed
 
 ## Process 5: Invoice Tracking Through Peppol Network
 
+**API Endpoints Used:**
+- **`transmissions.status`** - Get real-time transmission status (primary tracking)
+- **`invoices.status`** - Check invoice-level status
+- **`transmissions.list`** - List all transmissions with filters (for dashboards)
+
 ### Goal
 Monitor invoice transmission status in real-time from submission to delivery confirmation.
 
@@ -663,6 +837,7 @@ FAILED     FAILED    TIMEOUT   REJECTED
 ### User Journey
 
 #### Step 5.1: Real-Time Status Display
+**Endpoints:** `transmissions.status`, `invoices.status`
 
 **UI: Invoices → View Invoice → Peppol Status Badge**
 
@@ -683,6 +858,7 @@ FAILED     FAILED    TIMEOUT   REJECTED
 ```
 
 #### Step 5.2: Status Polling (Background Job)
+**Endpoint:** `transmissions.status`
 
 **Cron Job (runs every 5 minutes):**
 ```php
@@ -708,7 +884,7 @@ public function pollTransmissionStatuses(): void
     
     foreach ($transmissions as $transmission) {
         try {
-            // Query provider for current status
+            // API Call: transmissions.status
             $gateway = new LetsPeppolGatewayClient($this->baseUrl, $this->settings);
             $txEndpoint = new TransmissionEndpoint($gateway);
             
@@ -898,17 +1074,23 @@ private function calculateProgress(string $status): int
 
 ## Process 6: Error Handling
 
+**API Endpoints Used:**
+- **`transmissions.errors`** - Retrieve detailed error information for failed transmission
+- **`transmissions.retry`** - Retry failed transmission after fixing issues
+- **`transmissions.status`** - Re-check status after retry
+
 ### Goal
 Retrieve detailed error information, manage failures, and retry transmissions.
 
 ### User Journey
 
 #### Step 6.1: Error Detection
+**Endpoint:** `transmissions.errors`
 
 **Automatic (Polling Job):**
 ```php
 if ($status['status'] === TransmissionStatus::FAILED->value) {
-    // Fetch detailed errors
+    // API Call: transmissions.errors
     $gateway = new LetsPeppolGatewayClient($this->baseUrl, $this->settings);
     $txEndpoint = new TransmissionEndpoint($gateway);
     
@@ -1072,12 +1254,18 @@ public function retryTransmission(int $transmissionId, ?array $updatedPayload = 
 
 ## Process 7: Receipt Management
 
+**API Endpoints Used:**
+- **`transmissions.receipt`** - Get application response from recipient (acceptance/rejection)
+- **`transmissions.status`** - Verify receipt delivery
+- **`documents.list`** - List received documents (inbound invoices/credit notes)
+
 ### Goal
 Receive and process application responses (acceptances/rejections) from recipients.
 
 ### User Journey
 
 #### Step 7.1: Automatic Receipt Polling
+**Endpoint:** `transmissions.receipt`
 
 **Cron Job (runs every 10 minutes):**
 ```php
@@ -1094,6 +1282,7 @@ public function pollDeliveryReceipts(): void
     
     foreach ($transmissions as $transmission) {
         try {
+            // API Call: transmissions.receipt
             $gateway = new LetsPeppolGatewayClient($this->baseUrl, $this->settings);
             $txEndpoint = new TransmissionEndpoint($gateway);
             
@@ -1616,6 +1805,58 @@ $result = $service->getInvoiceLocation(123);
 
 $this->assertEquals('DELIVERED', $result['status']);
 ```
+
+---
+
+## Endpoint→Process Mapping
+
+Complete reference of which API endpoints are used in which processes and edge cases.
+
+### Participant Endpoints
+
+| Endpoint | Process | Usage | Edge Cases |
+|----------|---------|-------|------------|
+| **`participants.search`** | Process 2: Participant Discovery | Find participants by name/ID/country | • No matches: Try broader search<br>• Multiple matches: Paginate results |
+| **`participants.validate`** | Process 2: Participant Discovery | Verify Peppol ID exists in network | • Not found: Suggest alternatives via search<br>• Format invalid: Show format example |
+| **`participants.details`** | Process 2: Participant Discovery | Get full participant info (capabilities, certificate) | • Participant deactivated: Warn user<br>• Certificate expired: Contact recipient |
+| **`participants.capabilities`** | Process 2: Participant Discovery | Check if participant can receive invoices/credit notes | • Capability mismatch: Block send with clear message |
+
+### Invoice Endpoints
+
+| Endpoint | Process | Usage | Edge Cases |
+|----------|---------|-------|------------|
+| **`invoices.send`** | Process 4: Invoice Transmission | Send invoice to Peppol network | • Duplicate: Check invoice number unique<br>• Validation fails: Fix payload |
+| **`invoices.status`** | Process 5: Invoice Tracking | Check invoice-level delivery status | • Timeout: Keep polling<br>• Rejected: Show reason |
+| **`invoices.cancel`** | Process 4, 6: Cancel/Errors | Cancel sent invoice (before delivery) | • Already delivered: Can't cancel<br>• In transit: May still deliver |
+| **`invoices.resend`** | Process 6: Error Handling | Resend invoice after cancellation | • Original still pending: Cancel first |
+
+### Credit Note Endpoints
+
+| Endpoint | Process | Usage | Edge Cases |
+|----------|---------|-------|------------|
+| **`credit_notes.send`** | Process 4: Transmission (Credit Notes) | Send credit note for invoice correction | • Missing original invoice reference: Add ref<br>• Wrong amount: Validate against original |
+| **`credit_notes.status`** | Process 5: Tracking (Credit Notes) | Track credit note delivery | • Original invoice not delivered: Wait for invoice first |
+| **`credit_notes.cancel`** | Process 6: Errors (Credit Notes) | Cancel incorrect credit note | • Double cancellation: Check status first |
+
+### Transmission Endpoints
+
+| Endpoint | Process | Usage | Edge Cases |
+|----------|---------|-------|------------|
+| **`transmissions.status`** | Process 5: Invoice Tracking | Get real-time transmission status (primary) | • Stuck in PROCESSING: Timeout after 24h<br>• Status unchanged: Provider issue |
+| **`transmissions.receipt`** | Process 7: Receipt Management | Retrieve application responses (accept/reject) | • No receipt yet: Keep polling<br>• Multiple receipts: Take latest |
+| **`transmissions.errors`** | Process 6: Error Handling | Get detailed error info for failed transmission | • Error code unknown: Generic handling<br>• Field errors: Highlight in UI |
+| **`transmissions.list`** | Process 5, 7: Tracking/Auditing | List transmissions with filters (reports) | • Large result set: Paginate<br>• Empty results: Adjust filters |
+| **`transmissions.retry`** | Process 6: Error Handling | Retry failed transmission | • Max retries: Block after 3<br>• Same error: Manual intervention needed |
+
+### Document Endpoints
+
+| Endpoint | Process | Usage | Edge Cases |
+|----------|---------|-------|------------|
+| **`documents.get`** | Process 7: Receipt/Inbound | Get inbound document metadata | • Document expired: Fetch from archive |
+| **`documents.download`** | Process 7: Receipt/Inbound | Download UBL XML for received invoice/CN | • Format not supported: Default to UBL |
+| **`documents.metadata`** | Process 7: Receipt/Inbound | Get lightweight document info (no content) | • Metadata missing: Fall back to full document |
+| **`documents.list`** | Process 7: Inbound Documents | List received Peppol documents | • Large volume: Filter by date<br>• Empty: Check participant setup |
+| **`documents.archive`** | Process 7: Document Archival | Archive old documents for compliance | • Already archived: Skip<br>• Required retention: Check local laws |
 
 ---
 
