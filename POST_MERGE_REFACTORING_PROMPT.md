@@ -118,46 +118,58 @@ Modules::run('clients/index');
 
 **Philosophy:** PSR-4 is the leading principle. CodeIgniter conventions are adapted to fit PSR-4, not vice versa.
 
-##### B.0: Architecture Philosophy - Why MY_* and Not MX_*?
+##### B.0: Architecture Philosophy - Refactor MX_* Directly
 
-**Critical Understanding: The MY_* Layer**
+**Critical Decision: Modify MX HMVC Code Directly**
 
-CodeIgniter 3 has a specific extension mechanism where custom core classes must be prefixed with `MY_` (configurable via `$config['subclass_prefix']`). This is **not optional** - it's how CI3 discovers and loads core overrides.
+> **NON-NEGOTIABLE:** We refactor `MX_Router`, `MX_Loader`, and `MX_Modules` **directly** in `application/third_party/MX/`.
 
-**Why Refactor MY_Router Instead of MX_Router?**
+**Why Refactor MX_* Instead of MY_*?**
 
 ```
 CodeIgniter Core Loading Hierarchy:
-1. CI_Router (CodeIgniter core)
+1. CI_Router (CodeIgniter core - DO NOT MODIFY)
    ↓
-2. MX_Router (Modular Extensions HMVC - extends CI_Router)
+2. MX_Router (Modular Extensions HMVC - REFACTOR THIS)
    ↓
-3. MY_Router (YOUR custom extensions - extends MX_Router)
+3. MY_Router (CI3 compatibility shim - keep minimal)
 ```
 
 **Key Points:**
 
-1. **MX_Router is library code** - It's from the Modular Extensions HMVC library (`application/third_party/MX/`). We don't modify third-party libraries directly.
+1. **MX HMVC is InvoicePlane code** - Originally third-party 14 years ago, MX HMVC was integrated into InvoicePlane and is now **modifiable InvoicePlane code** at `application/third_party/MX/`.
 
-2. **MY_Router is YOUR extension point** - This is where you customize routing behavior for your application. CI3 automatically loads `application/core/MY_Router.php` and uses it instead of the base router.
+2. **Refactor at the best location** - MX_* classes are where the HMVC logic lives. This is where PSR-4 support belongs, applying SOLID, DRY, and dynamic programming principles.
 
-3. **Same pattern for all core classes:**
-   - `MY_Loader` extends `MX_Loader` (for PSR-4 model loading)
-   - `MY_Router` extends `MX_Router` (for PSR-4 module resolution)
-   - This is the CI3 way - the `MY_*` prefix is CI3's extension mechanism
+3. **MY_* is only for CI3** - The `MY_*` prefix is CodeIgniter 3's extension mechanism. Keep these files minimal - they exist **solely to keep CI3 happy** and should only contain CI3-specific overrides.
+
+**Architecture Pattern:**
+
+```
+application/third_party/MX/
+├── Router.php       ← REFACTOR: PSR-4 module resolution (SOLID, DRY, Dynamic)
+├── Loader.php       ← REFACTOR: PSR-4 model/library loading (SOLID, DRY, Dynamic)
+├── Modules.php      ← REFACTOR: PSR-4 module execution (SOLID, DRY, Dynamic)
+└── ...
+
+application/core/
+├── MY_Router.php    ← Minimal CI3 shim (if needed)
+├── MY_Loader.php    ← Minimal CI3 shim (if needed)
+└── ...
+```
+
+**Implementation Principles (Non-Negotiable):**
+
+- ✅ **SOLID Principles** - Single responsibility, open/closed, dependency inversion
+- ✅ **DRY Programming** - Centralized helpers, no duplication
+- ✅ **Dynamic Programming** - Memoization for path resolution (O(1) lookups)
+- ✅ **Early Returns** - Guard clauses first, happy path last
 
 **The MY_* Layer Purpose:**
 
-> **Yes, the MY_* layer exists solely to keep CI3 happy!**
+> **YES, MY_* exists solely to keep CI3 happy. No more, no less.**
 
-The `MY_*` classes act as an **adapter layer** between CI3's conventions and PSR-4 standards:
-
-- CI3 expects: `application/core/MY_Router.php`
-- PSR-4 expects: `Modules\Clients\Controllers\ClientsController`
-- MY_Router bridges these two worlds transparently
-
-**Without MY_* classes:** CI3 won't load your extensions.  
-**With MY_* classes:** Everything works, and your application code stays PSR-4 compliant.
+MY_* files should be minimal shims that extend MX_* only when CI3 requires the MY_* naming convention for autoloading. All real logic goes in MX_*.
 
 ##### B.0.1: Refactoring Base Classes - The Real PSR-4 Win
 
@@ -279,164 +291,250 @@ application/modules/custom_fields/      → application/modules/CustomFields/
 - All file paths change, but class namespaces remain consistent
 - Full PSR-4 autoloading works natively without custom loaders
 
-##### B.2: Refactor MX HMVC Routing
+##### B.2: Refactor MX_Router for PSR-4
 
-Update `application/core/MY_Router.php` to support PSR-4 module paths:
+**Modify `application/third_party/MX/Router.php` directly** to add PSR-4 module resolution with SOLID/DRY/Dynamic principles:
 
 ```php
-// MY_Router.php - Add PSR-4 module path resolver
-class MY_Router extends MX_Router
+// application/third_party/MX/Router.php
+class MX_Router extends CI_Router
 {
+    /**
+     * Memoization cache for module paths (Dynamic Programming)
+     * O(1) lookups after first access
+     */
+    private static array $modulePathCache = [];
+    
     /**
      * Convert URL segment to PSR-4 module path
      * URL: /clients/index → Module: Clients/Controllers/ClientsController
+     * 
+     * PRINCIPLES:
+     * - Early returns for fast failure
+     * - Dynamic programming (memoization)
+     * - DRY (reusable helper methods)
      */
     protected function _set_module_path(string $urlSegment): string
     {
-        // Early return: if module doesn't exist, bail
-        // Note: show_404() terminates execution, never returns
-        if (!$this->moduleExists($urlSegment)) {
-            show_404();
+        // Early return: Check cache first (Dynamic Programming - O(1))
+        if (isset(self::$modulePathCache[$urlSegment])) {
+            return self::$modulePathCache[$urlSegment];
         }
         
-        // Convert snake_case to PascalCase
-        $moduleName = $this->toPascalCase($urlSegment);
+        // Early return: If module doesn't exist, bail
+        if (!$this->moduleExists($urlSegment)) {
+            show_404(); // Terminates execution
+        }
+        
+        // Convert to PSR-4 format
+        $moduleName = StringHelper::toPascalCase($urlSegment);
         $modulePath = APPPATH . "modules/{$moduleName}/";
         
-        // Early return: validate module path exists
+        // Early return: Validate path exists
         if (!is_dir($modulePath)) {
             show_404();
         }
         
+        // Cache for O(1) future lookups (Dynamic Programming)
+        self::$modulePathCache[$urlSegment] = $modulePath;
+        
         return $modulePath;
     }
     
-    private function toPascalCase(string $string): string
-    {
-        return str_replace('_', '', ucwords($string, '_'));
-    }
-    
+    /**
+     * Check if module exists (Early return pattern)
+     */
     private function moduleExists(string $segment): bool
     {
-        // Early return: check if PSR-4 module directory exists
-        $pascalCase = $this->toPascalCase($segment);
-        return is_dir(APPPATH . "modules/{$pascalCase}");
+        // Early return: Check cache
+        $cacheKey = "exists_{$segment}";
+        if (isset(self::$modulePathCache[$cacheKey])) {
+            return self::$modulePathCache[$cacheKey];
+        }
+        
+        $pascalCase = StringHelper::toPascalCase($segment);
+        $exists = is_dir(APPPATH . "modules/{$pascalCase}");
+        
+        // Cache result (Dynamic Programming)
+        self::$modulePathCache[$cacheKey] = $exists;
+        
+        return $exists;
     }
 }
 ```
 
 **Key Principles Applied:**
-- **Early return pattern:** Exit fast on invalid conditions
-- **PSR-4 leading:** URL segments map to PSR-4 module names
-- **Backward compatibility:** Old URLs still work (routing layer handles conversion)
+- ✅ **Early Returns** - Exit fast on invalid conditions, no deep nesting
+- ✅ **Dynamic Programming** - Memoization cache for O(1) lookups
+- ✅ **DRY** - Reusable `StringHelper::toPascalCase()` method
+- ✅ **SOLID (SRP)** - Each method has single responsibility
 
-##### B.3: Refactor MX Module Loader
+##### B.3: Refactor MX_Loader for PSR-4
 
-Update `application/third_party/MX/Loader.php` to eliminate `$this->load->model()` dependencies:
+**Modify `application/third_party/MX/Loader.php` directly** to add PSR-4 model/library loading:
 
 ```php
-// MX/Loader.php - Add PSR-4 auto-resolution
+// application/third_party/MX/Loader.php
 class MX_Loader extends CI_Loader
 {
     /**
+     * Model name resolution cache (Dynamic Programming)
+     */
+    private static array $modelNameCache = [];
+    
+    /**
      * Override model() to use PSR-4 autoloading
      * 
-     * Instead of: $this->load->model('clients/mdl_clients');
-     * Just use:   $this->client = new \Modules\Clients\Models\Client();
+     * Auto-converts legacy calls:
+     * $this->load->model('clients/mdl_clients') → Modules\Clients\Models\Client
+     * 
+     * PRINCIPLES:
+     * - Early returns for performance
+     * - Dynamic programming (memoization)
+     * - DRY (centralized conversion logic)
+     * - SOLID (single responsibility)
      */
     public function model($model, $name = '', $db_conn = false)
     {
-        // Early return: if already loaded, skip
-        if (isset($this->_ci_models[$name ?: $model])) {
+        // Early return: If already loaded, skip
+        $objectName = $name ?: $this->_ci_model_name($model);
+        if (isset($this->_ci_models[$objectName])) {
             return $this;
         }
         
-        // Parse PSR-4 class from legacy path
-        [$namespace, $class] = $this->parseModelPath($model);
+        // Check cache first (Dynamic Programming - O(1))
+        $cacheKey = $model . '|' . $name;
+        if (isset(self::$modelNameCache[$cacheKey])) {
+            $resolvedClass = self::$modelNameCache[$cacheKey];
+        } else {
+            // Resolve PSR-4 class name
+            $resolvedClass = $this->resolvePsr4ModelClass($model);
+            
+            // Cache for future (Dynamic Programming)
+            self::$modelNameCache[$cacheKey] = $resolvedClass;
+        }
         
-        // Early return: if class doesn't exist, fall back to parent
-        if (!class_exists($namespace . '\\' . $class)) {
+        // Early return: If class doesn't exist, fall back to legacy
+        if (!class_exists($resolvedClass)) {
             return parent::model($model, $name, $db_conn);
         }
         
-        // Instantiate via PSR-4 autoloading
-        $className = $namespace . '\\' . $class;
-        $instance = new $className();
-        
-        // Inject into CI super-object
-        $propertyName = $name ?: $this->toPropertyName($class);
-        $this->_ci_cached_vars[$propertyName] = $instance;
+        // Instantiate PSR-4 model
+        $CI =& get_instance();
+        $CI->{$objectName} = new $resolvedClass($db_conn);
+        $this->_ci_models[$objectName] = $resolvedClass;
         
         return $this;
     }
     
-    private function parseModelPath(string $path): array
+    /**
+     * Resolve legacy model path to PSR-4 class name
+     * 
+     * DRY principle: Centralized conversion logic
+     * 
+     * Examples:
+     * - 'clients/mdl_clients' → 'Modules\Clients\Models\Client'
+     * - 'invoices/mdl_invoices' → 'Modules\Invoices\Models\Invoice'
+     */
+    private function resolvePsr4ModelClass(string $model): string
     {
-        // Early return: handle simple case (no module prefix)
-        if (!str_contains($path, '/')) {
-            return ['', $path];
+        // Early return: Already PSR-4 format
+        if (str_contains($model, '\\')) {
+            return $model;
         }
         
-        // Parse: "clients/mdl_clients" → ["Modules\Clients\Models", "Client"]
-        [$module, $file] = explode('/', $path, 2);
+        // Parse legacy path
+        $parts = explode('/', $model);
+        $module = array_shift($parts) ?? '';
+        $modelFile = array_pop($parts) ?? '';
         
-        $moduleName = $this->toPascalCase($module);
-        $className = $this->toClassName($file);
+        // Convert to PSR-4
+        $moduleName = StringHelper::toPascalCase($module);
+        $className = StringHelper::toSingular(
+            str_replace('Mdl_', '', StringHelper::toPascalCase($modelFile))
+        );
         
-        return ["Modules\\{$moduleName}\\Models", $className];
+        return "Modules\\{$moduleName}\\Models\\{$className}";
     }
     
-    private function toClassName(string $file): string
+    /**
+     * Extract model name for CI object property
+     */
+    private function _ci_model_name(string $model): string
     {
-        // Remove "Mdl_" prefix, convert to PascalCase
-        $file = preg_replace('/^Mdl_/i', '', $file);
-        return $this->toPascalCase($file);
-    }
-    
-    private function toPropertyName(string $class): string
-    {
-        // Client → client, ClientNote → clientNote
-        return lcfirst($class);
-    }
-    
-    private function toPascalCase(string $string): string
-    {
-        return str_replace('_', '', ucwords($string, '_'));
+        $parts = explode('/', $model);
+        $name = end($parts);
+        return strtolower(str_replace(['Mdl_', 'mdl_'], '', $name));
     }
 }
 ```
+
+**Key Principles Applied:**
+- ✅ **Early Returns** - Multiple guard clauses, no nesting
+- ✅ **Dynamic Programming** - Cache for O(1) model resolution
+- ✅ **DRY** - Centralized conversion via `StringHelper`
+- ✅ **SOLID (SRP)** - Each method single-purpose
+- ✅ **SOLID (OCP)** - Open for extension (PSR-4), closed for modification (legacy works)
 
 **Benefits:**
 - **No changes to existing code:** `$this->load->model('clients/mdl_clients')` still works
 - **PSR-4 auto-resolution:** Loader converts legacy paths to PSR-4 classes
 - **Gradual migration:** Can mix old and new approaches during transition
-- **Early returns:** Fast validation before expensive operations
 
-##### B.4: Update Modules::run() Calls
+##### B.4: Refactor MX_Modules for PSR-4
 
-Refactor `Modules::run()` to support PSR-4 module routing:
+**Modify `application/third_party/MX/Modules.php` directly** to support PSR-4 module execution:
 
 ```php
 // application/third_party/MX/Modules.php
 class Modules
 {
+    /**
+     * Module resolution cache (Dynamic Programming)
+     */
+    private static array $moduleCache = [];
+    
+    /**
+     * Run module method with PSR-4 support
+     * 
+     * Auto-converts: Modules::run('clients/view/123')
+     * To: Modules\Clients\Controllers\ClientsController::view(123)
+     * 
+     * PRINCIPLES:
+     * - Early returns for validation
+     * - Dynamic programming (memoization)
+     * - DRY (centralized conversion)
+     */
     public static function run(string $module, ...$params): mixed
     {
-        // Parse: "clients/view/123" → ["Clients", "view", 123]
-        $segments = explode('/', $module);
-        
-        // Early return: invalid format
-        if (count($segments) < 2) {
-            return null;
+        // Check cache first (Dynamic Programming - O(1))
+        $cacheKey = $module . '|' . serialize($params);
+        if (isset(self::$moduleCache[$cacheKey])) {
+            [$controllerClass, $method, $args] = self::$moduleCache[$cacheKey];
+        } else {
+            // Parse: "clients/view/123" → ["Clients", "view", [123]]
+            $segments = explode('/', $module);
+            
+            // Early return: Invalid format
+            if (count($segments) < 2) {
+                log_message('error', "Invalid module format: {$module}");
+                return null;
+            }
+            
+            $moduleName = StringHelper::toPascalCase(array_shift($segments));
+            $method = array_shift($segments);
+            
+            // Build controller class name (PSR-4)
+            $controllerClass = "Modules\\{$moduleName}\\Controllers\\{$moduleName}Controller";
+            
+            // Merge remaining segments with params
+            $args = array_merge($segments, $params);
+            
+            // Cache resolution (Dynamic Programming)
+            self::$moduleCache[$cacheKey] = [$controllerClass, $method, $args];
         }
         
-        $moduleName = self::toPascalCase(array_shift($segments));
-        $method = array_shift($segments);
-        
-        // Build controller class name
-        $controllerClass = "Modules\\{$moduleName}\\Controllers\\{$moduleName}Controller";
-        
-        // Early return: controller doesn't exist
+        // Early return: Controller doesn't exist
         if (!class_exists($controllerClass)) {
             log_message('error', "Module controller not found: {$controllerClass}");
             return null;
@@ -444,31 +542,128 @@ class Modules
         
         $controller = new $controllerClass();
         
-        // Early return: method doesn't exist
+        // Early return: Method doesn't exist
         if (!method_exists($controller, $method)) {
             log_message('error', "Method not found: {$controllerClass}::{$method}");
             return null;
         }
         
-        // Merge additional params
-        $args = array_merge($segments, $params);
-        
         return call_user_func_array([$controller, $method], $args);
     }
     
-    private static function toPascalCase(string $string): string
+    /**
+     * Clear module cache (useful for testing)
+     */
+    public static function clearCache(): void
     {
-        return str_replace('_', '', ucwords($string, '_'));
+        self::$moduleCache = [];
     }
 }
 ```
 
+**Key Principles Applied:**
+- ✅ **Early Returns** - Fast failure on invalid calls
+- ✅ **Dynamic Programming** - O(1) cached module resolution
+- ✅ **DRY** - Uses `StringHelper` (no duplication)
+- ✅ **SOLID (SRP)** - Single responsibility: module execution
+
 **Impact on existing code:**
 - **Zero changes required:** All existing `Modules::run('clients/index')` calls work unchanged
 - **PSR-4 resolution:** Routing layer converts URL segments to PSR-4 classes
-- **Early return validation:** Invalid calls fail fast with logging
+- **Performance boost:** Memoization makes repeated calls O(1)
 
-##### B.5: Migration Strategy
+##### B.5: Create StringHelper (DRY Principle)
+
+**Create centralized helper** at `application/helpers/string_helper.php`:
+
+```php
+<?php
+
+/**
+ * String Conversion Helper (DRY Principle)
+ * 
+ * Centralized string conversion functions used by MX Router, Loader, and Modules
+ * This eliminates code duplication across the HMVC layer
+ */
+class StringHelper
+{
+    /**
+     * Memoization cache (Dynamic Programming)
+     */
+    private static array $cache = [];
+    
+    /**
+     * Convert string to PascalCase
+     * 
+     * Examples:
+     * - 'clients' → 'Clients'
+     * - 'custom_fields' → 'CustomFields'
+     * - 'invoice_groups' → 'InvoiceGroups'
+     */
+    public static function toPascalCase(string $string): string
+    {
+        $key = "pascal_{$string}";
+        
+        if (!isset(self::$cache[$key])) {
+            self::$cache[$key] = str_replace('_', '', ucwords($string, '_'));
+        }
+        
+        return self::$cache[$key];
+    }
+    
+    /**
+     * Convert string to singular form
+     * 
+     * Examples:
+     * - 'Clients' → 'Client'
+     * - 'Invoices' → 'Invoice'
+     * - 'ClientNotes' → 'ClientNote'
+     */
+    public static function toSingular(string $string): string
+    {
+        $key = "singular_{$string}";
+        
+        if (!isset(self::$cache[$key])) {
+            // Simple rule: Remove trailing 's' if present
+            // More complex pluralization can be added later
+            self::$cache[$key] = preg_replace('/s$/', '', $string);
+        }
+        
+        return self::$cache[$key];
+    }
+    
+    /**
+     * Convert string to camelCase
+     */
+    public static function toCamelCase(string $string): string
+    {
+        $key = "camel_{$string}";
+        
+        if (!isset(self::$cache[$key])) {
+            self::$cache[$key] = lcfirst(self::toPascalCase($string));
+        }
+        
+        return self::$cache[$key];
+    }
+    
+    /**
+     * Clear cache (useful for testing)
+     */
+    public static function clearCache(): void
+    {
+        self::$cache = [];
+    }
+}
+```
+
+**Why This Matters (DRY Principle):**
+- ✅ **Single source of truth** - Conversion logic in one place
+- ✅ **No duplication** - MX_Router, MX_Loader, MX_Modules all use StringHelper
+- ✅ **Easy to test** - Unit test once, works everywhere
+- ✅ **Easy to maintain** - Change conversion rules in one place
+- ✅ **Dynamic Programming** - Memoization built-in for performance
+
+##### B.6: Migration Strategy
 
 **Phase 1: Prepare Infrastructure (Week 1)**
 1. Update `MY_Router.php` with PSR-4 module path resolver
@@ -516,7 +711,7 @@ composer dump-autoload
 4. Check for broken references
 5. Staging environment testing
 
-##### B.6: Benefits of Full PSR-4 Approach
+##### B.7: Benefits of Full PSR-4 Approach
 
 **Developer Experience:**
 - ✅ **Standard PSR-4:** No custom conventions to learn
@@ -536,7 +731,7 @@ composer dump-autoload
 - ✅ **Backward compatible:** Old code keeps working during transition
 - ✅ **Gradual:** Can migrate module by module if needed
 
-##### B.7: PHPUnit Test Compatibility Strategy
+##### B.8: PHPUnit Test Compatibility Strategy
 
 **Critical Requirement:** All PHPUnit tests must work flawlessly after PSR-4 refactoring.
 
@@ -737,7 +932,7 @@ vendor/bin/phpunit --filter Client
 vendor/bin/phpunit
 ```
 
-##### B.8: Dynamic Programming Principles
+##### B.9: Dynamic Programming Principles
 
 **Memoization Pattern:** Cache expensive computations to avoid redundant work.
 
@@ -810,7 +1005,7 @@ class MX_Loader extends CI_Loader
 - ✅ **Predictability:** Consistent results for same inputs
 - ✅ **Memory-efficient:** Cache only computed results, not intermediate steps
 
-##### B.9: DRY Programming Principles
+##### B.10: DRY Programming Principles
 
 **Don't Repeat Yourself:** Extract common patterns into reusable functions.
 
@@ -930,7 +1125,7 @@ private static function toPascalCase(string $string): string
 - ✅ **Testability:** Test once, use everywhere
 - ✅ **Maintainability:** Change once, update everywhere
 
-##### B.10: SOLID Programming Principles
+##### B.11: SOLID Programming Principles
 
 **Single Responsibility Principle (SRP):** Each class has one reason to change.
 
@@ -1156,7 +1351,7 @@ class CachedClientRepository implements ClientRepositoryInterface
 }
 ```
 
-##### B.11: Early Return Patterns Throughout
+##### B.12: Early Return Patterns Throughout
 
 **Every function uses early returns for guard clauses:**
 
@@ -1232,7 +1427,7 @@ public function view(int $id): void
 - ✅ **Easier debugging:** Guard failures are isolated and logged
 - ✅ **Performance:** Skip unnecessary work when preconditions fail
 
-##### B.12: Estimated Effort (Full PSR-4)
+##### B.13: Estimated Effort (Full PSR-4)
 
 - **Infrastructure Updates (MY_Router, MX_Loader, MX_Modules):** 12-16 hours
 - **Helper Functions (DRY principles):** 4-6 hours
@@ -1677,7 +1872,7 @@ composer dump-autoload -o
     - Validate compliance with provided checklists before committing
     - Run validation commands (pint, phpstan, phpunit) to verify adherence
 
-##### B.13: Adherence to Project Guidelines and Rules
+##### B.14: Adherence to Project Guidelines and Rules
 
 **Critical Requirement:** All refactoring work must strictly follow the established rules from project documentation.
 
