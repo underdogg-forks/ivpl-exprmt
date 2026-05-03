@@ -171,7 +171,108 @@ application/core/
 
 MY_* files should be minimal shims that extend MX_* only when CI3 requires the MY_* naming convention for autoloading. All real logic goes in MX_*.
 
-##### B.0.1: Refactoring Base Classes - The Real PSR-4 Win
+##### B.0.1: Why MX_* Classes Cannot Use Namespaces or PSR-4 Class Names
+
+**Critical Technical Constraint: MX HMVC Core Cannot Be Namespaced**
+
+The MX_* classes (`MX_Router`, `MX_Loader`, `MX_Modules`, etc.) in `application/third_party/MX/` **cannot** be renamed to PSR-4 compliance or given their own namespaces. Here's why:
+
+**1. CodeIgniter 3 Core Dependency Chain**
+
+```php
+// CodeIgniter's core expects these EXACT class names in the global namespace:
+class CI_Router { }          // CodeIgniter core
+class MX_Router extends CI_Router { }   // MUST be named MX_Router
+class MY_Router extends MX_Router { }   // MUST be named MY_Router
+```
+
+**Why This Matters:**
+- CodeIgniter 3's core loader (`system/core/CodeIgniter.php`) **hardcodes** these class name patterns
+- CI3 expects `CI_*` in global namespace (from `system/core/`)
+- CI3 expects `MY_*` in global namespace (from `application/core/`)
+- MX HMVC inserts itself into this chain as `MX_*` classes
+
+**2. The Autoloading Problem**
+
+If we tried to namespace MX classes:
+
+```php
+// ❌ THIS WILL NOT WORK
+namespace MX;
+
+class Router extends \CI_Router { }  // CI3 won't find this
+```
+
+**What breaks:**
+- CI3's autoloader looks for `class MX_Router` in the global namespace
+- If it's `MX\Router`, CI3 can't find it and fails to boot
+- The entire HMVC routing system collapses
+
+**3. Extending CI Core Classes Requires Global Namespace**
+
+```php
+// ✅ WORKS - Global namespace
+class MX_Router extends CI_Router { }
+
+// ❌ BROKEN - Namespaced
+namespace MX;
+class Router extends \CI_Router { }  // CI3 can't load this as MX_Router
+```
+
+**4. What We CAN Do (and ARE doing)**
+
+While we can't namespace MX_* classes themselves, we **can and will**:
+
+✅ **Refactor internal logic** - Apply SOLID, DRY, Dynamic Programming inside MX_* classes
+✅ **Use helper classes** - `StringHelper` with full namespace (`MX\Helpers\StringHelper`)
+✅ **Apply modern patterns** - Memoization, early returns, type hints inside methods
+✅ **Keep class names** - `MX_Router`, `MX_Loader`, `MX_Modules` stay in global namespace
+
+**5. The Compromise: Modern Code in Legacy Wrapper**
+
+```php
+// application/third_party/MX/Router.php
+class MX_Router extends CI_Router  // ← MUST stay like this (CI3 requirement)
+{
+    // ✅ Modern PHP inside:
+    private static array $cache = [];  // PHP 7.4+ typed properties
+    
+    protected function _set_module_path(string $urlSegment): string
+    {
+        // Early return (modern pattern)
+        if (!$this->moduleExists($urlSegment)) {
+            show_404();
+        }
+        
+        // Use namespaced helper (modern architecture)
+        $moduleName = \MX\Helpers\StringHelper::toPascalCase($urlSegment);
+        
+        // Dynamic programming (memoization)
+        self::$cache[$urlSegment] = $modulePath;
+        
+        return $modulePath;
+    }
+}
+```
+
+**6. Summary: Best of Both Worlds**
+
+| Aspect | Status | Why |
+|---|---|---|
+| **MX_* class names** | ❌ Cannot change | CI3 hardcoded dependency |
+| **MX_* namespaces** | ❌ Cannot add | CI3 autoloader expects global namespace |
+| **Internal code quality** | ✅ Fully modernized | SOLID, DRY, Dynamic Programming applied |
+| **Helper classes** | ✅ Fully namespaced | `MX\Helpers\StringHelper` etc. |
+| **Module classes** | ✅ Fully PSR-4 | `Modules\Clients\Controllers\ClientsController` |
+
+**Result:**
+- MX_* classes are the **thin compatibility layer** with CI3 (class names stay legacy)
+- Everything **inside** MX_* classes is modern PHP with best practices
+- Everything **outside** MX_* classes (modules, helpers) is fully PSR-4 compliant
+
+This is the optimal architecture: legacy wrapper + modern internals.
+
+##### B.0.2: Refactoring Base Classes - The Real PSR-4 Win
 
 **Current State (CI3 Legacy Naming):**
 
