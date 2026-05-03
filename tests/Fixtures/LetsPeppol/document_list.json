@@ -1,0 +1,21 @@
+{
+    "documents": [
+        {
+            "document_id": "ext-invoice-123",
+            "document_type": "invoice",
+            "document_number": "INV-2026-001",
+            "created_at": "2026-05-02T01:00:00Z",
+            "status": "delivered"
+        },
+        {
+            "document_id": "ext-creditnote-45",
+            "document_type": "credit_note",
+            "document_number": "CN-2026-001",
+            "created_at": "2026-05-02T02:00:00Z",
+            "status": "delivered"
+        }
+    ],
+    "total": 2,
+    "page": 1,
+    "per_page": 50
+}

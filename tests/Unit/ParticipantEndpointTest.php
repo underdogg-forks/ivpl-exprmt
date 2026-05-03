@@ -1,5 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Tests\Unit;
+
 use Core\Gateways\LetsPeppol\Endpoints\ParticipantEndpoint;
 use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
 use PHPUnit\Framework\Attributes\Test;
@@ -97,5 +101,104 @@ class ParticipantEndpointTest extends TestCase
         $this->assertIsArray($invalidData);
         $this->assertFalse($invalidData['valid']);
         $this->assertArrayHasKey('error', $invalidData);
+    }
+
+    /**
+     * Arrange: ParticipantEndpoint with fake HTTP.
+     * Act: getDetails is called with Peppol ID.
+     * Assert: Response is 200 and request was made to correct endpoint.
+     */
+    #[Test]
+    public function it_gets_participant_details(): void
+    {
+        $http = new FakeLetsPeppolHttpClient(200);
+        $gateway = new LetsPeppolGatewayClient('https://api.test', [], $http);
+        $endpoint = new ParticipantEndpoint($gateway);
+
+        $response = $endpoint->getDetails('0088:123456789');
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $http->assertRequestMade('GET', 'api/participants');
+    }
+
+    /**
+     * Arrange: ParticipantEndpoint with fake HTTP.
+     * Act: search is called without country filter.
+     * Assert: Response is 200 and request was made with query parameter.
+     */
+    #[Test]
+    public function it_searches_participants_without_country_filter(): void
+    {
+        $http = new FakeLetsPeppolHttpClient(200);
+        $gateway = new LetsPeppolGatewayClient('https://api.test', [], $http);
+        $endpoint = new ParticipantEndpoint($gateway);
+
+        $response = $endpoint->search('Acme Corp');
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $http->assertRequestMade('GET', 'api/participants/search');
+    }
+
+    /**
+     * Arrange: ParticipantEndpoint with fake HTTP.
+     * Act: search is called with country filter.
+     * Assert: Response is 200 and request includes both query and country parameters.
+     */
+    #[Test]
+    public function it_searches_participants_with_country_filter(): void
+    {
+        $http = new FakeLetsPeppolHttpClient(200);
+        $gateway = new LetsPeppolGatewayClient('https://api.test', [], $http);
+        $endpoint = new ParticipantEndpoint($gateway);
+
+        $response = $endpoint->search('Acme Corp', 'SE');
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $http->assertRequestMade('GET', 'api/participants/search');
+    }
+
+    /**
+     * Arrange: ParticipantEndpoint with fake HTTP.
+     * Act: getCapabilities is called with Peppol ID.
+     * Assert: Response is 200 and request was made to correct endpoint.
+     */
+    #[Test]
+    public function it_gets_participant_capabilities(): void
+    {
+        $http = new FakeLetsPeppolHttpClient(200);
+        $gateway = new LetsPeppolGatewayClient('https://api.test', [], $http);
+        $endpoint = new ParticipantEndpoint($gateway);
+
+        $response = $endpoint->getCapabilities('0088:123456789');
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $http->assertRequestMade('GET', 'api/participants/capabilities');
+    }
+
+    /**
+     * Arrange: ParticipantEndpoint with Bearer token set.
+     * Act: getDetails is called.
+     * Assert: Authorization header is included in request.
+     */
+    #[Test]
+    public function it_includes_authorization_headers_in_requests(): void
+    {
+        $http = new FakeLetsPeppolHttpClient(200);
+        $settings = [
+            'client_id'     => 'test-client-id',
+            'client_secret' => 'test-secret',
+        ];
+        
+        $gateway = new LetsPeppolGatewayClient('https://api.test', $settings, $http);
+        $gateway->setAccessToken('test-bearer-token');
+        $endpoint = new ParticipantEndpoint($gateway);
+
+        $endpoint->getDetails('0088:123456789');
+
+        $this->assertCount(1, $http->requests);
+        $request = $http->requests[0];
+        $this->assertArrayHasKey('headers', $request['options']);
+        $this->assertArrayHasKey('Authorization', $request['options']['headers']);
+        $this->assertEquals('Bearer test-bearer-token', $request['options']['headers']['Authorization']);
     }
 }

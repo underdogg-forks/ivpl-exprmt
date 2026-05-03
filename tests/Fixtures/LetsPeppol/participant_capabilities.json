@@ -1,0 +1,16 @@
+{
+    "peppol_id": "0088:123456789",
+    "capabilities": ["invoice", "credit_note", "order", "order_response"],
+    "document_types": [
+        {
+            "type_id": "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2",
+            "process_id": "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0",
+            "transport_profile": "peppol-transport-as4-v2_0"
+        },
+        {
+            "type_id": "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2",
+            "process_id": "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0",
+            "transport_profile": "peppol-transport-as4-v2_0"
+        }
+    ]
+}

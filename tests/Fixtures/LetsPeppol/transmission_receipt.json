@@ -1,0 +1,10 @@
+{
+    "transmission_id": "trans-456",
+    "receipt_type": "application_response",
+    "receipt_status": "accepted",
+    "received_at": "2026-05-02T01:05:30Z",
+    "receipt_content": {
+        "status_code": "AP",
+        "status_reason": "Document accepted by recipient"
+    }
+}

@@ -1,5 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Tests\Unit;
+
 use Core\Gateways\LetsPeppol\Endpoints\InvoiceEndpoint;
 use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
 use PHPUnit\Framework\Attributes\Test;
@@ -72,5 +76,130 @@ class InvoiceEndpointTest extends TestCase
 
         // Response should be successful
         $this->assertSame(200, $response->getStatusCode());
+    }
+
+    /**
+     * Arrange: InvoiceEndpoint with fake HTTP.
+     * Act: getStatus is called with invoice ID.
+     * Assert: Response is 200 and request was made to correct endpoint.
+     */
+    #[Test]
+    public function it_gets_invoice_status(): void
+    {
+        $http = new FakeLetsPeppolHttpClient(200);
+        $gateway = new LetsPeppolGatewayClient('https://api.test', [], $http);
+        $endpoint = new InvoiceEndpoint($gateway);
+
+        $response = $endpoint->getStatus(1);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $http->assertRequestMade('GET', 'api/invoices');
+    }
+
+    /**
+     * Arrange: InvoiceEndpoint with fake HTTP.
+     * Act: cancel is called without reason.
+     * Assert: Response is 200 and POST request was made.
+     */
+    #[Test]
+    public function it_cancels_invoice_without_reason(): void
+    {
+        $http = new FakeLetsPeppolHttpClient(200);
+        $gateway = new LetsPeppolGatewayClient('https://api.test', [], $http);
+        $endpoint = new InvoiceEndpoint($gateway);
+
+        $response = $endpoint->cancel(1);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $http->assertRequestMade('POST', 'api/invoices/cancel');
+    }
+
+    /**
+     * Arrange: InvoiceEndpoint with fake HTTP.
+     * Act: cancel is called with reason.
+     * Assert: Response is 200 and request includes cancel_reason.
+     */
+    #[Test]
+    public function it_cancels_invoice_with_reason(): void
+    {
+        $http = new FakeLetsPeppolHttpClient(200);
+        $gateway = new LetsPeppolGatewayClient('https://api.test', [], $http);
+        $endpoint = new InvoiceEndpoint($gateway);
+
+        $response = $endpoint->cancel(1, 'Incorrect amount');
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $http->assertRequestMade('POST', 'api/invoices/cancel');
+        
+        $lastRequest = end($http->requests);
+        $this->assertArrayHasKey('json', $lastRequest['options']);
+        $this->assertSame('Incorrect amount', $lastRequest['options']['json']['cancel_reason']);
+    }
+
+    /**
+     * Arrange: InvoiceEndpoint with fake HTTP.
+     * Act: resend is called without reason.
+     * Assert: Response is 200 and POST request was made.
+     */
+    #[Test]
+    public function it_resends_invoice_without_reason(): void
+    {
+        $http = new FakeLetsPeppolHttpClient(200);
+        $gateway = new LetsPeppolGatewayClient('https://api.test', [], $http);
+        $endpoint = new InvoiceEndpoint($gateway);
+
+        $response = $endpoint->resend(1);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $http->assertRequestMade('POST', 'api/invoices/resend');
+    }
+
+    /**
+     * Arrange: InvoiceEndpoint with fake HTTP.
+     * Act: resend is called with reason.
+     * Assert: Response is 200 and request includes resend_reason.
+     */
+    #[Test]
+    public function it_resends_invoice_with_reason(): void
+    {
+        $http = new FakeLetsPeppolHttpClient(200);
+        $gateway = new LetsPeppolGatewayClient('https://api.test', [], $http);
+        $endpoint = new InvoiceEndpoint($gateway);
+
+        $response = $endpoint->resend(1, 'Recipient endpoint is now available');
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $http->assertRequestMade('POST', 'api/invoices/resend');
+        
+        $lastRequest = end($http->requests);
+        $this->assertArrayHasKey('json', $lastRequest['options']);
+        $this->assertSame('Recipient endpoint is now available', $lastRequest['options']['json']['resend_reason']);
+    }
+
+    /**
+     * Arrange: InvoiceEndpoint with Bearer token set.
+     * Act: getStatus is called.
+     * Assert: Authorization header is included in request.
+     */
+    #[Test]
+    public function it_includes_authorization_headers_in_requests(): void
+    {
+        $http = new FakeLetsPeppolHttpClient(200);
+        $settings = [
+            'client_id'     => 'test-client-id',
+            'client_secret' => 'test-secret',
+        ];
+        
+        $gateway = new LetsPeppolGatewayClient('https://api.test', $settings, $http);
+        $gateway->setAccessToken('test-bearer-token');
+        $endpoint = new InvoiceEndpoint($gateway);
+
+        $endpoint->getStatus(1);
+
+        $this->assertCount(1, $http->requests);
+        $request = $http->requests[0];
+        $this->assertArrayHasKey('headers', $request['options']);
+        $this->assertArrayHasKey('Authorization', $request['options']['headers']);
+        $this->assertEquals('Bearer test-bearer-token', $request['options']['headers']['Authorization']);
     }
 }

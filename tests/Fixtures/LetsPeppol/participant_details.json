@@ -1,0 +1,15 @@
+{
+    "peppol_id": "0088:123456789",
+    "name": "Test Company AB",
+    "country_code": "SE",
+    "registration_date": "2024-01-15",
+    "capabilities": ["invoice", "credit_note", "order"],
+    "document_types": [
+        "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2",
+        "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
+    ],
+    "service_metadata": {
+        "endpoint_url": "https://ap.example.com/peppol",
+        "transport_profile": "peppol-transport-as4-v2_0"
+    }
+}
