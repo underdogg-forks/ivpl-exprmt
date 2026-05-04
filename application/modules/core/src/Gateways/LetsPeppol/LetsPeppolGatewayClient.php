@@ -3,156 +3,71 @@
 namespace Core\Gateways\LetsPeppol;
 
 use Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
-use Core\Gateways\ApiClient;
+use Core\Gateways\LetsPeppol\Client\BaseClient;
 use Core\Integration\IntegrationCredentials;
+use Error;
+use ErrorException;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\ClientException;
+use Throwable;
 
-/**
- * LetsPeppol gateway API client.
- *
- * Extends the base ApiClient with LetsPeppol-specific authorization (OAuth2)
- * and header building logic. Following the pattern from PaypalLib.php.
- */
-class LetsPeppolGatewayClient extends ApiClient
+class LetsPeppolGatewayClient extends BaseClient
 {
     private LetsPeppolOAuthProviderFactory $oauthFactory;
 
-    /**
-     * LetsPeppol API endpoints mapping.
-     */
     protected array $endpoints = [
-        // Participant endpoints
-        'participants.validate'     => 'api/participants/validate',
-        'participants.details'      => 'api/participants',
-        'participants.search'       => 'api/participants/search',
+        'participants.validate' => 'api/participants/validate',
+        'participants.details' => 'api/participants',
+        'participants.search' => 'api/participants/search',
         'participants.capabilities' => 'api/participants/capabilities',
-        
-        // Invoice endpoints
-        'invoices.send'   => 'api/invoices',
+        'invoices.send' => 'api/invoices',
         'invoices.status' => 'api/invoices',
-        'invoices.cancel' => 'api/invoices/cancel',
-        'invoices.resend' => 'api/invoices/resend',
-        
-        // Credit note endpoints
-        'credit_notes.send'   => 'api/credit-notes',
+        'credit_notes.send' => 'api/credit-notes',
         'credit_notes.status' => 'api/credit-notes',
-        'credit_notes.cancel' => 'api/credit-notes/cancel',
-        
-        // Transmission endpoints
         'transmissions.status' => 'api/transmissions',
-        'transmissions.receipt' => 'api/transmissions/receipt',
-        'transmissions.errors' => 'api/transmissions/errors',
-        'transmissions.list'   => 'api/transmissions',
-        'transmissions.retry'  => 'api/transmissions/retry',
-        
-        // Document endpoints
-        'documents.get'      => 'api/documents',
-        'documents.download' => 'api/documents/download',
-        'documents.metadata' => 'api/documents/metadata',
-        'documents.list'     => 'api/documents',
-        'documents.archive'  => 'api/documents/archive',
+        'documents.get' => 'api/documents',
     ];
 
-    public function __construct(
-        string $baseUri,
-        array $settings = [],
-        ?ClientInterface $client = null,
-        ?LetsPeppolOAuthProviderFactory $oauthFactory = null
-    ) {
+    public function __construct(string $baseUri, array $settings = [], ?ClientInterface $client = null, ?LetsPeppolOAuthProviderFactory $oauthFactory = null)
+    {
         parent::__construct($baseUri, $settings, $client);
-
         $this->oauthFactory = $oauthFactory ?? new LetsPeppolOAuthProviderFactory();
-
-        // Auto-authorize on construction if credentials are available
-        if ($this->hasCredentials()) {
-            $this->authorize();
-        }
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * Build LetsPeppol-specific headers with Bearer token authorization.
-     */
     public function buildHeaders(array $options = []): array
     {
         $headers = [
-            'Content-Type' => $options['content_type'] ?? 'application/json',
-            'Accept'       => $options['accept'] ?? 'application/json',
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
         ];
 
         if ($this->accessToken) {
             $headers['Authorization'] = 'Bearer ' . $this->accessToken;
         }
 
-        // Allow additional headers from options
-        if (!empty($options['extra_headers'])) {
-            $headers = array_merge($headers, $options['extra_headers']);
-        }
-
         return $headers;
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * Authorize with LetsPeppol using OAuth2 client credentials flow.
-     */
     public function authorize(): void
     {
-        if (!$this->hasCredentials()) {
-            log_message('debug', 'LetsPeppol authorization skipped: missing credentials');
-
-            return;
-        }
-
         try {
-            log_message('debug', 'LetsPeppol authorization started');
-
-            $credentials = new IntegrationCredentials(
-                $this->settings['client_id'],
-                $this->settings['client_secret']
-            );
-
+            $credentials = new IntegrationCredentials((string) ($this->settings['client_id'] ?? ''), (string) ($this->settings['client_secret'] ?? ''));
             $provider = $this->oauthFactory->make($credentials, $this->baseUri);
-            $token    = $provider->getAccessToken('client_credentials');
-
+            $token = $provider->getAccessToken('client_credentials');
             $this->accessToken = $token->getToken();
-
-            log_message('debug', 'LetsPeppol authorization completed');
-        } catch (ClientException $e) {
-            log_message('error', 'LetsPeppol authorization failed: ' . $this->sanitize($e->getMessage()));
-        } catch (\Throwable $e) {
-            log_message('error', 'LetsPeppol authorization error: ' . $this->sanitize($e->getMessage()));
+        } catch (ClientException|Error|ErrorException|Throwable $exception) {
+            log_message('error', 'LetsPeppol auth error: ' . $this->sanitizeForLogging($exception->getMessage()));
+            throw $exception;
         }
     }
 
-    /**
-     * Inject an access token directly (used when token is cached externally).
-     *
-     * This allows the provider to use a cached token from IntegrationSettingsService
-     * without triggering OAuth authorization.
-     */
-    public function setAccessToken(string $token): void
+    public function post(string $endpointKey, array $payload = []): array
     {
-        $this->accessToken = $token;
+        return $this->sendPostRequest($endpointKey, $payload);
     }
 
-    /**
-     * Check if required credentials are present in settings.
-     */
-    private function hasCredentials(): bool
+    public function get(string $endpointKey, array $query = []): array
     {
-        return !empty($this->settings['client_id'])
-            && !empty($this->settings['client_secret']);
-    }
-
-    /**
-     * Sanitize log messages to prevent log injection.
-     */
-    private function sanitize(string $value): string
-    {
-        return str_replace(["\r", "\n"], '', $value);
+        return $this->sendGetRequest($endpointKey, $query);
     }
 }
