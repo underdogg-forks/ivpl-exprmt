@@ -26,13 +26,13 @@ class TransmissionEndpointTest extends TestCase
     #[Test]
     public function it_gets_transmission_status(): void
     {
-        // Arrange
+        /* Arrange */
         $transmissionId = 'trans-456';
 
-        // Act
+        /* Act */
         $response = $this->endpoint->getStatus($transmissionId);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('GET', 'api/transmissions');
     }
@@ -40,13 +40,13 @@ class TransmissionEndpointTest extends TestCase
     #[Test]
     public function it_gets_transmission_receipt(): void
     {
-        // Arrange
+        /* Arrange */
         $transmissionId = 'trans-456';
 
-        // Act
+        /* Act */
         $response = $this->endpoint->getReceipt($transmissionId);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('GET', 'api/transmissions/receipt');
     }
@@ -54,13 +54,13 @@ class TransmissionEndpointTest extends TestCase
     #[Test]
     public function it_gets_transmission_errors(): void
     {
-        // Arrange
+        /* Arrange */
         $transmissionId = 'trans-789';
 
-        // Act
+        /* Act */
         $response = $this->endpoint->getErrors($transmissionId);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('GET', 'api/transmissions/errors');
     }
@@ -68,12 +68,12 @@ class TransmissionEndpointTest extends TestCase
     #[Test]
     public function it_lists_transmissions_without_filters(): void
     {
-        // Arrange - no filters
+        /* Arrange - no filters */
 
-        // Act
+        /* Act */
         $response = $this->endpoint->list();
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('GET', 'api/transmissions');
     }
@@ -81,17 +81,17 @@ class TransmissionEndpointTest extends TestCase
     #[Test]
     public function it_lists_transmissions_with_filters(): void
     {
-        // Arrange
+        /* Arrange */
         $filters = [
             'status' => 'delivered',
             'from'   => '2026-05-01',
             'to'     => '2026-05-31',
         ];
 
-        // Act
+        /* Act */
         $response = $this->endpoint->list($filters);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('GET', 'api/transmissions');
     }
@@ -99,13 +99,13 @@ class TransmissionEndpointTest extends TestCase
     #[Test]
     public function it_retries_failed_transmission_without_reason(): void
     {
-        // Arrange
+        /* Arrange */
         $transmissionId = 'trans-789';
 
-        // Act
+        /* Act */
         $response = $this->endpoint->retry($transmissionId);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('POST', 'api/transmissions/retry');
     }
@@ -113,14 +113,14 @@ class TransmissionEndpointTest extends TestCase
     #[Test]
     public function it_retries_failed_transmission_with_reason(): void
     {
-        // Arrange
+        /* Arrange */
         $transmissionId = 'trans-789';
         $reason = 'Recipient endpoint was temporarily unavailable';
 
-        // Act
+        /* Act */
         $response = $this->endpoint->retry($transmissionId, $reason);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('POST', 'api/transmissions/retry');
     }
@@ -128,7 +128,7 @@ class TransmissionEndpointTest extends TestCase
     #[Test]
     public function it_includes_authorization_headers_in_requests(): void
     {
-        // Arrange
+        /* Arrange */
         $settings = [
             'client_id'     => 'test-client-id',
             'client_secret' => 'test-secret',
@@ -139,10 +139,10 @@ class TransmissionEndpointTest extends TestCase
         $this->gateway->setAccessToken('test-bearer-token');
         $this->endpoint = new TransmissionEndpoint($this->gateway);
 
-        // Act
+        /* Act */
         $this->endpoint->getStatus('trans-456');
 
-        // Assert
+        /* Assert */
         $this->assertCount(1, $this->http->requests);
         $request = $this->http->requests[0];
         $this->assertArrayHasKey('headers', $request['options']);
