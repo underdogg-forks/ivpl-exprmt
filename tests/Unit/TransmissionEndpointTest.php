@@ -149,4 +149,33 @@ class TransmissionEndpointTest extends TestCase
         $this->assertArrayHasKey('Authorization', $request['options']['headers']);
         $this->assertEquals('Bearer test-bearer-token', $request['options']['headers']['Authorization']);
     }
+
+    #[Test]
+    public function it_validates_transmission_fixtures_format(): void
+    {
+        $delivered = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_status_delivered.json'), true);
+        $this->assertIsArray($delivered);
+        $this->assertSame('delivered', $delivered['status']);
+
+        $failed = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_status_failed.json'), true);
+        $this->assertIsArray($failed);
+        $this->assertSame('failed', $failed['status']);
+
+        $receipt = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_receipt.json'), true);
+        $this->assertIsArray($receipt);
+        $this->assertArrayHasKey('receipt_status', $receipt);
+
+        $errors = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_errors.json'), true);
+        $this->assertIsArray($errors);
+        $this->assertArrayHasKey('error_code', $errors);
+
+        $list = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_list.json'), true);
+        $this->assertIsArray($list);
+        $this->assertArrayHasKey('transmissions', $list);
+
+        $retry = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_retry.json'), true);
+        $this->assertIsArray($retry);
+        $this->assertArrayHasKey('new_transmission_id', $retry);
+    }
+
 }

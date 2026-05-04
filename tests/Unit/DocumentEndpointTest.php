@@ -166,4 +166,25 @@ class DocumentEndpointTest extends TestCase
         $this->assertArrayHasKey('Authorization', $request['options']['headers']);
         $this->assertEquals('Bearer test-bearer-token', $request['options']['headers']['Authorization']);
     }
+
+    #[Test]
+    public function it_validates_document_fixtures_format(): void
+    {
+        $get = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/document_get.json'), true);
+        $this->assertIsArray($get);
+        $this->assertArrayHasKey('document_id', $get);
+
+        $metadata = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/document_metadata.json'), true);
+        $this->assertIsArray($metadata);
+        $this->assertArrayHasKey('metadata', $metadata);
+
+        $list = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/document_list.json'), true);
+        $this->assertIsArray($list);
+        $this->assertArrayHasKey('documents', $list);
+
+        $archived = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/document_archived.json'), true);
+        $this->assertIsArray($archived);
+        $this->assertSame('archived', $archived['status']);
+    }
+
 }
