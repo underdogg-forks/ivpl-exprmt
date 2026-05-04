@@ -13,45 +13,97 @@ class ParticipantClient
     }
 
     /**
-     * Request query JSON: {"peppol_id":"0088:123456789"}
-     * Response JSON: {"valid":true}
+     * Build authentication headers for requests.
+     *
+     * Response headers JSON:
+     * {"Authorization":"Bearer <token>"}
+     */
+    private function buildAuthHeaders(): array
+    {
+        $headers = ['Accept' => 'application/json'];
+        $token = $this->client->settings('access_token');
+
+        if ($token !== null) {
+            $headers['Authorization'] = 'Bearer ' . $token;
+        }
+
+        return $headers;
+    }
+
+    /**
+     * Validate participant in Peppol registry.
+     *
+     * Request query JSON:
+     * {"peppol_id":"0088:123456789"}
+     *
+     * Response JSON:
+     * {"valid":true}
      */
     public function validatePeppolId(string $peppolId): bool
     {
         try {
-            $response = $this->client->request(RequestMethod::GET->value, 'participants.validate', ['headers' => $this->authHeaders(), 'query' => ['peppol_id' => $peppolId]]);
+            $response = $this->client->request(RequestMethod::GET->value, 'participants.validate', [
+                'headers' => $this->buildAuthHeaders(),
+                'query' => ['peppol_id' => $peppolId],
+            ]);
+
             return $response->getStatusCode() >= 200 && $response->getStatusCode() < 300;
         } catch (\Throwable) {
             return false;
         }
     }
 
-    /** Request query JSON: {"peppol_id":"0088:123456789"} */
+    /**
+     * Get full participant details.
+     *
+     * Request query JSON:
+     * {"peppol_id":"0088:123456789"}
+     *
+     * Response JSON:
+     * {"peppol_id":"0088:123456789","name":"Test Company AB","country_code":"SE"}
+     */
     public function getDetails(string $peppolId): ResponseInterface
     {
-        return $this->client->request(RequestMethod::GET->value, 'participants.details', ['query' => ['peppol_id' => $peppolId]]);
+        return $this->client->request(RequestMethod::GET->value, 'participants.details', [
+            'query' => ['peppol_id' => $peppolId],
+        ]);
     }
 
-    /** Request query JSON: {"query":"Acme","country":"SE"} */
+    /**
+     * Search participants by query and optional country.
+     *
+     * Request query JSON:
+     * {"query":"Acme","country":"SE"}
+     *
+     * Response JSON:
+     * {"participants":[{"peppol_id":"0088:123456789","name":"Acme AB"}],"total":1}
+     */
     public function search(string $query, ?string $country = null): ResponseInterface
     {
         $queryParams = ['query' => $query];
-        if ($country !== null) { $queryParams['country'] = $country; }
-        return $this->client->request(RequestMethod::GET->value, 'participants.search', ['query' => $queryParams]);
+
+        if ($country !== null) {
+            $queryParams['country'] = $country;
+        }
+
+        return $this->client->request(RequestMethod::GET->value, 'participants.search', [
+            'query' => $queryParams,
+        ]);
     }
 
-    /** Request query JSON: {"peppol_id":"0088:123456789"} */
+    /**
+     * Get participant document capabilities.
+     *
+     * Request query JSON:
+     * {"peppol_id":"0088:123456789"}
+     *
+     * Response JSON:
+     * {"peppol_id":"0088:123456789","document_types":[{"type_id":"urn:oasis...Invoice-2"}]}
+     */
     public function getCapabilities(string $peppolId): ResponseInterface
     {
-        return $this->client->request(RequestMethod::GET->value, 'participants.capabilities', ['query' => ['peppol_id' => $peppolId]]);
-    }
-
-    /** Response headers JSON: {"Authorization":"Bearer <token>"} */
-    private function authHeaders(): array
-    {
-        $headers = ['Accept' => 'application/json'];
-        $token = $this->client->settings('access_token');
-        if ($token !== null) { $headers['Authorization'] = 'Bearer ' . $token; }
-        return $headers;
+        return $this->client->request(RequestMethod::GET->value, 'participants.capabilities', [
+            'query' => ['peppol_id' => $peppolId],
+        ]);
     }
 }
