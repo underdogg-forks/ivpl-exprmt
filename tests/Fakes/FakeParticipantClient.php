@@ -45,7 +45,7 @@ class FakeParticipantClient extends ParticipantClient
         return new static([], false);
     }
 
-    public function validatePeppolId(string $peppolId, ?string $accessToken = null): bool
+    public function validatePeppolId(string $peppolId): bool
     {
         $this->validated[] = $peppolId;
 

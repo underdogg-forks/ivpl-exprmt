@@ -4,6 +4,7 @@ namespace Core\Adapters\LetsPeppol\Endpoints;
 
 use Core\Adapters\LetsPeppol\LetsPeppolClient;
 use Core\Enums\RequestMethod;
+use Psr\Http\Message\ResponseInterface;
 
 class ParticipantClient
 {
@@ -12,26 +13,20 @@ class ParticipantClient
     }
 
     /**
-     * Validates participant ID in LetsPeppol registry.
+     * Validate participant in Peppol registry.
      *
-     * Request query example:
-     * GET /api/participants/validate?peppol_id=0088:123456789
+     * Request query JSON:
+     * {"peppol_id":"0088:123456789"}
      *
-     * Response JSON example:
+     * Response JSON:
      * {"valid":true,"participant":{"peppol_id":"0088:123456789"}}
      */
-    public function validatePeppolId(string $peppolId, ?string $accessToken = null): bool
+    public function validatePeppolId(string $peppolId): bool
     {
         try {
-            $options = [
+            $response = $this->client->request(RequestMethod::GET->value, 'participants.validate', [
                 'query' => ['peppol_id' => $peppolId],
-            ];
-
-            if ($accessToken) {
-                $options['headers'] = ['Authorization' => 'Bearer ' . $accessToken];
-            }
-
-            $response = $this->client->request(RequestMethod::GET->value, 'participants.validate', $options);
+            ]);
 
             return $response->getStatusCode() >= 200 && $response->getStatusCode() < 300;
         } catch (\Throwable $throwable) {
@@ -40,5 +35,58 @@ class ParticipantClient
 
             return false;
         }
+    }
+
+    /**
+     * Get full participant details.
+     *
+     * Request query JSON:
+     * {"peppol_id":"0088:123456789"}
+     *
+     * Response JSON:
+     * {"peppol_id":"0088:123456789","name":"Test Company AB","country_code":"SE"}
+     */
+    public function getDetails(string $peppolId): ResponseInterface
+    {
+        return $this->client->request(RequestMethod::GET->value, 'participants.details', [
+            'query' => ['peppol_id' => $peppolId],
+        ]);
+    }
+
+    /**
+     * Search participants by query and optional country.
+     *
+     * Request query JSON:
+     * {"query":"Acme","country":"SE"}
+     *
+     * Response JSON:
+     * {"participants":[{"peppol_id":"0088:123456789","name":"Acme AB"}],"total":1}
+     */
+    public function search(string $query, ?string $country = null): ResponseInterface
+    {
+        $queryParams = ['query' => $query];
+        if ($country !== null) {
+            $queryParams['country'] = $country;
+        }
+
+        return $this->client->request(RequestMethod::GET->value, 'participants.search', [
+            'query' => $queryParams,
+        ]);
+    }
+
+    /**
+     * Get participant document capabilities.
+     *
+     * Request query JSON:
+     * {"peppol_id":"0088:123456789"}
+     *
+     * Response JSON:
+     * {"peppol_id":"0088:123456789","document_types":[{"type_id":"urn:oasis...Invoice-2"}]}
+     */
+    public function getCapabilities(string $peppolId): ResponseInterface
+    {
+        return $this->client->request(RequestMethod::GET->value, 'participants.capabilities', [
+            'query' => ['peppol_id' => $peppolId],
+        ]);
     }
 }
