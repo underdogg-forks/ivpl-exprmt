@@ -2,51 +2,77 @@
 
 namespace Tests\Unit\Gateways\LetsPeppol;
 
-use Core\Gateways\LetsPeppol\Endpoints\InvoiceEndpoint;
-use Core\Gateways\LetsPeppol\LetsPeppolGatewayClient;
+use Core\Gateways\LetsPeppol\Endpoints\ParticipantEndpoint;
+use Core\Gateways\LetsPeppol\PeppolApiClient;
 use Core\Gateways\LetsPeppol\Transformers\ApiResponseTransformer;
-use GuzzleHttp\Client;
-use GuzzleHttp\Handler\MockHandler;
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Middleware;
-use GuzzleHttp\Psr7\Response;
+use ErrorException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class LetsPeppolEndpointsTest extends TestCase
 {
     #[Test]
-    public function it_builds_post_request_headers_and_transforms_response(): void
+    public function it_handles_error_path_from_api_client(): void
     {
-        $fixture = file_get_contents(__DIR__ . '/Fixtures/invoice_send_success.json');
-        $history = [];
+        $response = json_decode((string) file_get_contents(__DIR__ . '/Fixtures/api_error.json'), true);
+        $client = new FakePeppolApiClient(['participants.validate' => $response], new ErrorException('boom'));
+        $endpoint = new ParticipantEndpoint($client, new ApiResponseTransformer());
 
-        $mock = new MockHandler([new Response(200, ['Content-Type' => 'application/json'], $fixture)]);
-        $stack = HandlerStack::create($mock);
-        $stack->push(Middleware::history($history));
-
-        $client = new LetsPeppolGatewayClient('https://api.test', [], new Client(['handler' => $stack]));
-        $endpoint = new InvoiceEndpoint($client, new ApiResponseTransformer());
-
-        $dto = $endpoint->send(['invoice_id' => 1, 'invoice_number' => 'INV-1']);
-
-        $this->assertSame('accepted', $dto->getStatus());
-        $this->assertSame('ext-100', $dto->getId());
-        $this->assertCount(1, $history);
-        $this->assertSame('POST', $history[0]['request']->getMethod());
-        $this->assertStringContainsString('/api/invoices', (string) $history[0]['request']->getUri());
-        $this->assertSame('application/json', $history[0]['request']->getHeaderLine('Content-Type'));
+        $this->expectException(ErrorException::class);
+        $endpoint->validate('0088:123');
     }
 
     #[Test]
-    public function it_handles_error_response_payload_transformation(): void
+    public function it_interacts_with_api_client_and_transforms_response(): void
     {
-        $fixture = file_get_contents(__DIR__ . '/Fixtures/error_response.json');
-        $mock = new MockHandler([new Response(400, ['Content-Type' => 'application/json'], $fixture)]);
-        $client = new LetsPeppolGatewayClient('https://api.test', [], new Client(['handler' => HandlerStack::create($mock)]));
-        $endpoint = new InvoiceEndpoint($client, new ApiResponseTransformer());
+        $response = json_decode((string) file_get_contents(__DIR__ . '/Fixtures/participant_validate_success.json'), true);
+        $client = new FakePeppolApiClient(['participants.validate' => $response]);
+        $endpoint = new ParticipantEndpoint($client, new ApiResponseTransformer());
 
-        $this->expectException(\Throwable::class);
-        $endpoint->send(['bad' => 'payload']);
+        $dto = $endpoint->validate('0088:123456789');
+
+        $this->assertSame('participants.validate', $client->lastEndpoint);
+        $this->assertSame(['peppol_id' => '0088:123456789'], $client->lastQuery);
+        $this->assertSame('ok', $dto->getStatus());
+        $this->assertSame('participant-1', $dto->getId());
+    }
+}
+
+class FakePeppolApiClient extends PeppolApiClient
+{
+    public string $lastEndpoint = '';
+    public array $lastQuery = [];
+
+    public function __construct(private array $responses, private ?\Throwable $throwable = null)
+    {
+        parent::__construct('https://fake.test');
+    }
+
+    public function authorize(): void
+    {
+    }
+
+    public function get(string $endpointKey, array $query = []): array
+    {
+        if ($this->throwable) {
+            throw $this->throwable;
+        }
+
+        $this->lastEndpoint = $endpointKey;
+        $this->lastQuery = $query;
+
+        return $this->responses[$endpointKey] ?? [];
+    }
+
+    public function post(string $endpointKey, array $payload = []): array
+    {
+        if ($this->throwable) {
+            throw $this->throwable;
+        }
+
+        $this->lastEndpoint = $endpointKey;
+        $this->lastQuery = $payload;
+
+        return $this->responses[$endpointKey] ?? [];
     }
 }
