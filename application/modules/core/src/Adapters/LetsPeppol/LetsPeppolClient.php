@@ -28,6 +28,24 @@ class LetsPeppolClient
         return $this->httpClient->request($method, rtrim($this->baseUrl, '/') . '/' . ltrim($path, '/'), $options);
     }
 
+    /**
+     * Build authentication headers for requests.
+     *
+     * Returns headers array with Accept and optional Bearer token.
+     */
+    public function buildAuthHeaders(): array
+    {
+        $headers = ['Accept' => 'application/json'];
+
+        $token = $this->settings('access_token');
+
+        if ($token !== null) {
+            $headers['Authorization'] = 'Bearer ' . $token;
+        }
+
+        return $headers;
+    }
+
     public function settings(?string $key = null, $default = null)
     {
         if ($key === null) {
