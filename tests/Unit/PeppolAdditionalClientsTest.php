@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Unit;
+
 use Core\Adapters\LetsPeppol\Endpoints\CreditNoteClient;
 use Core\Adapters\LetsPeppol\Endpoints\DocumentClient;
 use Core\Adapters\LetsPeppol\Endpoints\InvoiceClient;

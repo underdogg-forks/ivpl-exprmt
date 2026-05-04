@@ -206,15 +206,21 @@ class InvoiceEndpointTest extends TestCase
     #[Test]
     public function it_validates_invoice_lifecycle_fixtures_format(): void
     {
-        $status = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/invoice_status.json'), true);
+        $statusJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/invoice_status.json');
+        $this->assertNotFalse($statusJson, 'missing fixture: invoice_status.json');
+        $status = json_decode($statusJson, true);
         $this->assertIsArray($status);
         $this->assertArrayHasKey('status', $status);
 
-        $cancelled = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/invoice_cancelled.json'), true);
+        $cancelledJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/invoice_cancelled.json');
+        $this->assertNotFalse($cancelledJson, 'missing fixture: invoice_cancelled.json');
+        $cancelled = json_decode($cancelledJson, true);
         $this->assertIsArray($cancelled);
         $this->assertSame('cancelled', $cancelled['status']);
 
-        $resent = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/invoice_resent.json'), true);
+        $resentJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/invoice_resent.json');
+        $this->assertNotFalse($resentJson, 'missing fixture: invoice_resent.json');
+        $resent = json_decode($resentJson, true);
         $this->assertIsArray($resent);
         $this->assertArrayHasKey('new_transmission_id', $resent);
     }
