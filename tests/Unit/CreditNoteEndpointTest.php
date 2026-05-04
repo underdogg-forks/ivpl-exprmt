@@ -26,7 +26,7 @@ class CreditNoteEndpointTest extends TestCase
     #[Test]
     public function it_sends_credit_note(): void
     {
-        // Arrange
+        /* Arrange */
         $payload = [
             'credit_note_id'     => 5,
             'credit_note_number' => 'CN-2026-001',
@@ -35,10 +35,10 @@ class CreditNoteEndpointTest extends TestCase
             'amount'             => 250.00,
         ];
 
-        // Act
+        /* Act */
         $response = $this->endpoint->send($payload);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('POST', 'api/credit-notes');
     }
@@ -46,13 +46,13 @@ class CreditNoteEndpointTest extends TestCase
     #[Test]
     public function it_gets_credit_note_status(): void
     {
-        // Arrange
+        /* Arrange */
         $creditNoteId = 5;
 
-        // Act
+        /* Act */
         $response = $this->endpoint->getStatus($creditNoteId);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('GET', 'api/credit-notes');
     }
@@ -60,13 +60,13 @@ class CreditNoteEndpointTest extends TestCase
     #[Test]
     public function it_cancels_credit_note_without_reason(): void
     {
-        // Arrange
+        /* Arrange */
         $creditNoteId = 5;
 
-        // Act
+        /* Act */
         $response = $this->endpoint->cancel($creditNoteId);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('POST', 'api/credit-notes/cancel');
     }
@@ -74,14 +74,14 @@ class CreditNoteEndpointTest extends TestCase
     #[Test]
     public function it_cancels_credit_note_with_reason(): void
     {
-        // Arrange
+        /* Arrange */
         $creditNoteId = 5;
         $reason = 'Issued in error - amount incorrect';
 
-        // Act
+        /* Act */
         $response = $this->endpoint->cancel($creditNoteId, $reason);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('POST', 'api/credit-notes/cancel');
     }
@@ -89,7 +89,7 @@ class CreditNoteEndpointTest extends TestCase
     #[Test]
     public function it_includes_authorization_headers_in_requests(): void
     {
-        // Arrange
+        /* Arrange */
         $settings = [
             'client_id'     => 'test-client-id',
             'client_secret' => 'test-secret',
@@ -101,10 +101,10 @@ class CreditNoteEndpointTest extends TestCase
 
         $payload = ['credit_note_id' => 5];
 
-        // Act
+        /* Act */
         $this->endpoint->send($payload);
 
-        // Assert
+        /* Assert */
         $this->assertCount(1, $this->http->requests);
         $request = $this->http->requests[0];
         $this->assertArrayHasKey('headers', $request['options']);
@@ -115,16 +115,16 @@ class CreditNoteEndpointTest extends TestCase
     #[Test]
     public function it_sends_json_payload_with_correct_headers(): void
     {
-        // Arrange
+        /* Arrange */
         $payload = [
             'credit_note_id'     => 5,
             'credit_note_number' => 'CN-2026-001',
         ];
 
-        // Act
+        /* Act */
         $this->endpoint->send($payload);
 
-        // Assert
+        /* Assert */
         $this->assertCount(1, $this->http->requests);
         $request = $this->http->requests[0];
         $this->assertArrayHasKey('json', $request['options']);

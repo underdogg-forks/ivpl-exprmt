@@ -26,13 +26,13 @@ class DocumentEndpointTest extends TestCase
     #[Test]
     public function it_gets_document_by_id(): void
     {
-        // Arrange
+        /* Arrange */
         $documentId = 'ext-invoice-123';
 
-        // Act
+        /* Act */
         $response = $this->endpoint->get($documentId);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('GET', 'api/documents');
     }
@@ -40,13 +40,13 @@ class DocumentEndpointTest extends TestCase
     #[Test]
     public function it_downloads_document_content(): void
     {
-        // Arrange
+        /* Arrange */
         $documentId = 'ext-invoice-123';
 
-        // Act
+        /* Act */
         $response = $this->endpoint->download($documentId);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('GET', 'api/documents/download');
     }
@@ -54,13 +54,13 @@ class DocumentEndpointTest extends TestCase
     #[Test]
     public function it_gets_document_metadata(): void
     {
-        // Arrange
+        /* Arrange */
         $documentId = 'ext-invoice-123';
 
-        // Act
+        /* Act */
         $response = $this->endpoint->getMetadata($documentId);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('GET', 'api/documents/metadata');
     }
@@ -68,12 +68,12 @@ class DocumentEndpointTest extends TestCase
     #[Test]
     public function it_lists_documents_without_filters(): void
     {
-        // Arrange - no filters
+        /* Arrange - no filters */
 
-        // Act
+        /* Act */
         $response = $this->endpoint->list();
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('GET', 'api/documents');
     }
@@ -81,7 +81,7 @@ class DocumentEndpointTest extends TestCase
     #[Test]
     public function it_lists_documents_with_filters(): void
     {
-        // Arrange
+        /* Arrange */
         $filters = [
             'document_type' => 'invoice',
             'from'          => '2026-05-01',
@@ -89,10 +89,10 @@ class DocumentEndpointTest extends TestCase
             'status'        => 'delivered',
         ];
 
-        // Act
+        /* Act */
         $response = $this->endpoint->list($filters);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('GET', 'api/documents');
     }
@@ -100,13 +100,13 @@ class DocumentEndpointTest extends TestCase
     #[Test]
     public function it_archives_document_without_reason(): void
     {
-        // Arrange
+        /* Arrange */
         $documentId = 'ext-invoice-123';
 
-        // Act
+        /* Act */
         $response = $this->endpoint->archive($documentId);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('POST', 'api/documents/archive');
     }
@@ -114,14 +114,14 @@ class DocumentEndpointTest extends TestCase
     #[Test]
     public function it_archives_document_with_reason(): void
     {
-        // Arrange
+        /* Arrange */
         $documentId = 'ext-invoice-123';
         $reason = 'Invoice paid and reconciled';
 
-        // Act
+        /* Act */
         $response = $this->endpoint->archive($documentId, $reason);
 
-        // Assert
+        /* Assert */
         $this->assertEquals(200, $response->getStatusCode());
         $this->http->assertRequestMade('POST', 'api/documents/archive');
     }
@@ -129,13 +129,13 @@ class DocumentEndpointTest extends TestCase
     #[Test]
     public function it_uses_xml_accept_header_for_download(): void
     {
-        // Arrange
+        /* Arrange */
         $documentId = 'ext-invoice-123';
 
-        // Act
+        /* Act */
         $this->endpoint->download($documentId);
 
-        // Assert
+        /* Assert */
         $this->assertCount(1, $this->http->requests);
         $request = $this->http->requests[0];
         $this->assertArrayHasKey('headers', $request['options']);
@@ -146,7 +146,7 @@ class DocumentEndpointTest extends TestCase
     #[Test]
     public function it_includes_authorization_headers_in_requests(): void
     {
-        // Arrange
+        /* Arrange */
         $settings = [
             'client_id'     => 'test-client-id',
             'client_secret' => 'test-secret',
@@ -156,10 +156,10 @@ class DocumentEndpointTest extends TestCase
         $this->gateway->setAccessToken('test-bearer-token');
         $this->endpoint = new DocumentEndpoint($this->gateway);
 
-        // Act
+        /* Act */
         $this->endpoint->get('ext-invoice-123');
 
-        // Assert
+        /* Assert */
         $this->assertCount(1, $this->http->requests);
         $request = $this->http->requests[0];
         $this->assertArrayHasKey('headers', $request['options']);
