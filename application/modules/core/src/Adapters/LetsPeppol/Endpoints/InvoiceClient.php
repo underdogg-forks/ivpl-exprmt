@@ -21,8 +21,17 @@ class InvoiceClient
      */
     public function sendInvoice(array $payload): ResponseInterface
     {
+        $headers = ['Accept' => 'application/json'];
+
+        $token = $this->client->settings('access_token');
+
+        if ($token !== null) {
+            $headers['Authorization'] = 'Bearer ' . $token;
+        }
+
         return $this->client->request(RequestMethod::POST->value, 'invoices.send', [
-            'json' => $payload,
+            'headers' => $headers,
+            'json'    => $payload,
         ]);
     }
 
