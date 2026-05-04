@@ -202,4 +202,21 @@ class InvoiceEndpointTest extends TestCase
         $this->assertArrayHasKey('Authorization', $request['options']['headers']);
         $this->assertEquals('Bearer test-bearer-token', $request['options']['headers']['Authorization']);
     }
+
+    #[Test]
+    public function it_validates_invoice_lifecycle_fixtures_format(): void
+    {
+        $status = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/invoice_status.json'), true);
+        $this->assertIsArray($status);
+        $this->assertArrayHasKey('status', $status);
+
+        $cancelled = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/invoice_cancelled.json'), true);
+        $this->assertIsArray($cancelled);
+        $this->assertSame('cancelled', $cancelled['status']);
+
+        $resent = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/invoice_resent.json'), true);
+        $this->assertIsArray($resent);
+        $this->assertArrayHasKey('new_transmission_id', $resent);
+    }
+
 }

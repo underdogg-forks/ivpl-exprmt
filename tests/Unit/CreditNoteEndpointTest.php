@@ -133,4 +133,21 @@ class CreditNoteEndpointTest extends TestCase
         $this->assertArrayHasKey('Content-Type', $request['options']['headers']);
         $this->assertEquals('application/json', $request['options']['headers']['Content-Type']);
     }
+
+    #[Test]
+    public function it_validates_credit_note_fixtures_format(): void
+    {
+        $sent = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/credit_note_sent.json'), true);
+        $this->assertIsArray($sent);
+        $this->assertArrayHasKey('status', $sent);
+
+        $status = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/credit_note_status.json'), true);
+        $this->assertIsArray($status);
+        $this->assertArrayHasKey('transmission_id', $status);
+
+        $cancelled = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/credit_note_cancelled.json'), true);
+        $this->assertIsArray($cancelled);
+        $this->assertSame('cancelled', $cancelled['status']);
+    }
+
 }
