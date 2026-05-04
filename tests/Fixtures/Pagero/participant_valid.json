@@ -1,1 +1,74 @@
-{"status_code":200,"valid":true}
+{
+  "participant_validate": {
+    "peppol_id": "0088:123456789",
+    "status_code": 200
+  },
+  "participant_details": {
+    "peppol_id": "0088:123456789"
+  },
+  "participant_search": {
+    "query": "Acme",
+    "country": "SE"
+  },
+  "participant_capabilities": {
+    "peppol_id": "0088:123456789"
+  },
+  "invoice_send": {
+    "invoice_id": 1,
+    "amount": 100.0
+  },
+  "invoice_status": {
+    "invoice_id": 1
+  },
+  "invoice_cancel": {
+    "invoice_id": 1,
+    "cancel_reason": "duplicate"
+  },
+  "invoice_resend": {
+    "invoice_id": 1,
+    "resend_reason": "retry"
+  },
+  "credit_send": {
+    "credit_note_id": 77,
+    "reason": "return"
+  },
+  "credit_status": {
+    "credit_note_id": 77
+  },
+  "credit_cancel": {
+    "credit_note_id": 77,
+    "cancel_reason": "mistake"
+  },
+  "transmission_status": {
+    "transmission_id": "tr-1"
+  },
+  "transmission_receipt": {
+    "transmission_id": "tr-1"
+  },
+  "transmission_errors": {
+    "transmission_id": "tr-1"
+  },
+  "transmission_list": {
+    "status": "failed"
+  },
+  "transmission_retry": {
+    "transmission_id": "tr-1",
+    "retry_reason": "network"
+  },
+  "document_get": {
+    "document_id": "doc-1"
+  },
+  "document_download": {
+    "document_id": "doc-1"
+  },
+  "document_metadata": {
+    "document_id": "doc-1"
+  },
+  "document_list": {
+    "status": "delivered"
+  },
+  "document_archive": {
+    "document_id": "doc-1",
+    "archive_reason": "retention"
+  }
+}

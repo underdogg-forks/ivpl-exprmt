@@ -8,36 +8,15 @@ use Psr\Http\Message\ResponseInterface;
 
 class DocumentClient
 {
-    public function __construct(private SovosClient $client)
-    {
-    }
-
-    public function get(string $documentId): ResponseInterface
-    {
-        return $this->client->request(RequestMethod::GET->value, 'documents.get', ['query' => ['document_id' => $documentId]]);
-    }
-
-    public function download(string $documentId): ResponseInterface
-    {
-        return $this->client->request(RequestMethod::GET->value, 'documents.download', ['query' => ['document_id' => $documentId]]);
-    }
-
-    public function getMetadata(string $documentId): ResponseInterface
-    {
-        return $this->client->request(RequestMethod::GET->value, 'documents.metadata', ['query' => ['document_id' => $documentId]]);
-    }
-
-    public function list(array $filters = []): ResponseInterface
-    {
-        return $this->client->request(RequestMethod::GET->value, 'documents.list', ['query' => $filters]);
-    }
-
-    public function archive(string $documentId, ?string $reason = null): ResponseInterface
-    {
-        $payload = ['document_id' => $documentId];
-        if ($reason !== null) {
-            $payload['archive_reason'] = $reason;
-        }
-        return $this->client->request(RequestMethod::POST->value, 'documents.archive', ['json' => $payload]);
-    }
+    public function __construct(private SovosClient $client) {}
+    /** Request query JSON: {"document_id":"doc-1"} */
+    public function get(string $documentId): ResponseInterface { return $this->client->request(RequestMethod::GET->value,'documents.get',['query'=>['document_id'=>$documentId]]); }
+    /** Request query JSON: {"document_id":"doc-1"} */
+    public function download(string $documentId): ResponseInterface { return $this->client->request(RequestMethod::GET->value,'documents.download',['query'=>['document_id'=>$documentId]]); }
+    /** Request query JSON: {"document_id":"doc-1"} */
+    public function getMetadata(string $documentId): ResponseInterface { return $this->client->request(RequestMethod::GET->value,'documents.metadata',['query'=>['document_id'=>$documentId]]); }
+    /** Request query JSON: {"status":"delivered"} */
+    public function list(array $filters = []): ResponseInterface { return $this->client->request(RequestMethod::GET->value,'documents.list',['query'=>$filters]); }
+    /** Request JSON: {"document_id":"doc-1","archive_reason":"reason"} */
+    public function archive(string $documentId, ?string $reason = null): ResponseInterface { $payload=['document_id'=>$documentId]; if($reason!==null){$payload['archive_reason']=$reason;} return $this->client->request(RequestMethod::POST->value,'documents.archive',['json'=>$payload]); }
 }
