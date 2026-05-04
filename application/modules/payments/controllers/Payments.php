@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Payments\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Payments extends \Admin_Controller
+class Payments extends Admin_Controller
 {
     /**
      * Payments constructor.
@@ -54,8 +52,6 @@ class Payments extends \Admin_Controller
         if ($this->input->post('btn_cancel')) {
             redirect('payments');
         }
-
-        $this->filter_input();  // <<<--- filters _POST array for nastiness
 
         $this->load->model('custom_fields/mdl_payment_custom');
 

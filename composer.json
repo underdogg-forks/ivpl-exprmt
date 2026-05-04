@@ -11,28 +11,39 @@
         }
     },
     "require": {
-        "endroid/qr-code": "^4.8.5",
+        "endroid/qr-code": "^4.8",
+        "ezyang/htmlpurifier": "^4.19",
         "guzzlehttp/guzzle": "^7.10",
-        "illuminate/collections": "^10.0 | ^11.0",
-        "league/oauth2-client": "^2.8",
         "moneyphp/money": "^4.8",
-        "mpdf/mpdf": "^8.2.7",
-        "paragonie/random_compat": "^2.0.21",
+        "mpdf/mpdf": "^8.2",
+        "paragonie/random_compat": "^2.0",
         "phpmailer/phpmailer": "^6.12",
         "pocketarc/codeigniter": "3.3",
-        "setasign/fpdf": "^1.8.6",
-        "setasign/fpdi": "^2.6.4",
+        "setasign/fpdf": "^1.8",
+        "setasign/fpdi": "^2.6",
         "smhg/sepa-qr-data": "^1.2",
         "stripe/stripe-php": "^14.10",
-        "vlucas/phpdotenv": "^5.6.3"
+        "vlucas/phpdotenv": "^5.6"
     },
     "require-dev": {
+        "driftingly/rector-laravel": "^2.3",
         "filp/whoops": "^2.18.4",
+        "larastan/larastan": "^3.9",
         "laravel/pint": "^1.27.1",
-        "phpunit/phpunit": "^10.5 | ^11.5",
-        "rector/rector": "^2.3.6",
+        "phpunit/phpunit": "^11.5",
+        "rector/rector": "^2.4",
         "squizlabs/php_codesniffer": "^3.13.5",
         "symfony/var-dumper": "^6.4.32"
+    },
+    "autoload": {
+        "files": [
+            "bootstrap/helpers.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
     },
     "scripts": {
         "check": [
@@ -51,51 +62,6 @@
         "pint": [
             "Composer\\Config::disableProcessTimeout",
             "vendor/bin/pint"
-        ],
-        "test:php": "vendor/bin/phpunit --configuration phpunit.xml.dist"
-    },
-    "autoload": {
-        "psr-4": {
-            "Core\\": "application/modules/core/src/",
-            "Core\\Adapters\\CodeIgniter\\MX\\": "application/third_party/MX/Namespaced/",
-            "Modules\\Clients\\": "application/modules/clients/",
-            "Modules\\CustomFields\\": "application/modules/custom_fields/",
-            "Modules\\CustomValues\\": "application/modules/custom_values/",
-            "Modules\\Dashboard\\": "application/modules/dashboard/",
-            "Modules\\EmailTemplates\\": "application/modules/email_templates/",
-            "Modules\\Families\\": "application/modules/families/",
-            "Modules\\Filter\\": "application/modules/filter/",
-            "Modules\\Guest\\": "application/modules/guest/",
-            "Modules\\Import\\": "application/modules/import/",
-            "Modules\\Integrations\\": "application/modules/integrations/",
-            "Modules\\InvoiceGroups\\": "application/modules/invoice_groups/",
-            "Modules\\Invoices\\": "application/modules/invoices/",
-            "Modules\\Layout\\": "application/modules/layout/",
-            "Modules\\Mailer\\": "application/modules/mailer/",
-            "Modules\\PaymentMethods\\": "application/modules/payment_methods/",
-            "Modules\\Payments\\": "application/modules/payments/",
-            "Modules\\Products\\": "application/modules/products/",
-            "Modules\\Projects\\": "application/modules/projects/",
-            "Modules\\Quotes\\": "application/modules/quotes/",
-            "Modules\\Reports\\": "application/modules/reports/",
-            "Modules\\Sessions\\": "application/modules/sessions/",
-            "Modules\\Settings\\": "application/modules/settings/",
-            "Modules\\Setup\\": "application/modules/setup/",
-            "Modules\\Tasks\\": "application/modules/tasks/",
-            "Modules\\TaxRates\\": "application/modules/tax_rates/",
-            "Modules\\Units\\": "application/modules/units/",
-            "Modules\\Upload\\": "application/modules/upload/",
-            "Modules\\UserClients\\": "application/modules/user_clients/",
-            "Modules\\Users\\": "application/modules/users/",
-            "Modules\\Welcome\\": "application/modules/welcome/"
-        },
-        "files": [
-            "bootstrap/autoload.php"
         ]
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Tests\\": "tests/"
-        }
     }
 }

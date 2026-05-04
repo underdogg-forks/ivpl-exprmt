@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Sessions\Models;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Mdl_Sessions extends \CI_Model
+class Mdl_Sessions extends CI_Model
 {
     /**
      * @param $email

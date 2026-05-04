@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Users\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Users extends \Admin_Controller
+class Users extends Admin_Controller
 {
     /**
      * Users constructor.
@@ -54,8 +52,6 @@ class Users extends \Admin_Controller
         if ($this->input->post('btn_cancel')) {
             redirect('users');
         }
-
-        $this->filter_input();  // <<<--- filters _POST array for nastiness
 
         if ($this->mdl_users->run_validation(($id) ? 'validation_rules_existing' : 'validation_rules')) {
             $id = $this->mdl_users->save($id);

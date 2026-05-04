@@ -1,18 +1,10 @@
 {
     "preset": "per",
     "exclude": [
-        "application/views/**/pdf/",
-        "application/logs",
-        "resources",
-        "storage"
-    ],
-    "notName": [
-        "Crypt.php",
-        "Cryptor.php"
+        "application/modules/clients/views/view.php"
     ],
     "rules": {
         "@PSR12": true,
-        "statement_indentation": false,
         "align_multiline_comment": true,
         "array_indentation": true,
         "array_syntax": {
@@ -22,13 +14,7 @@
         "binary_operator_spaces": {
             "default": "single_space",
             "operators": {
-                "-": "align_single_space_minimal",
-                "+": "align_single_space_minimal",
                 "=": "align_single_space_minimal",
-                "<": "align_single_space_minimal",
-                ">": "align_single_space_minimal",
-                "!=": "align_single_space_minimal",
-                "==": "align_single_space_minimal",
                 "=>": "align_single_space_minimal"
             }
         },
@@ -164,7 +150,7 @@
         "self_accessor": true,
         "simplified_if_return": true,
         "simplified_null_return": true,
-        "single_line_comment_style": true,
+        "single_line_comment_style": false,
         "single_quote": true,
         "space_after_semicolon": true,
         "standardize_not_equals": true,

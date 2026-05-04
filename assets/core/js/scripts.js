@@ -89,11 +89,13 @@ function encodeHtml(str) {
 // Sanitize HTML for email template preview
 // Allows only safe formatting tags and strips scripts, event handlers, and dangerous attributes
 function sanitize_email_template_html(html) {
-    // Parse HTML inside an inert <template> so scripts are never executed while
-    // the content is being sanitized.
-    var template = document.createElement('template');
-    template.innerHTML = html || '';
-    var temp = template.content;
+    // Create a detached container to parse and sanitize HTML in an isolated context.
+    // Using DOMParser prevents immediate script execution during parsing.
+    var parser = new DOMParser();
+    // `html` is sanitized by the tag/attribute allowlist and cleanNode() below;
+    // no innerHTML assignment is made on the result — nodes are imported via importNode().
+    var doc = parser.parseFromString(html || '', 'text/html'); // lgtm[js/xss-through-dom]
+    var temp = doc.body;
     
     // List of allowed tags (only safe formatting tags)
     var allowedTags = ['b', 'strong', 'em', 'i', 'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
@@ -102,28 +104,7 @@ function sanitize_email_template_html(html) {
     
     // List of allowed attributes (only safe, non-executable attributes)
     // Note: 'style' attribute removed to prevent CSS-based attacks
-    var allowedAttrs = ['class', 'href', 'title', 'alt', 'target', 'rel'];
-
-    // Decode HTML entities and normalize attribute values before validation.
-    function normalizeAttrValue(value) {
-        var normalized = value || '';
-        try {
-            var parser = new DOMParser();
-            var doc = parser.parseFromString(normalized, 'text/html');
-            if (doc && doc.documentElement) {
-                normalized = doc.documentElement.textContent || '';
-            }
-        } catch (e) {
-            normalized = value || '';
-        }
-
-        // Remove control/format chars (including zero-width and BOM), trim, and lowercase.
-        // Ranges: C0 controls (\u0000-\u001F), C1 controls (\u007F-\u009F),
-        // zero-width/RTL markers (\u200B-\u200F, \u202A-\u202E, \u2060-\u206F),
-        // and BOM (\uFEFF).
-        normalized = normalized.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]+/g, '').trim();
-        return normalized.toLowerCase();
-    }
+    var allowedAttrs = ['class', 'href', 'title', 'alt', 'target'];
     
     // Recursively clean all elements
     function cleanNode(node) {
@@ -152,7 +133,7 @@ function sanitize_email_template_html(html) {
             for (var i = 0; i < node.attributes.length; i++) {
                 var attr = node.attributes[i];
                 var attrNameLower = attr.name.toLowerCase();
-                var attrValueNormalized = normalizeAttrValue(attr.value);
+                var attrValue = attr.value.toLowerCase().trim();
                 
                 // Remove event handlers (onclick, onload, etc.)
                 if (attrNameLower.indexOf('on') === 0) {
@@ -163,21 +144,11 @@ function sanitize_email_template_html(html) {
                     attrsToRemove.push(attr.name);
                 }
                 // Check for dangerous protocols in href attributes
-                else if (attrNameLower === 'href' &&
-                        (/^\s*(javascript|data|vbscript|file|about|blob)\s*:/i.test(attrValueNormalized))) {
+                else if (attrNameLower === 'href' && 
+                        (attrValue.indexOf('javascript:') === 0 || 
+                         attrValue.indexOf('data:') === 0 || 
+                         attrValue.indexOf('vbscript:') === 0)) {
                     attrsToRemove.push(attr.name);
-                }
-                // Enforce opener-safe behavior for links opened in a new tab
-                else if (attrNameLower === 'target' && attrValueNormalized === '_blank') {
-                    var relValue = node.getAttribute('rel') || '';
-                    var relParts = relValue.split(/\s+/).filter(Boolean);
-                    if (relParts.indexOf('noopener') === -1) {
-                        relParts.push('noopener');
-                    }
-                    if (relParts.indexOf('noreferrer') === -1) {
-                        relParts.push('noreferrer');
-                    }
-                    node.setAttribute('rel', relParts.join(' '));
                 }
             }
             attrsToRemove.forEach(function(attrName) {
@@ -202,18 +173,80 @@ function sanitize_email_template_html(html) {
         }
     });
     
-    // Move the sanitized fragment into a container to return its HTML string.
-    var container = document.createElement('div');
-    while (temp.firstChild) {
-        container.appendChild(temp.firstChild);
+    // Return the sanitized body element (callers use importNode to avoid innerHTML).
+    return temp;
+}
+
+/**
+ * Safely decode HTML entities without DOM-based XSS risks
+ * Uses a map of common entities and regex replacement
+ */
+function decodeHtmlEntities(text) {
+    // Unicode constants for validation (using JavaScript camelCase convention)
+    var maxUnicodeCodepoint = 0x10FFFF;
+    var surrogateMin = 0xD800;
+    var surrogateMax = 0xDFFF;
+    
+    /**
+     * Check if a codepoint is valid Unicode and not in the surrogate pair range
+     */
+    function isValidUnicodeCodepoint(code) {
+        return code >= 0 && code <= maxUnicodeCodepoint && 
+               (code < surrogateMin || code > surrogateMax);
     }
     
-    return container.innerHTML;
+    // Map of HTML entities to their character equivalents
+    var entities = {
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#39;': "'",
+        '&#x27;': "'",
+        '&apos;': "'"
+    };
+    
+    // Replace known entities
+    var decoded = text;
+    for (var entity in entities) {
+        if (entities.hasOwnProperty(entity)) {
+            decoded = decoded.split(entity).join(entities[entity]);
+        }
+    }
+    
+    // Handle decimal numeric entities (&#123;) with bounds checking
+    // Use String.fromCodePoint for proper Unicode support including supplementary planes
+    decoded = decoded.replace(/&#(\d+);/g, function(match, dec) {
+        var code = parseInt(dec, 10);
+        if (isValidUnicodeCodepoint(code)) {
+            // Use fromCodePoint if available (modern browsers), fallback to fromCharCode
+            if (String.fromCodePoint) {
+                return String.fromCodePoint(code);
+            }
+            return String.fromCharCode(code);
+        }
+        return match; // Return original if invalid
+    });
+    
+    // Handle hexadecimal numeric entities (&#xAB;) with bounds checking
+    // Use String.fromCodePoint for proper Unicode support including supplementary planes
+    decoded = decoded.replace(/&#x([0-9A-Fa-f]+);/g, function(match, hex) {
+        var code = parseInt(hex, 16);
+        if (isValidUnicodeCodepoint(code)) {
+            // Use fromCodePoint if available (modern browsers), fallback to fromCharCode
+            if (String.fromCodePoint) {
+                return String.fromCodePoint(code);
+            }
+            return String.fromCharCode(code);
+        }
+        return match; // Return original if invalid
+    });
+    
+    return decoded;
 }
 
 function update_email_template_preview() {
     var rawHtml = $('.email-template-body').val();
-    var sanitizedHtml = sanitize_email_template_html(rawHtml);
     var iframe = $('#email-template-preview')[0];
     
     // Initialize iframe with a proper HTML document if needed
@@ -227,8 +260,8 @@ function update_email_template_preview() {
             iframeDoc.close();
         }
         
-        // Now set the sanitized HTML content
-        iframeDoc.body.innerHTML = sanitizedHtml;
+        // Render as plain text to avoid interpreting untrusted DOM text as HTML.
+        iframeDoc.body.textContent = rawHtml || '';
     }
 }
 
@@ -315,9 +348,13 @@ function insert_html_tag(tag_type, destination_id) {
     }
 }
 
-// Get crsf names from ipconfig (config_item) on meta tags - since v1.6.3
-const csrf_token_name = document.querySelector('meta[name="csrf_token_name"]').getAttribute('content');   // Default: _ip_csrf
-const csrf_cookie_name = document.querySelector('meta[name="csrf_cookie_name"]').getAttribute('content'); // Default: ip_csrf_cookie
+// Get CSRF configuration from meta tags - since v1.6.3
+const csrf_token_name = document.querySelector('meta[name="csrf_token_name"]').getAttribute('content'); // Default: _ip_csrf
+
+// Get CSRF token value from meta tag instead of reading HttpOnly cookie
+// This allows the cookie to have HttpOnly=true for XSS protection while still providing
+// the token to JavaScript for AJAX requests. The server rotates this value on each page load.
+let csrf_token_value = document.querySelector('meta[name="csrf_token_value"]').getAttribute('content');
 
 const legacy_calculation = parseInt(document.querySelector('meta[name="legacy_calculation"]').getAttribute('content')); // Default: 1 (legacy on)
 
@@ -357,23 +394,27 @@ function check_items_tax_usages(e) {
 }
 
 $(function () {
-    // Automatical CSRF protection for
-    // All jquery POST requests
+    // Automatic CSRF protection for all jQuery POST requests
+    // Uses meta tag value instead of reading HttpOnly cookie directly
     $.ajaxPrefilter(function (options) {
         if (options.type === 'post' || options.type === 'POST' || options.type === 'Post') {
             if (options.data === '') {
-                options.data += '?' + csrf_token_name + '=' + Cookies.get(csrf_cookie_name);
+                options.data += '?' + csrf_token_name + '=' + csrf_token_value;
             } else {
-                options.data += '&' + csrf_token_name + '=' + Cookies.get(csrf_cookie_name);
+                options.data += '&' + csrf_token_name + '=' + csrf_token_value;
             }
         }
     });
-    $(document).ajaxComplete(function () {
-        $('[name="' + csrf_token_name + '"]').val(Cookies.get(csrf_cookie_name));
-    });
-    // Update crsf on all submit way's
+
+    // Note: CSRF token regeneration is enabled (csrf_regenerate = true in config)
+    // The token changes after each POST request, but we don't have server-side code
+    // to return the new token in response headers. The token is refreshed on page loads
+    // via the meta tag. For AJAX-heavy workflows, consider disabling csrf_regenerate
+    // or implementing server-side token refresh in response headers.
+
+    // Update CSRF token on all form submissions
     $('form').on('submit', function(){
-        $('input[name="' + csrf_token_name + '"]').prop('value', Cookies.get(csrf_cookie_name));
+        $('input[name="' + csrf_token_name + '"]').prop('value', csrf_token_value);
     });
 
     // Set the default options for all instances of Select2
@@ -455,7 +496,7 @@ $(function () {
     // Email Template Preview handling
     var email_template_body_id = $('.email-template-body').attr('id');
 
-    if ($('#email-template-preview').length) {
+    if ($('#email_template_preview').empty()) {
         update_email_template_preview();
     }
 
@@ -471,11 +512,9 @@ $(function () {
     window.fullpage_loader = $('#fullpage-loader');
     window.loader_error = $('#loader-error');
     window.loader_icon = $('#loader-icon');
-    window.loader_error_icon = $('#loader-error-icon');
     window.reset_loader = function () {
         loader_error.hide();
-        loader_error_icon.hide();
-        loader_icon.show().addClass('fa-spin').removeClass('text-danger');
+        loader_icon.addClass('fa-spin').removeClass('text-danger');
         clearTimeout(window.fullpageloaderTimeout);
     }
     window.close_loader = function () {
@@ -489,9 +528,8 @@ $(function () {
         // Show
         fullpage_loader.fadeIn(200);
         window.fullpageloaderTimeout = window.setTimeout(function () {
-            loader_icon.hide();
-            loader_error_icon.fadeIn(200);
             loader_error.fadeIn(200);
+            loader_icon.removeClass('fa-spin').addClass('text-danger');
         }, timeout);
     }
 

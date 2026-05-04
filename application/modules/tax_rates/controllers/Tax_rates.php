@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\TaxRates\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Tax_Rates extends \Admin_Controller
+class Tax_Rates extends Admin_Controller
 {
     /**
      * Tax_Rates constructor.
@@ -46,8 +44,6 @@ class Tax_Rates extends \Admin_Controller
         if ($this->input->post('btn_cancel')) {
             redirect('tax_rates');
         }
-
-        $this->filter_input();  // <<<--- filters _POST array for nastiness
 
         if ($this->mdl_tax_rates->run_validation()) {
             $this->mdl_tax_rates->form_values['tax_rate_percent'] = standardize_amount($this->mdl_tax_rates->form_values['tax_rate_percent']);

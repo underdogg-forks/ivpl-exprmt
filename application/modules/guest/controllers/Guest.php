@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Guest\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Guest extends \Guest_Controller
+class Guest extends Guest_Controller
 {
     public function index()
     {

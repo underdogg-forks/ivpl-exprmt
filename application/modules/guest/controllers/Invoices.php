@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Guest\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Invoices extends \Guest_Controller
+class Invoices extends Guest_Controller
 {
     /**
      * Invoices constructor.
@@ -77,7 +75,12 @@ class Invoices extends \Guest_Controller
      */
     public function view($invoice_id): void
     {
-        $invoice = $this->mdl_invoices->where('ip_invoices.invoice_id', $invoice_id)->where_in('ip_invoices.client_id', $this->user_clients)->get()->row();
+        // Security: Apply guest_visible() scope to match PDF generation methods
+        // This prevents access to draft invoices (status_id = 1)
+        $invoice = $this->mdl_invoices->guest_visible()
+            ->where('ip_invoices.invoice_id', $invoice_id)
+            ->where_in('ip_invoices.client_id', $this->user_clients)
+            ->get()->row();
 
         if ( ! $invoice) {
             show_404();

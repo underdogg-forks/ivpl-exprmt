@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Invoices\Models;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Mdl_Invoices_Recurring extends \Response_Model
+class Mdl_Invoices_Recurring extends Response_Model
 {
     public $table = 'ip_invoices_recurring';
 
@@ -65,7 +63,7 @@ class Mdl_Invoices_Recurring extends \Response_Model
 
     public function default_order_by()
     {
-      $this->db->order_by('recur_status ASC, recur_next_date ASC');
+        $this->db->order_by('recur_status ASC, recur_next_date ASC');
     }
 
     public function default_join()
