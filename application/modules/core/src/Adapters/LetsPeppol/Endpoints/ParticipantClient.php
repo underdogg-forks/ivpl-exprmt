@@ -24,9 +24,17 @@ class ParticipantClient
     public function validatePeppolId(string $peppolId): bool
     {
         try {
-            $response = $this->client->request(RequestMethod::GET->value, 'participants.validate', [
+            $options = [
                 'query' => ['peppol_id' => $peppolId],
-            ]);
+            ];
+
+            $token = $this->client->settings('access_token');
+
+            if ($token !== null) {
+                $options['headers'] = ['Authorization' => 'Bearer ' . $token];
+            }
+
+            $response = $this->client->request(RequestMethod::GET->value, 'participants.validate', $options);
 
             return $response->getStatusCode() >= 200 && $response->getStatusCode() < 300;
         } catch (\Throwable $throwable) {
