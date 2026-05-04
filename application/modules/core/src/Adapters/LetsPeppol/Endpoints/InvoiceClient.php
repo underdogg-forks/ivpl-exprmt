@@ -31,7 +31,7 @@ class InvoiceClient
 
         return $this->client->request(RequestMethod::POST->value, 'invoices.send', [
             'headers' => $headers,
-            'json'    => $payload,
+            'json' => $payload,
         ]);
     }
 
