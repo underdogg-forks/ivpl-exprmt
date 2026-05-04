@@ -4,6 +4,7 @@ namespace Core\Gateways\LetsPeppol\Endpoints;
 
 use Core\Contracts\GatewayClientInterface;
 use Core\Enums\RequestMethod;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * LetsPeppol Participant endpoint client.
@@ -118,7 +119,7 @@ class ParticipantEndpoint
     public function search(string $query, ?string $country = null): ResponseInterface
     {
         $headers = $this->gateway->buildHeaders();
-        
+
         $queryParams = ['query' => $query];
         if ($country !== null) {
             $queryParams['country'] = $country;
