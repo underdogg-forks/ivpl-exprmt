@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Import\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Import extends \Admin_Controller
+class Import extends Admin_Controller
 {
     private array $allowed_files = [
         'clients.csv',

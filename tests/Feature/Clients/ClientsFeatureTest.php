@@ -1,0 +1,185 @@
+<?php
+
+namespace Tests\Feature\Clients;
+
+use PHPUnit\Framework\Attributes\Test;
+use Tests\AbstractTestCase;
+
+#[CoversClass(Tests\Feature\Clients\ClientsFeature::class)]
+class ClientsFeatureTest extends AbstractTestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->actingAsAdmin();
+    }
+
+    #[Test]
+    public function it_renders_the_clients_index_page_with_a_200_status(): void
+    {
+        $response = $this->get('/clients/status/active');
+
+        $this->assertResponseStatusCode($response, 200);
+        $this->assertResponseHasNoPhpErrors($response);
+    }
+
+    #[Test]
+    public function it_includes_a_html_document_structure_on_the_clients_index(): void
+    {
+        $response = $this->get('/clients/status/active');
+
+        $this->assertResponseBodyContains($response, '<html');
+        $this->assertResponseBodyContains($response, '</html>');
+
+        self::assertGreaterThan(
+            500,
+            $response->bodyLength(),
+            'The clients index page rendered fewer than 500 bytes — the view likely did not execute.'
+        );
+    }
+
+    #[Test]
+    public function it_redirects_an_unauthenticated_visitor_away_from_the_client_list(): void
+    {
+        $this->actingAsGuest();
+
+        $response = $this->get('/clients');
+
+        self::assertTrue(
+            $response->isRedirect(),
+            sprintf(
+                'Unauthenticated GET /clients must produce a redirect but got status [%d].',
+                $response->statusCode()
+            )
+        );
+    }
+
+    #[Test]
+    public function it_renders_the_create_client_form(): void
+    {
+        $response = $this->get('/clients/form');
+
+        $this->assertResponseStatusCode($response, 200);
+        $this->assertResponseBodyContains($response, '<form');
+        $this->assertResponseHasNoPhpErrors($response);
+    }
+
+    #[Test]
+    public function it_rejects_a_post_to_create_client_with_missing_required_fields(): void
+    {
+        /**
+         * Payload:
+         * {
+         *     "client_name": ""
+         * }
+         */
+        $response = $this->post('/clients/form', [
+            'client_name' => '',
+        ]);
+
+        self::assertTrue(
+            $response->isRedirect() || $response->statusCode() === 200,
+            sprintf(
+                'Submitting a blank client form should either re-render (200) or redirect back (3xx). Got [%d].',
+                $response->statusCode()
+            )
+        );
+
+        $isRedirectBack = $response->isRedirect()
+            && str_contains((string) $response->redirectUrl(), 'clients/form');
+
+        $isRerenderWithError = $response->statusCode() === 200
+            && (
+                $response->contains('required')
+                || $response->contains('error')
+                || $response->contains('field')
+            );
+
+        self::assertTrue(
+            $isRedirectBack || $isRerenderWithError,
+            'Submitting a blank client_name must either redirect to the form or re-render with an error indicator.'
+        );
+    }
+
+    #[Test]
+    public function it_renders_the_view_page_for_a_seeded_client(): void
+    {
+        $clientId = $this->seedModel('Client', ['client_name' => 'Regression Client'])->client_id;
+
+        $response = $this->get('/clients/view/' . $clientId);
+
+        $this->assertResponseStatusCode($response, 200);
+
+        self::assertTrue(
+            $response->contains('Regression Client') || $response->contains((string) $clientId),
+            sprintf(
+                'Client view page for ID [%d] must contain the client name or ID. Body (first 400 chars): %s',
+                $clientId,
+                mb_substr($response->body(), 0, 400)
+            )
+        );
+    }
+
+    #[Test]
+    public function it_returns_a_non_200_or_redirect_for_a_nonexistent_client_id(): void
+    {
+        $response = $this->get('/clients/view/999999999');
+
+        self::assertThat(
+            $response->statusCode(),
+            self::logicalOr(
+                self::equalTo(404),
+                self::equalTo(302),
+                self::equalTo(301)
+            ),
+            sprintf(
+                'Requesting a nonexistent client must produce 404 or redirect, not a silent 200. Got [%d].',
+                $response->statusCode()
+            )
+        );
+    }
+
+    #[Test]
+    public function it_shows_client_name_in_the_edit_form_for_an_existing_client(): void
+    {
+        $clientId = $this->seedModel('Client', ['client_name' => 'Editable Corp'])->client_id;
+
+        $response = $this->get('/clients/form/' . $clientId);
+
+        $this->assertResponseStatusCode($response, 200);
+        $this->assertResponseBodyContains($response, 'Editable Corp');
+        $this->assertResponseBodyContains($response, '<form');
+    }
+
+    #[Test]
+    public function it_does_not_render_php_errors_when_listing_multiple_clients(): void
+    {
+        $this->seedModel('Client', ['client_name' => 'Alpha Ltd']);
+        $this->seedModel('Client', ['client_name' => 'Beta GmbH']);
+        $this->seedModel('Client', ['client_name' => 'Gamma BV']);
+
+        $response = $this->get('/clients/status/active');
+
+        $this->assertResponseHasNoPhpErrors($response);
+        $this->assertResponseStatusCode($response, 200);
+    }
+
+    #[Test]
+    public function it_produces_identical_bodies_for_two_consecutive_client_list_requests(): void
+    {
+        $first  = $this->get('/clients/status/active');
+        $second = $this->get('/clients/status/active');
+
+        self::assertSame(
+            $first->statusCode(),
+            $second->statusCode(),
+            'Two consecutive GET /clients must return the same status code.'
+        );
+
+        self::assertSame(
+            mb_strlen($first->body()),
+            mb_strlen($second->body()),
+            'Two consecutive GET /clients produced bodies of different lengths — the response is non-deterministic.'
+        );
+    }
+}

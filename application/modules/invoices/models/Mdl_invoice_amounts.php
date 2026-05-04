@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Invoices\Models;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Mdl_Invoice_Amounts extends \CI_Model
+class Mdl_Invoice_Amounts extends CI_Model
 {
     /**
      * @var int
@@ -126,7 +124,7 @@ class Mdl_Invoice_Amounts extends \CI_Model
             // Set to read-only if applicable
             if (
                 $this->config->item('disable_read_only') == false
-                && $invoice->invoice_status_id           == get_setting('read_only_toggle')
+                && $invoice->invoice_status_id == get_setting('read_only_toggle')
             ) {
                 $this->db->where('invoice_id', $invoice_id);
                 $this->db->set('is_read_only', 1);

@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Dashboard\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Dashboard extends \Admin_Controller
+class Dashboard extends Admin_Controller
 {
     public function index()
     {

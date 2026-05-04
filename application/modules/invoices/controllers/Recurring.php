@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Invoices\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Recurring extends \Admin_Controller
+class Recurring extends Admin_Controller
 {
     /**
      * Recurring constructor.

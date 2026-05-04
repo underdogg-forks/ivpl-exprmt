@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Guest\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Quotes extends \Guest_Controller
+class Quotes extends Guest_Controller
 {
     /**
      * Quotes constructor.
@@ -122,13 +120,13 @@ class Quotes extends \Guest_Controller
     {
         $this->load->helper(['pdf', 'template']);
 
-        $this->mdl_quotes->mark_viewed($quote_id);
-
         $quote = $this->mdl_quotes->guest_visible()->where('ip_quotes.quote_id', $quote_id)->where_in('ip_quotes.client_id', $this->user_clients)->get()->row();
 
         if ( ! $quote) {
             show_404();
         }
+
+        $this->mdl_quotes->mark_viewed($quote_id);
 
         // Security: Validate PDF template to prevent LFI
         if ($quote_template) {

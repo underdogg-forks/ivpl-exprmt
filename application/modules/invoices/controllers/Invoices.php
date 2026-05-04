@@ -1,15 +1,8 @@
 <?php
 
-namespace Modules\Invoices\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
-
-use Core\Services\Integrations\IntegrationSettingsService;
-use Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
-use Core\Services\Integrations\IntegrationProviderFactory;
-use Core\Providers\LetsPeppolProvider;
 
 /*
  * InvoicePlane
@@ -21,7 +14,7 @@ use Core\Providers\LetsPeppolProvider;
  */
 
 #[AllowDynamicProperties]
-class Invoices extends \Admin_Controller
+class Invoices extends Admin_Controller
 {
     /**
      * Invoices constructor.
@@ -358,50 +351,5 @@ class Invoices extends \Admin_Controller
             // Recalculate invoice amounts
             $this->mdl_invoice_amounts->calculate($invoice_id->invoice_id, $global_discount);
         }
-    }
-
-
-    public function send_to_peppol($invoice_id): void
-    {
-        $invoice = $this->mdl_invoices->get_by_id($invoice_id);
-
-        if ( ! $invoice) {
-            show_404();
-        }
-
-        if (empty($invoice->client_peppol_id)) {
-            $this->session->set_flashdata('alert_error', trans('peppol_sent_failed'));
-            redirect('invoices/view/' . $invoice_id);
-        }
-
-        $this->load->model('integrations/mdl_integrations');
-        $this->load->library('crypt');
-
-        $settingsService = new IntegrationSettingsService(
-            $this->mdl_integrations,
-            $this->crypt,
-            new LetsPeppolOAuthProviderFactory()
-        );
-
-        $providerFactory = (new IntegrationProviderFactory())
-            ->register('letspeppol', fn () => new LetsPeppolProvider($settingsService));
-
-        // ExceptionHandlingDecorator (applied automatically by IntegrationProviderFactory::make())
-        // catches any provider-level exception and returns false — no manual try/catch needed.
-        $isSent = $providerFactory->make('letspeppol')->sendInvoice([
-            'invoice_id'      => $invoice->invoice_id,
-            'invoice_number'  => $invoice->invoice_number,
-            'client_peppol_id' => $invoice->client_peppol_id,
-            'invoice_total'   => $invoice->invoice_total,
-            'currency_code'   => $invoice->invoice_currency_code,
-        ]);
-
-        $this->mdl_integrations->log('letspeppol', 'invoices.send', $isSent ? 'success' : 'failed', [
-            'invoice_id' => $invoice_id,
-        ]);
-
-        $this->session->set_flashdata($isSent ? 'alert_success' : 'alert_error', trans($isSent ? 'peppol_sent_successfully' : 'peppol_sent_failed'));
-
-        redirect('invoices/view/' . $invoice_id);
     }
 }

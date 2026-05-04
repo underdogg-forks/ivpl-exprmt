@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Projects\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Projects extends \Admin_Controller
+class Projects extends Admin_Controller
 {
     /**
      * Projects constructor.
@@ -53,8 +51,6 @@ class Projects extends \Admin_Controller
         if ($this->input->post('btn_cancel')) {
             redirect('projects');
         }
-
-        $this->filter_input();  // <<<--- filters _POST array for nastiness
 
         if ($this->mdl_projects->run_validation()) {
             $this->mdl_projects->save($id);

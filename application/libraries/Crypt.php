@@ -14,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Crypt implements \Core\Contracts\CryptInterface
+class Crypt
 {
     public function salt(): string
     {
@@ -27,7 +27,6 @@ class Crypt implements \Core\Contracts\CryptInterface
 
     /**
      * @param string $password
-     *
      */
     public function generate_password($password, string $salt): string
     {
@@ -46,6 +45,26 @@ class Crypt implements \Core\Contracts\CryptInterface
     }
 
     /**
+     * @param string $data
+     */
+    public function encode($data): string
+    {
+        return Cryptor::Encrypt($data, $this->getEncryptionKey());
+    }
+
+    /**
+     * @param string $data
+     */
+    public function decode($data): string
+    {
+        if (empty($data)) {
+            return '';
+        }
+
+        return Cryptor::Decrypt($data, $this->getEncryptionKey());
+    }
+
+    /**
      * Get the encryption key, decoding if it's base64-encoded.
      *
      * @return string The encryption key
@@ -58,25 +77,5 @@ class Crypt implements \Core\Contracts\CryptInterface
         }
 
         return $key;
-    }
-
-    /**
-     * @param string $data
-     */
-    public function encode(string $data): string
-    {
-        return Cryptor::Encrypt($data, $this->getEncryptionKey());
-    }
-
-    /**
-     * @param string $data
-     */
-    public function decode(string $data): string
-    {
-        if (empty($data)) {
-            return '';
-        }
-
-        return Cryptor::Decrypt($data, $this->getEncryptionKey());
     }
 }

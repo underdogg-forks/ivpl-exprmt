@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Units\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Units extends \Admin_Controller
+class Units extends Admin_Controller
 {
     /**
      * Units constructor.
@@ -47,11 +45,9 @@ class Units extends \Admin_Controller
             redirect('units');
         }
 
-        $this->filter_input();  // <<<--- filters _POST array for nastiness
-
         if (
             $this->input->post('is_update') == 0
-            && $this->input->post('unit_name')      != ''
+            && $this->input->post('unit_name') != ''
             && $this->input->post('unit_name_plrl') != ''
         ) {
             $check = $this->db->get_where('ip_units', ['unit_name' => $this->input->post('unit_name')])->result();

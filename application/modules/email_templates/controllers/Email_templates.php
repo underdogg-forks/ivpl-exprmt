@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\EmailTemplates\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Email_Templates extends \Admin_Controller
+class Email_Templates extends Admin_Controller
 {
     /**
      * Email_Templates constructor.
@@ -46,8 +44,6 @@ class Email_Templates extends \Admin_Controller
         if ($this->input->post('btn_cancel')) {
             redirect('email_templates');
         }
-
-        $this->filter_input();  // <<<--- filters _POST array for nastiness
 
         if ($this->input->post('is_update') == 0 && $this->input->post('email_template_title') != '') {
             $check = $this->db->get_where('ip_email_templates', ['email_template_title' => $this->input->post('email_template_title')])->result();

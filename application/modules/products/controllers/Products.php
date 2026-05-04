@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Products\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Products extends \Admin_Controller
+class Products extends Admin_Controller
 {
     /**
      * Products constructor.
@@ -53,8 +51,6 @@ class Products extends \Admin_Controller
         if ($this->input->post('btn_cancel')) {
             redirect('products');
         }
-
-        $this->filter_input();  // <<<--- filters _POST array for nastiness
 
         if ($this->mdl_products->run_validation()) {
             // Get the db array

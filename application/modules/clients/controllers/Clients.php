@@ -1,16 +1,8 @@
 <?php
 
-namespace Modules\Clients\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
-
-use Core\Services\Integrations\IntegrationSettingsService;
-use Core\Adapters\LetsPeppol\Auth\LetsPeppolOAuthProviderFactory;
-use Core\Services\Integrations\IntegrationProviderFactory;
-use Core\Providers\LetsPeppolProvider;
-use Core\Services\Clients\ClientsService;
 
 /*
  * InvoicePlane
@@ -22,7 +14,7 @@ use Core\Services\Clients\ClientsService;
  */
 
 #[AllowDynamicProperties]
-class Clients extends \Admin_Controller
+class Clients extends Admin_Controller
 {
     private const CLIENT_TITLE = 'client_title';
 
@@ -89,7 +81,6 @@ class Clients extends \Admin_Controller
         }
 
         $new_client = false;
-        $this->filter_input();  // <<<--- filters _POST array for nastiness
 
         // Set validation rule based on is_update
         if ($this->input->post('is_update') == 0 && $this->input->post('client_name') != '') {
@@ -121,11 +112,6 @@ class Clients extends \Admin_Controller
             }
 
             $id = $this->mdl_clients->save($id);
-
-            $clientPeppolId = trim((string) $this->input->post('client_peppol_id'));
-            if ($clientPeppolId !== '') {
-                $this->validate_peppol_id($clientPeppolId);
-            }
 
             if ($new_client) {
                 $this->load->model('user_clients/mdl_user_clients');
@@ -417,29 +403,5 @@ class Clients extends \Admin_Controller
         }
 
         return $client;
-    }
-
-
-    private function validate_peppol_id(string $peppolId): void
-    {
-        $this->load->model('integrations/mdl_integrations');
-        $this->load->library('crypt');
-
-        $settingsService = new IntegrationSettingsService(
-            $this->mdl_integrations,
-            $this->crypt,
-            new LetsPeppolOAuthProviderFactory()
-        );
-
-        $providerFactory = (new IntegrationProviderFactory())
-            ->register('letspeppol', fn () => new LetsPeppolProvider($settingsService));
-
-        $clientsService = new ClientsService($providerFactory, $this->mdl_integrations);
-
-        // ExceptionHandlingDecorator (applied automatically by IntegrationProviderFactory::make())
-        // ensures any provider-level exception is caught and logged — no manual try/catch needed.
-        if ( ! $clientsService->validatePeppolId($peppolId)) {
-            $this->session->set_flashdata('alert_error', trans('peppol_validation_failed'));
-        }
     }
 }

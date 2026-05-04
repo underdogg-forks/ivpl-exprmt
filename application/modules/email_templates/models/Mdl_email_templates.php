@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\EmailTemplates\Models;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Mdl_Email_Templates extends \Response_Model
+class Mdl_Email_Templates extends Response_Model
 {
     public $table = 'ip_email_templates';
 

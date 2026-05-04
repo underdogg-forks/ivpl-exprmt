@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\InvoiceGroups\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Invoice_Groups extends \Admin_Controller
+class Invoice_Groups extends Admin_Controller
 {
     /**
      * Invoice_Groups constructor.
@@ -46,8 +44,6 @@ class Invoice_Groups extends \Admin_Controller
         if ($this->input->post('btn_cancel')) {
             redirect('invoice_groups');
         }
-
-        $this->filter_input();  // <<<--- filters _POST array for nastiness
 
         if ($this->mdl_invoice_groups->run_validation()) {
             $this->mdl_invoice_groups->save($id);

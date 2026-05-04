@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Tasks\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Tasks extends \Admin_Controller
+class Tasks extends Admin_Controller
 {
     /**
      * Tasks constructor.
@@ -54,8 +52,6 @@ class Tasks extends \Admin_Controller
         if ($this->input->post('btn_cancel')) {
             redirect('tasks');
         }
-
-        $this->filter_input();  // <<<--- filters _POST array for nastiness
 
         if ($this->mdl_tasks->run_validation()) {
             $this->mdl_tasks->save($id);

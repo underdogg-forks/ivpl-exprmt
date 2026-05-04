@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\Clients\Models;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Mdl_Clients extends \Response_Model
+class Mdl_Clients extends Response_Model
 {
     public $table = 'ip_clients';
 
@@ -33,7 +31,11 @@ class Mdl_Clients extends \Response_Model
 
     public function default_order_by(): void
     {
-        $this->db->order_by('ip_clients.client_name');
+        if (get_setting('sort_clients_by_surname') == '1') {
+            $this->db->order_by('ip_clients.client_surname');
+        } else {
+            $this->db->order_by('ip_clients.client_name');
+        }
     }
 
     public function validation_rules()
@@ -102,11 +104,6 @@ class Mdl_Clients extends \Response_Model
             ],
             'client_tax_code' => [
                 'field' => 'client_tax_code',
-            ],
-            'client_peppol_id' => [
-                'field' => 'client_peppol_id',
-                'label' => trans('client_peppol_id'),
-                'rules' => 'trim|max_length[255]',
             ],
             'client_invoicing_contact' => [
                 'field' => 'client_invoicing_contact',

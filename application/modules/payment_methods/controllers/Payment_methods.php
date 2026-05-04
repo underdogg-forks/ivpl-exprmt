@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\PaymentMethods\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class Payment_Methods extends \Admin_Controller
+class Payment_Methods extends Admin_Controller
 {
     /**
      * Payment_Methods constructor.
@@ -46,8 +44,6 @@ class Payment_Methods extends \Admin_Controller
         if ($this->input->post('btn_cancel')) {
             redirect('payment_methods');
         }
-
-        $this->filter_input();  // <<<--- filters _POST array for nastiness
 
         if ($this->input->post('is_update') == 0 && $this->input->post('payment_method_name') != '') {
             $check = $this->db->get_where('ip_payment_methods', ['payment_method_name' => $this->input->post('payment_method_name')])->result();

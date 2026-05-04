@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\UserClients\Controllers;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
@@ -16,7 +14,7 @@ if ( ! defined('BASEPATH')) {
  */
 
 #[AllowDynamicProperties]
-class User_Clients extends \Admin_Controller
+class User_Clients extends Admin_Controller
 {
     /**
      * Custom_Values constructor.

@@ -1,7 +1,5 @@
 <?php
 
-namespace Modules\CustomValues\Models;
-
 if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
