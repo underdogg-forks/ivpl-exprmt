@@ -29,9 +29,9 @@ class FakeInvoiceClient extends InvoiceClient
         $this->succeeds = $succeeds;
     }
 
-    public function sendInvoice(string $accessToken, array $payload): FakeResponse
+    public function sendInvoice(array $payload): FakeResponse
     {
-        $this->sent[] = ['token' => $accessToken, 'payload' => $payload];
+        $this->sent[] = ['token' => '', 'payload' => $payload];
 
         return new FakeResponse($this->succeeds ? 200 : 422);
     }

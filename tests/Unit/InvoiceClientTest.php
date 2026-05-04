@@ -21,15 +21,14 @@ class InvoiceClientTest extends TestCase
         $client        = new LetsPeppolClient($http, 'https://api.test', ['invoices.send' => 'api/invoices']);
         $invoiceClient = new InvoiceClient($client);
 
-        $response = $invoiceClient->sendInvoice('token-123', ['invoice_id' => 99]);
+        $response = $invoiceClient->sendInvoice(['invoice_id' => 99]);
 
         $this->assertSame(200, $response->getStatusCode());
 
         $http->assertRequestMade('POST', 'https://api.test/api/invoices');
 
         $lastRequest = end($http->requests);
-        $this->assertSame('Bearer token-123', $lastRequest['options']['headers']['Authorization']);
-        $this->assertSame(99, $lastRequest['options']['json']['invoice_id']);
+                $this->assertSame(99, $lastRequest['options']['json']['invoice_id']);
     }
 
     /**
@@ -42,7 +41,7 @@ class InvoiceClientTest extends TestCase
     {
         $fake = new Tests\Fakes\FakeInvoiceClient(true);
 
-        $fake->sendInvoice('tok', ['invoice_id' => 42, 'invoice_number' => 'INV-42']);
+        $fake->sendInvoice(['invoice_id' => 42, 'invoice_number' => 'INV-42']);
 
         $fake->assertInvoiceSent(['invoice_id' => 42]);
         $this->assertSame('INV-42', $fake->lastPayload()['invoice_number']);
