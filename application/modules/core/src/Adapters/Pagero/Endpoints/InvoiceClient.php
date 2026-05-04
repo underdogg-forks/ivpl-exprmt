@@ -13,24 +13,6 @@ class InvoiceClient
     }
 
     /**
-     * Build authentication headers for requests.
-     *
-     * Response headers JSON:
-     * {"Authorization":"Bearer <token>"}
-     */
-    private function buildAuthHeaders(): array
-    {
-        $headers = ['Accept' => 'application/json'];
-        $token = $this->client->settings('access_token');
-
-        if ($token !== null) {
-            $headers['Authorization'] = 'Bearer ' . $token;
-        }
-
-        return $headers;
-    }
-
-    /**
      * Request JSON:
      * {"invoice_id":1}
      *
@@ -40,7 +22,7 @@ class InvoiceClient
     public function sendInvoice(array $payload): ResponseInterface
     {
         return $this->client->request(RequestMethod::POST->value, 'invoices.send', [
-            'headers' => $this->buildAuthHeaders(),
+            'headers' => $this->client->buildAuthHeaders(),
             'json' => $payload,
         ]);
     }
@@ -55,7 +37,7 @@ class InvoiceClient
     public function getStatus(int $invoiceId): ResponseInterface
     {
         return $this->client->request(RequestMethod::GET->value, 'invoices.status', [
-            'headers' => $this->buildAuthHeaders(),
+            'headers' => $this->client->buildAuthHeaders(),
             'query' => ['invoice_id' => $invoiceId],
         ]);
     }
@@ -76,7 +58,7 @@ class InvoiceClient
         }
 
         return $this->client->request(RequestMethod::POST->value, 'invoices.cancel', [
-            'headers' => $this->buildAuthHeaders(),
+            'headers' => $this->client->buildAuthHeaders(),
             'json' => $payload,
         ]);
     }
@@ -97,7 +79,7 @@ class InvoiceClient
         }
 
         return $this->client->request(RequestMethod::POST->value, 'invoices.resend', [
-            'headers' => $this->buildAuthHeaders(),
+            'headers' => $this->client->buildAuthHeaders(),
             'json' => $payload,
         ]);
     }

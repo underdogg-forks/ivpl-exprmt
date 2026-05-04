@@ -13,24 +13,6 @@ class ParticipantClient
     }
 
     /**
-     * Build authentication headers for requests.
-     *
-     * Response headers JSON:
-     * {"Authorization":"Bearer <token>"}
-     */
-    private function buildAuthHeaders(): array
-    {
-        $headers = ['Accept' => 'application/json'];
-        $token = $this->client->settings('access_token');
-
-        if ($token !== null) {
-            $headers['Authorization'] = 'Bearer ' . $token;
-        }
-
-        return $headers;
-    }
-
-    /**
      * Validate participant in Peppol registry.
      *
      * Request query JSON:
@@ -43,7 +25,7 @@ class ParticipantClient
     {
         try {
             $response = $this->client->request(RequestMethod::GET->value, 'participants.validate', [
-                'headers' => $this->buildAuthHeaders(),
+                'headers' => $this->client->buildAuthHeaders(),
                 'query' => ['peppol_id' => $peppolId],
             ]);
 
