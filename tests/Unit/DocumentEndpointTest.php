@@ -170,19 +170,27 @@ class DocumentEndpointTest extends TestCase
     #[Test]
     public function it_validates_document_fixtures_format(): void
     {
-        $get = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/document_get.json'), true);
+        $getJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/document_get.json');
+        $this->assertNotFalse($getJson);
+        $get = json_decode($getJson, true);
         $this->assertIsArray($get);
         $this->assertArrayHasKey('document_id', $get);
 
-        $metadata = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/document_metadata.json'), true);
+        $metadataJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/document_metadata.json');
+        $this->assertNotFalse($metadataJson);
+        $metadata = json_decode($metadataJson, true);
         $this->assertIsArray($metadata);
         $this->assertArrayHasKey('metadata', $metadata);
 
-        $list = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/document_list.json'), true);
+        $listJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/document_list.json');
+        $this->assertNotFalse($listJson);
+        $list = json_decode($listJson, true);
         $this->assertIsArray($list);
         $this->assertArrayHasKey('documents', $list);
 
-        $archived = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/document_archived.json'), true);
+        $archivedJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/document_archived.json');
+        $this->assertNotFalse($archivedJson);
+        $archived = json_decode($archivedJson, true);
         $this->assertIsArray($archived);
         $this->assertSame('archived', $archived['status']);
     }

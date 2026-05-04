@@ -153,27 +153,39 @@ class TransmissionEndpointTest extends TestCase
     #[Test]
     public function it_validates_transmission_fixtures_format(): void
     {
-        $delivered = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_status_delivered.json'), true);
+        $deliveredJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_status_delivered.json');
+        $this->assertNotFalse($deliveredJson);
+        $delivered = json_decode($deliveredJson, true);
         $this->assertIsArray($delivered);
         $this->assertSame('delivered', $delivered['status']);
 
-        $failed = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_status_failed.json'), true);
+        $failedJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_status_failed.json');
+        $this->assertNotFalse($failedJson);
+        $failed = json_decode($failedJson, true);
         $this->assertIsArray($failed);
         $this->assertSame('failed', $failed['status']);
 
-        $receipt = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_receipt.json'), true);
+        $receiptJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_receipt.json');
+        $this->assertNotFalse($receiptJson);
+        $receipt = json_decode($receiptJson, true);
         $this->assertIsArray($receipt);
         $this->assertArrayHasKey('receipt_status', $receipt);
 
-        $errors = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_errors.json'), true);
+        $errorsJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_errors.json');
+        $this->assertNotFalse($errorsJson);
+        $errors = json_decode($errorsJson, true);
         $this->assertIsArray($errors);
         $this->assertArrayHasKey('error_code', $errors);
 
-        $list = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_list.json'), true);
+        $listJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_list.json');
+        $this->assertNotFalse($listJson);
+        $list = json_decode($listJson, true);
         $this->assertIsArray($list);
         $this->assertArrayHasKey('transmissions', $list);
 
-        $retry = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_retry.json'), true);
+        $retryJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/transmission_retry.json');
+        $this->assertNotFalse($retryJson);
+        $retry = json_decode($retryJson, true);
         $this->assertIsArray($retry);
         $this->assertArrayHasKey('new_transmission_id', $retry);
     }

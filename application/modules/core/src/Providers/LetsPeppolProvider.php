@@ -59,8 +59,9 @@ class LetsPeppolProvider implements IntegrationProviderInterface
             return false;
         }
 
+        $settings['access_token'] = $token;
         $client   = $this->clientFactory->create($settings['base_url'], $settings);
-        $response = (new InvoiceClient($client))->sendInvoice($token, $payload);
+        $response = (new InvoiceClient($client))->sendInvoice($payload);
 
         return $response->getStatusCode() >= 200 && $response->getStatusCode() < 300;
     }

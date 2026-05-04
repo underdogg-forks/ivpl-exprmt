@@ -205,15 +205,21 @@ class ParticipantEndpointTest extends TestCase
     #[Test]
     public function it_validates_new_participant_fixtures_format(): void
     {
-        $details = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/participant_details.json'), true);
+        $detailsJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/participant_details.json');
+        $this->assertNotFalse($detailsJson);
+        $details = json_decode($detailsJson, true);
         $this->assertIsArray($details);
         $this->assertArrayHasKey('peppol_id', $details);
 
-        $search = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/participant_search.json'), true);
+        $searchJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/participant_search.json');
+        $this->assertNotFalse($searchJson);
+        $search = json_decode($searchJson, true);
         $this->assertIsArray($search);
         $this->assertArrayHasKey('participants', $search);
 
-        $capabilities = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/participant_capabilities.json'), true);
+        $capabilitiesJson = file_get_contents(__DIR__ . '/../Fixtures/LetsPeppol/participant_capabilities.json');
+        $this->assertNotFalse($capabilitiesJson);
+        $capabilities = json_decode($capabilitiesJson, true);
         $this->assertIsArray($capabilities);
         $this->assertArrayHasKey('document_types', $capabilities);
     }
