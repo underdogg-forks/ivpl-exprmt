@@ -19,7 +19,10 @@ class StoreCoveClient
      * Generic transport method used by endpoint clients.
      *
      * Request options may include JSON body, query, headers, etc.
-     * Response is the raw PSR-7 response object from Guzzle.
+     * Returns the raw PSR-7 response object from the underlying HTTP client
+     * when a response is returned. Depending on client configuration, HTTP
+     * error responses such as 4xx/5xx may throw instead of returning a
+     * ResponseInterface.
      */
     public function request(string $method, string $endpointOrPath, array $options = []): ResponseInterface
     {

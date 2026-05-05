@@ -19,11 +19,18 @@ class PageroClient
      * Generic transport method used by endpoint clients.
      *
      * Request options may include JSON body, query, headers, etc.
-     * Response is the raw PSR-7 response object from Guzzle.
+     * Returns the raw PSR-7 response object when the underlying client does not
+     * throw. With default Guzzle behavior, HTTP 4xx/5xx responses may raise an
+     * exception instead of returning a response.
+     *
+     * @throws \GuzzleHttp\Exception\GuzzleException
      */
     public function request(string $method, string $endpointOrPath, array $options = []): ResponseInterface
     {
         $path = $this->endpoints[$endpointOrPath] ?? $endpointOrPath;
+
+        // Auth and Accept headers are always applied; caller-supplied headers take precedence.
+        $options['headers'] = array_merge($this->buildAuthHeaders(), $options['headers'] ?? []);
 
         return $this->httpClient->request($method, rtrim($this->baseUrl, '/') . '/' . ltrim($path, '/'), $options);
     }
@@ -39,7 +46,7 @@ class PageroClient
 
         $token = $this->settings('access_token');
 
-        if ($token !== null) {
+        if (!empty($token)) {
             $headers['Authorization'] = 'Bearer ' . $token;
         }
 
