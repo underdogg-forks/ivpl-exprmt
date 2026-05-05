@@ -127,9 +127,9 @@ class PageroGatewayClient extends ApiClient
 
             log_message('debug', 'Pagero authorization completed');
         } catch (ClientException $e) {
-            log_message('error', 'Pagero authorization failed: ' . $this->sanitize($e->getMessage()));
+            log_message('error', 'Pagero authorization failed (oauth_client_exception)');
         } catch (\Throwable $e) {
-            log_message('error', 'Pagero authorization error: ' . $this->sanitize($e->getMessage()));
+            log_message('error', 'Pagero authorization error (unexpected_exception)');
         }
     }
 

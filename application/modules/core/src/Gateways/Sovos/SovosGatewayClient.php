@@ -127,9 +127,9 @@ class SovosGatewayClient extends ApiClient
 
             log_message('debug', 'Sovos authorization completed');
         } catch (ClientException $e) {
-            log_message('error', 'Sovos authorization failed: ' . $this->sanitize($e->getMessage()));
+            log_message('error', 'Sovos authorization failed (oauth_client_exception)');
         } catch (\Throwable $e) {
-            log_message('error', 'Sovos authorization error: ' . $this->sanitize($e->getMessage()));
+            log_message('error', 'Sovos authorization error (unexpected_exception)');
         }
     }
 
