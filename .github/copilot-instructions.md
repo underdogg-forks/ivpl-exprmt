@@ -151,3 +151,33 @@ $response = $this->post('/endpoint', ['key' => 'value']);
 - Add payload blocks when writing new tests.
 - GET calls with no parameters do not require a payload block.
 - Do not duplicate blocks (if one already exists, do not add another).
+
+## Test Generation Rules
+
+When generating tests:
+
+- Prefer Fakes over Mocks
+- Use Fixtures for all data
+- Assert final outputs, not internal calls
+- Include failure cases
+
+---
+
+## Strict Rule
+
+Do not generate a test unless:
+
+- It verifies behavior
+- It would fail on regression
+
+---
+
+## Example of INVALID test
+
+assertTrue(true)
+
+## Example of VALID test
+
+- Asserts transformed DTO values
+- Asserts API request payload
+- Asserts error handling behavior
