@@ -9,7 +9,12 @@ class PageroOAuthProviderFactory
 {
     public function make(IntegrationCredentials $credentials, string $baseUrl): GenericProvider
     {
-        if (empty($baseUrl) || filter_var($baseUrl, FILTER_VALIDATE_URL) === false) {
+        $scheme = parse_url($baseUrl, PHP_URL_SCHEME);
+        if (
+            empty($baseUrl)
+            || filter_var($baseUrl, FILTER_VALIDATE_URL) === false
+            || strtolower((string) $scheme) !== 'https'
+        ) {
             throw new \InvalidArgumentException('A valid base URL is required');
         }
 
