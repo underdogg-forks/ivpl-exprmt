@@ -19,7 +19,10 @@ class SovosClient
      * Generic transport method used by endpoint clients.
      *
      * Request options may include JSON body, query, headers, etc.
-     * Response is the raw PSR-7 response object from Guzzle.
+     * Returns the raw PSR-7 response object when the HTTP client does not
+     * convert the response into an exception. With Guzzle's default
+     * `http_errors` behavior, 4xx and 5xx responses will throw instead of
+     * returning a response object.
      */
     public function request(string $method, string $endpointOrPath, array $options = []): ResponseInterface
     {

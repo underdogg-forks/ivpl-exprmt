@@ -39,7 +39,7 @@ class LetsPeppolClient
 
         $token = $this->settings('access_token');
 
-        if ($token !== null) {
+        if (!empty($token)) {
             $headers['Authorization'] = 'Bearer ' . $token;
         }
 
