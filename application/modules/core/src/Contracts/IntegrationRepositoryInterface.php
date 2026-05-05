@@ -47,6 +47,14 @@ interface IntegrationRepositoryInterface
     public function activeToken(string $provider): ?string;
 
     /**
+     * Remove any cached tokens for the given provider.
+     *
+     * Call this after updating credentials so the next request fetches a
+     * fresh token rather than using the now-stale one.
+     */
+    public function invalidateToken(string $provider): void;
+
+    /**
      * Append an audit log entry for a provider action.
      *
      * @param array<string, mixed> $context  Arbitrary key/value data to store with the log entry.

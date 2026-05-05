@@ -92,6 +92,11 @@ class FakeIntegrationRepository implements IntegrationRepositoryInterface
         return $this->tokens[$provider] ?? null;
     }
 
+    public function invalidateToken(string $provider): void
+    {
+        $this->tokens[$provider] = null;
+    }
+
     public function log(string $provider, string $action, string $status, array $context = []): void
     {
         $this->logs[] = compact('provider', 'action', 'status', 'context');

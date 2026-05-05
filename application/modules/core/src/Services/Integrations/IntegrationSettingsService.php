@@ -96,6 +96,7 @@ class IntegrationSettingsService
         }
 
         $this->integrations->saveEncryptedSettings('storecove', $normalized, ['api_key'], $this->crypt);
+        $this->integrations->invalidateToken('storecove');
     }
 
     /**
@@ -133,6 +134,7 @@ class IntegrationSettingsService
         }
 
         $this->integrations->saveEncryptedSettings('pagero', $normalized, ['client_secret'], $this->crypt);
+        $this->integrations->invalidateToken('pagero');
     }
 
     /**
@@ -200,6 +202,7 @@ class IntegrationSettingsService
         }
 
         $this->integrations->saveEncryptedSettings('sovos', $normalized, ['client_secret'], $this->crypt);
+        $this->integrations->invalidateToken('sovos');
     }
 
     /**
