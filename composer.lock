@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8ece5e05d24aa88958045d66af4970f5",
+    "content-hash": "24e6e73b733f9c282cb8cd63855c0cf6",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -392,7 +392,7 @@
                     "homepage": "https://github.com/Nyholm"
                 },
                 {
-                    "name": "Márk Sági-Kazár",
+                    "name": "M\u00e1rk S\u00e1gi-Kaz\u00e1r",
                     "email": "mark.sagikazar@gmail.com",
                     "homepage": "https://github.com/sagikazarmark"
                 },
@@ -588,7 +588,7 @@
                     "homepage": "https://github.com/Nyholm"
                 },
                 {
-                    "name": "Márk Sági-Kazár",
+                    "name": "M\u00e1rk S\u00e1gi-Kaz\u00e1r",
                     "email": "mark.sagikazar@gmail.com",
                     "homepage": "https://github.com/sagikazarmark"
                 },
@@ -598,7 +598,7 @@
                     "homepage": "https://github.com/Tobion"
                 },
                 {
-                    "name": "Márk Sági-Kazár",
+                    "name": "M\u00e1rk S\u00e1gi-Kaz\u00e1r",
                     "email": "mark.sagikazar@gmail.com",
                     "homepage": "https://sagikazarmark.hu"
                 }
@@ -633,6 +633,65 @@
                 }
             ],
             "time": "2026-03-10T16:41:02+00:00"
+        },
+        {
+            "name": "league/oauth2-client",
+            "version": "2.9.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/thephpleague/oauth2-client.git",
+                "reference": "26e8c5da4f3d78cede7021e09b1330a0fc093d5e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/thephpleague/oauth2-client/zipball/26e8c5da4f3d78cede7021e09b1330a0fc093d5e",
+                "reference": "26e8c5da4f3d78cede7021e09b1330a0fc093d5e",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.1 || >=8.0.0 <8.6.0",
+                "ext-json": "*",
+                "guzzlehttp/guzzle": "^6.5.8 || ^7.4.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "League\\OAuth2\\Client\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Alex Bilbie",
+                    "email": "hello@alexbilbie.com",
+                    "homepage": "http://www.alexbilbie.com",
+                    "role": "Developer"
+                },
+                {
+                    "name": "Woody Gilk",
+                    "homepage": "https://github.com/shadowhand",
+                    "role": "Contributor"
+                }
+            ],
+            "description": "OAuth 2.0 Client Library",
+            "keywords": [
+                "authorization",
+                "Authentication",
+                "oauth",
+                "oauth2",
+                "SSO",
+                "identity",
+                "idp",
+                "single sign on"
+            ],
+            "support": {
+                "issues": "https://github.com/thephpleague/oauth2-client/issues",
+                "source": "https://github.com/thephpleague/oauth2-client/tree/2.9.0"
+            },
+            "time": "2025-11-25T22:17:17+00:00"
         },
         {
             "name": "moneyphp/money",
@@ -703,7 +762,7 @@
                     "homepage": "http://verraes.net"
                 },
                 {
-                    "name": "Márk Sági-Kazár",
+                    "name": "M\u00e1rk S\u00e1gi-Kaz\u00e1r",
                     "email": "mark.sagikazar@gmail.com"
                 },
                 {
@@ -778,7 +837,7 @@
             ],
             "authors": [
                 {
-                    "name": "Matěj Humpál",
+                    "name": "Mat\u011bj Hump\u00e1l",
                     "role": "Developer, maintainer"
                 },
                 {
