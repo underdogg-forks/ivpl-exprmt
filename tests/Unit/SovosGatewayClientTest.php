@@ -1,6 +1,6 @@
 <?php
 
-use Core\Adapters\Sovos\Auth\SovosOAuthProviderFactory;
+use Core\Contracts\OAuthProviderFactoryInterface;
 use Core\Gateways\Sovos\SovosGatewayClient;
 use League\OAuth2\Client\Provider\GenericProvider;
 use League\OAuth2\Client\Token\AccessToken;
@@ -26,7 +26,7 @@ class SovosGatewayClientTest extends TestCase
     {
         /* Arrange */
         $http          = new FakeLetsPeppolHttpClient(200);
-        $oauthFactory  = $this->createMock(SovosOAuthProviderFactory::class);
+        $oauthFactory  = $this->createMock(OAuthProviderFactoryInterface::class);
         $oauthProvider = $this->createMock(GenericProvider::class);
         $accessToken   = new AccessToken(['access_token' => 'sovos-token-xyz', 'expires_in' => 3600]);
 
@@ -67,7 +67,7 @@ class SovosGatewayClientTest extends TestCase
     {
         /* Arrange */
         $http         = new FakeLetsPeppolHttpClient(200);
-        $oauthFactory = $this->createMock(SovosOAuthProviderFactory::class);
+        $oauthFactory = $this->createMock(OAuthProviderFactoryInterface::class);
         $oauthFactory->expects($this->never())->method('make');
 
         /* Act */
@@ -112,7 +112,7 @@ class SovosGatewayClientTest extends TestCase
     {
         /* Arrange */
         $http          = new FakeLetsPeppolHttpClient(200);
-        $oauthFactory  = $this->createMock(SovosOAuthProviderFactory::class);
+        $oauthFactory  = $this->createMock(OAuthProviderFactoryInterface::class);
         $oauthProvider = $this->createMock(GenericProvider::class);
 
         $oauthFactory->expects($this->once())

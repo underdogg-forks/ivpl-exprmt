@@ -91,6 +91,15 @@ class Mdl_integrations extends \CI_Model implements \Core\Contracts\IntegrationR
         $this->db->trans_complete();
     }
 
+    public function invalidateToken(string $provider): void
+    {
+        $row = $this->db->get_where('ip_integrations', ['integration_provider' => $provider])->row();
+
+        if ($row) {
+            $this->db->where('integration_id', $row->integration_id)->delete('ip_integration_tokens');
+        }
+    }
+
     public function activeToken(string $provider): ?string
     {
         $row = $this->db->select('t.token_value, t.expires_at')

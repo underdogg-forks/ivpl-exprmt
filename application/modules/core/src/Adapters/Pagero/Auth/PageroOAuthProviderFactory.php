@@ -2,10 +2,11 @@
 
 namespace Core\Adapters\Pagero\Auth;
 
+use Core\Contracts\OAuthProviderFactoryInterface;
 use Core\Integration\IntegrationCredentials;
 use League\OAuth2\Client\Provider\GenericProvider;
 
-class PageroOAuthProviderFactory
+class PageroOAuthProviderFactory implements OAuthProviderFactoryInterface
 {
     public function make(IntegrationCredentials $credentials, string $baseUrl): GenericProvider
     {
