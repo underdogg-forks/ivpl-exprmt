@@ -170,3 +170,35 @@ $response = $this->post('/endpoint', ['key' => 'value']);
 - Add payload blocks when writing new tests.
 - GET calls with no parameters do not require a payload block.
 - Do not duplicate blocks (if one already exists, do not add another).
+
+## Test Quality Enforcement
+
+Agents must NOT generate weak tests.
+
+A test is invalid if:
+
+- It passes without verifying behavior
+- It only asserts existence or truthiness
+- It relies on mocks instead of real flow
+- It lacks failure-path coverage
+
+---
+
+## Required Test Pattern
+
+Each test must:
+
+1. Arrange using fixtures
+2. Act via real code path
+3. Assert concrete outcome
+
+---
+
+## Failure Requirement
+
+Agents must mentally simulate:
+
+"If I break this logic, will this test fail?"
+
+If not:
+→ rewrite the test
