@@ -16,6 +16,7 @@ class LetsPeppolClientTest extends TestCase
     #[Test]
     public function it_maps_endpoint_keys_to_paths_when_requesting()
     {
+        /* Arrange */
         $response = $this->createMock(ResponseInterface::class);
         $http = $this->createMock(ClientInterface::class);
         $http->expects($this->once())
@@ -25,8 +26,10 @@ class LetsPeppolClientTest extends TestCase
 
         $client = new LetsPeppolClient($http, 'https://api.example.test', ['invoices.send' => 'api/invoices']);
 
+        /* Act */
         $result = $client->request('GET', 'invoices.send', ['query' => ['a' => 1]]);
 
+        /* Assert */
         $this->assertSame($response, $result);
     }
 
@@ -38,10 +41,16 @@ class LetsPeppolClientTest extends TestCase
     #[Test]
     public function it_returns_settings_values_and_defaults()
     {
+        /* Arrange */
         $client = new LetsPeppolClient($this->createMock(ClientInterface::class), 'https://api.example.test', [], ['client_id' => 'abc']);
 
-        $this->assertSame('abc', $client->settings('client_id'));
-        $this->assertSame('fallback', $client->settings('missing', 'fallback'));
+        /* Act */
+        $result1 = $client->settings('client_id');
+        $result2 = $client->settings('missing', 'fallback');
+
+        /* Assert */
+        $this->assertSame('abc', $result1);
+        $this->assertSame('fallback', $result2);
     }
 
     /**
@@ -52,6 +61,7 @@ class LetsPeppolClientTest extends TestCase
     #[Test]
     public function it_builds_auth_headers_with_token()
     {
+        /* Arrange */
         $client = new LetsPeppolClient(
             $this->createMock(ClientInterface::class),
             'https://api.example.test',
@@ -59,8 +69,10 @@ class LetsPeppolClientTest extends TestCase
             ['access_token' => 'test-token-123']
         );
 
+        /* Act */
         $headers = $client->buildAuthHeaders();
 
+        /* Assert */
         $this->assertSame('application/json', $headers['Accept']);
         $this->assertSame('Bearer test-token-123', $headers['Authorization']);
     }
@@ -73,6 +85,7 @@ class LetsPeppolClientTest extends TestCase
     #[Test]
     public function it_builds_auth_headers_without_token()
     {
+        /* Arrange */
         $client = new LetsPeppolClient(
             $this->createMock(ClientInterface::class),
             'https://api.example.test',
@@ -80,8 +93,10 @@ class LetsPeppolClientTest extends TestCase
             []
         );
 
+        /* Act */
         $headers = $client->buildAuthHeaders();
 
+        /* Assert */
         $this->assertSame('application/json', $headers['Accept']);
         $this->assertArrayNotHasKey('Authorization', $headers);
     }
