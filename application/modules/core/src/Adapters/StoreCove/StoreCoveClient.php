@@ -28,6 +28,12 @@ class StoreCoveClient
     {
         $path = $this->endpoints[$endpointOrPath] ?? $endpointOrPath;
 
+        // Merge auth headers with any caller-provided headers (caller headers take precedence)
+        $options['headers'] = array_merge(
+            $this->buildAuthHeaders(),
+            $options['headers'] ?? []
+        );
+
         return $this->httpClient->request($method, rtrim($this->baseUrl, '/') . '/' . ltrim($path, '/'), $options);
     }
 
@@ -42,7 +48,7 @@ class StoreCoveClient
 
         $token = $this->settings('access_token');
 
-        if ($token !== null) {
+        if ($token !== null && trim($token) !== '') {
             $headers['Authorization'] = 'Bearer ' . $token;
         }
 
