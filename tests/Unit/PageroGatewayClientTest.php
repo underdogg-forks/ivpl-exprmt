@@ -1,6 +1,6 @@
 <?php
 
-use Core\Adapters\Pagero\Auth\PageroOAuthProviderFactory;
+use Core\Contracts\OAuthProviderFactoryInterface;
 use Core\Gateways\Pagero\PageroGatewayClient;
 use League\OAuth2\Client\Provider\GenericProvider;
 use League\OAuth2\Client\Token\AccessToken;
@@ -26,7 +26,7 @@ class PageroGatewayClientTest extends TestCase
     {
         /* Arrange */
         $http          = new FakeLetsPeppolHttpClient(200);
-        $oauthFactory  = $this->createMock(PageroOAuthProviderFactory::class);
+        $oauthFactory  = $this->createMock(OAuthProviderFactoryInterface::class);
         $oauthProvider = $this->createMock(GenericProvider::class);
         $accessToken   = new AccessToken(['access_token' => 'pagero-token-xyz', 'expires_in' => 3600]);
 
@@ -67,7 +67,7 @@ class PageroGatewayClientTest extends TestCase
     {
         /* Arrange */
         $http         = new FakeLetsPeppolHttpClient(200);
-        $oauthFactory = $this->createMock(PageroOAuthProviderFactory::class);
+        $oauthFactory = $this->createMock(OAuthProviderFactoryInterface::class);
         $oauthFactory->expects($this->never())->method('make');
 
         /* Act */
@@ -112,7 +112,7 @@ class PageroGatewayClientTest extends TestCase
     {
         /* Arrange */
         $http          = new FakeLetsPeppolHttpClient(200);
-        $oauthFactory  = $this->createMock(PageroOAuthProviderFactory::class);
+        $oauthFactory  = $this->createMock(OAuthProviderFactoryInterface::class);
         $oauthProvider = $this->createMock(GenericProvider::class);
 
         $oauthFactory->expects($this->once())
@@ -172,8 +172,8 @@ class PageroGatewayClientTest extends TestCase
         /* Arrange */
         $http     = new FakeLetsPeppolHttpClient(200);
         $settings = [
-            'client_id'  => 'pagero-id',
-            'base_url'   => 'https://api.pagero.com',
+            'client_id' => 'pagero-id',
+            'base_url'  => 'https://api.pagero.com',
         ];
         $client = new PageroGatewayClient('https://api.pagero.com', $settings, $http);
 

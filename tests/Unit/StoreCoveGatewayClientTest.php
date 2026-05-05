@@ -141,5 +141,6 @@ class StoreCoveGatewayClientTest extends TestCase
         /* Assert */
         $this->assertSame('application/xml', $headers['Content-Type']);
         $this->assertSame('value', $headers['X-Custom']);
+        $this->assertSame('Bearer sk-test', $headers['Authorization']);
     }
 }

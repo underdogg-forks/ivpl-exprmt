@@ -16,11 +16,13 @@ use Tests\Fakes\FakeIntegrationRepository;
  * Pagero, and Sovos via IntegrationSettingsService.
  *
  * Covers:
- *  - Saving and retrieving settings (encryption of secrets/keys)
+ *  - Saving and retrieving settings (encryption of secrets/keys at rest)
+ *  - Read-path: decryption is exercised (seed encrypted, assert plaintext)
  *  - OAuth2 token cache hit (no new token fetched)
  *  - OAuth2 token cache miss (new token fetched and stored)
  *  - Incomplete settings → null returned gracefully
- *  - Preserving existing secret when form submits empty value
+ *  - Preserving existing secret when form submits empty value (exact equality)
+ *  - Token invalidation when credentials are updated
  */
 class GatewayCredentialStorageTest extends TestCase
 {
@@ -68,9 +70,9 @@ class GatewayCredentialStorageTest extends TestCase
     }
 
     /**
-     * Arrange: existing API key in repository.
+     * Arrange: existing API key in repository (stored encrypted).
      * Act: saveStoreCoveSettings is called with empty api_key.
-     * Assert: existing API key is preserved; not overwritten with empty value.
+     * Assert: existing encrypted key is preserved exactly.
      */
     #[Test]
     public function it_preserves_existing_storecove_api_key_when_form_submits_empty(): void
@@ -79,8 +81,9 @@ class GatewayCredentialStorageTest extends TestCase
         $repo  = new FakeIntegrationRepository();
         $crypt = new FakeCrypt();
 
+        $existingEncrypted = base64_encode('existing-key');
         $repo->setSettings('storecove', [
-            'api_key'  => base64_encode('existing-key'),
+            'api_key'  => $existingEncrypted,
             'base_url' => 'https://api.storecove.com',
         ]);
 
@@ -92,25 +95,26 @@ class GatewayCredentialStorageTest extends TestCase
             'base_url' => 'https://api.storecove.com',
         ]);
 
-        /* Assert */
+        /* Assert: stored value is unchanged from the original encrypted value */
         $persisted = $repo->settings['storecove'] ?? [];
-        $this->assertNotEmpty($persisted['api_key'] ?? '');
+        $this->assertSame($existingEncrypted, $persisted['api_key']);
     }
 
     /**
-     * Arrange: repository seeded with StoreCove settings.
+     * Arrange: repository seeded with an encrypted API key.
      * Act: storeCoveSettings is called.
-     * Assert: settings array is returned.
+     * Assert: the returned api_key is the decrypted plaintext value.
      */
     #[Test]
-    public function it_retrieves_storecove_settings(): void
+    public function it_retrieves_and_decrypts_storecove_settings(): void
     {
         /* Arrange */
         $repo  = new FakeIntegrationRepository();
         $crypt = new FakeCrypt();
 
+        // Seed with the encrypted form of the key (base64 via FakeCrypt)
         $repo->setSettings('storecove', [
-            'api_key'  => 'raw-key',
+            'api_key'  => base64_encode('my-secret-api-key'),
             'base_url' => 'https://api.storecove.com',
         ]);
 
@@ -119,9 +123,30 @@ class GatewayCredentialStorageTest extends TestCase
         /* Act */
         $result = $service->storeCoveSettings();
 
-        /* Assert */
-        $this->assertSame('raw-key', $result['api_key']);
+        /* Assert: decrypted back to plaintext */
+        $this->assertSame('my-secret-api-key', $result['api_key']);
         $this->assertSame('https://api.storecove.com', $result['base_url']);
+    }
+
+    /**
+     * Arrange: existing StoreCove settings with active token in cache.
+     * Act: saveStoreCoveSettings is called with new API key.
+     * Assert: cached token is invalidated after settings update.
+     */
+    #[Test]
+    public function it_invalidates_storecove_token_when_settings_are_saved(): void
+    {
+        /* Arrange */
+        $repo  = (new FakeIntegrationRepository())->setActiveToken('storecove', 'stale-token');
+        $crypt = new FakeCrypt();
+
+        $service = $this->makeService($repo, $crypt);
+
+        /* Act */
+        $service->saveStoreCoveSettings(['api_key' => 'new-key', 'base_url' => 'https://api.storecove.com']);
+
+        /* Assert: token was invalidated */
+        $this->assertNull($repo->activeToken('storecove'));
     }
 
     // ── Pagero ────────────────────────────────────────────────────────────────
@@ -152,6 +177,35 @@ class GatewayCredentialStorageTest extends TestCase
         $this->assertSame('pagero-client-id', $persisted['client_id']);
         $this->assertSame(base64_encode('pagero-secret'), $persisted['client_secret']);
         $this->assertSame('https://api.pagero.com', $persisted['base_url']);
+    }
+
+    /**
+     * Arrange: repository seeded with an encrypted Pagero client secret.
+     * Act: pageroSettings is called.
+     * Assert: the returned client_secret is the decrypted plaintext value.
+     */
+    #[Test]
+    public function it_retrieves_and_decrypts_pagero_settings(): void
+    {
+        /* Arrange */
+        $repo  = new FakeIntegrationRepository();
+        $crypt = new FakeCrypt();
+
+        $repo->setSettings('pagero', [
+            'client_id'     => 'pagero-id',
+            'client_secret' => base64_encode('pagero-plaintext-secret'),
+            'base_url'      => 'https://api.pagero.com',
+        ]);
+
+        $service = $this->makeService($repo, $crypt);
+
+        /* Act */
+        $result = $service->pageroSettings();
+
+        /* Assert: decrypted back to plaintext */
+        $this->assertSame('pagero-id', $result['client_id']);
+        $this->assertSame('pagero-plaintext-secret', $result['client_secret']);
+        $this->assertSame('https://api.pagero.com', $result['base_url']);
     }
 
     /**
@@ -246,9 +300,9 @@ class GatewayCredentialStorageTest extends TestCase
     }
 
     /**
-     * Arrange: existing Pagero secret in repository.
+     * Arrange: existing Pagero secret in repository (stored encrypted).
      * Act: savePageroSettings is called with empty client_secret.
-     * Assert: existing secret is preserved.
+     * Assert: existing encrypted secret is preserved exactly.
      */
     #[Test]
     public function it_preserves_existing_pagero_secret_when_form_submits_empty(): void
@@ -257,9 +311,10 @@ class GatewayCredentialStorageTest extends TestCase
         $repo  = new FakeIntegrationRepository();
         $crypt = new FakeCrypt();
 
+        $existingEncrypted = base64_encode('existing-pagero-secret');
         $repo->setSettings('pagero', [
             'client_id'     => 'pagero-id',
-            'client_secret' => base64_encode('existing-pagero-secret'),
+            'client_secret' => $existingEncrypted,
             'base_url'      => 'https://api.pagero.com',
         ]);
 
@@ -272,9 +327,34 @@ class GatewayCredentialStorageTest extends TestCase
             'base_url'      => 'https://api.pagero.com',
         ]);
 
-        /* Assert */
+        /* Assert: stored value is unchanged from the original encrypted value */
         $persisted = $repo->settings['pagero'] ?? [];
-        $this->assertNotEmpty($persisted['client_secret'] ?? '');
+        $this->assertSame($existingEncrypted, $persisted['client_secret']);
+    }
+
+    /**
+     * Arrange: existing Pagero settings with active token.
+     * Act: savePageroSettings is called with updated credentials.
+     * Assert: cached token is invalidated after settings update.
+     */
+    #[Test]
+    public function it_invalidates_pagero_token_when_settings_are_saved(): void
+    {
+        /* Arrange */
+        $repo  = (new FakeIntegrationRepository())->setActiveToken('pagero', 'stale-pagero-token');
+        $crypt = new FakeCrypt();
+
+        $service = $this->makeService($repo, $crypt);
+
+        /* Act */
+        $service->savePageroSettings([
+            'client_id'     => 'new-id',
+            'client_secret' => 'new-secret',
+            'base_url'      => 'https://api.pagero.com',
+        ]);
+
+        /* Assert */
+        $this->assertNull($repo->activeToken('pagero'));
     }
 
     // ── Sovos ─────────────────────────────────────────────────────────────────
@@ -305,6 +385,35 @@ class GatewayCredentialStorageTest extends TestCase
         $this->assertSame('sovos-client-id', $persisted['client_id']);
         $this->assertSame(base64_encode('sovos-secret'), $persisted['client_secret']);
         $this->assertSame('https://api.sovos.com', $persisted['base_url']);
+    }
+
+    /**
+     * Arrange: repository seeded with an encrypted Sovos client secret.
+     * Act: sovosSettings is called.
+     * Assert: the returned client_secret is the decrypted plaintext value.
+     */
+    #[Test]
+    public function it_retrieves_and_decrypts_sovos_settings(): void
+    {
+        /* Arrange */
+        $repo  = new FakeIntegrationRepository();
+        $crypt = new FakeCrypt();
+
+        $repo->setSettings('sovos', [
+            'client_id'     => 'sovos-id',
+            'client_secret' => base64_encode('sovos-plaintext-secret'),
+            'base_url'      => 'https://api.sovos.com',
+        ]);
+
+        $service = $this->makeService($repo, $crypt);
+
+        /* Act */
+        $result = $service->sovosSettings();
+
+        /* Assert: decrypted back to plaintext */
+        $this->assertSame('sovos-id', $result['client_id']);
+        $this->assertSame('sovos-plaintext-secret', $result['client_secret']);
+        $this->assertSame('https://api.sovos.com', $result['base_url']);
     }
 
     /**
@@ -399,9 +508,9 @@ class GatewayCredentialStorageTest extends TestCase
     }
 
     /**
-     * Arrange: existing Sovos secret in repository.
+     * Arrange: existing Sovos secret in repository (stored encrypted).
      * Act: saveSovosSettings is called with empty client_secret.
-     * Assert: existing secret is preserved.
+     * Assert: existing encrypted secret is preserved exactly.
      */
     #[Test]
     public function it_preserves_existing_sovos_secret_when_form_submits_empty(): void
@@ -410,9 +519,10 @@ class GatewayCredentialStorageTest extends TestCase
         $repo  = new FakeIntegrationRepository();
         $crypt = new FakeCrypt();
 
+        $existingEncrypted = base64_encode('existing-sovos-secret');
         $repo->setSettings('sovos', [
             'client_id'     => 'sovos-id',
-            'client_secret' => base64_encode('existing-sovos-secret'),
+            'client_secret' => $existingEncrypted,
             'base_url'      => 'https://api.sovos.com',
         ]);
 
@@ -425,8 +535,33 @@ class GatewayCredentialStorageTest extends TestCase
             'base_url'      => 'https://api.sovos.com',
         ]);
 
-        /* Assert */
+        /* Assert: stored value is unchanged from the original encrypted value */
         $persisted = $repo->settings['sovos'] ?? [];
-        $this->assertNotEmpty($persisted['client_secret'] ?? '');
+        $this->assertSame($existingEncrypted, $persisted['client_secret']);
+    }
+
+    /**
+     * Arrange: existing Sovos settings with active token.
+     * Act: saveSovosSettings is called with updated credentials.
+     * Assert: cached token is invalidated after settings update.
+     */
+    #[Test]
+    public function it_invalidates_sovos_token_when_settings_are_saved(): void
+    {
+        /* Arrange */
+        $repo  = (new FakeIntegrationRepository())->setActiveToken('sovos', 'stale-sovos-token');
+        $crypt = new FakeCrypt();
+
+        $service = $this->makeService($repo, $crypt);
+
+        /* Act */
+        $service->saveSovosSettings([
+            'client_id'     => 'new-id',
+            'client_secret' => 'new-secret',
+            'base_url'      => 'https://api.sovos.com',
+        ]);
+
+        /* Assert */
+        $this->assertNull($repo->activeToken('sovos'));
     }
 }
