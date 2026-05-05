@@ -42,7 +42,7 @@ class SovosClient
 
         $token = $this->settings('access_token');
 
-        if ($token !== null) {
+        if ($token !== null && trim($token) !== '') {
             $headers['Authorization'] = 'Bearer ' . $token;
         }
 

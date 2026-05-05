@@ -47,6 +47,7 @@ class ParticipantClient
     public function getDetails(string $peppolId): ResponseInterface
     {
         return $this->client->request(RequestMethod::GET->value, 'participants.details', [
+            'headers' => $this->client->buildAuthHeaders(),
             'query' => ['peppol_id' => $peppolId],
         ]);
     }
@@ -69,6 +70,7 @@ class ParticipantClient
         }
 
         return $this->client->request(RequestMethod::GET->value, 'participants.search', [
+            'headers' => $this->client->buildAuthHeaders(),
             'query' => $queryParams,
         ]);
     }
@@ -85,6 +87,7 @@ class ParticipantClient
     public function getCapabilities(string $peppolId): ResponseInterface
     {
         return $this->client->request(RequestMethod::GET->value, 'participants.capabilities', [
+            'headers' => $this->client->buildAuthHeaders(),
             'query' => ['peppol_id' => $peppolId],
         ]);
     }
