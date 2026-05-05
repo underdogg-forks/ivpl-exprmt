@@ -21,16 +21,8 @@ class CreditNoteClient
      */
     public function send(array $payload): ResponseInterface
     {
-        $headers = ['Accept' => 'application/json'];
-
-        $token = $this->client->settings('access_token');
-
-        if ($token !== null) {
-            $headers['Authorization'] = 'Bearer ' . $token;
-        }
-
         return $this->client->request(RequestMethod::POST->value, 'credit_notes.send', [
-            'headers' => $headers,
+            'headers' => $this->client->buildAuthHeaders(),
             'json' => $payload,
         ]);
     }
@@ -44,16 +36,8 @@ class CreditNoteClient
      */
     public function getStatus(int $creditNoteId): ResponseInterface
     {
-        $headers = ['Accept' => 'application/json'];
-
-        $token = $this->client->settings('access_token');
-
-        if ($token !== null) {
-            $headers['Authorization'] = 'Bearer ' . $token;
-        }
-
         return $this->client->request(RequestMethod::GET->value, 'credit_notes.status', [
-            'headers' => $headers,
+            'headers' => $this->client->buildAuthHeaders(),
             'query' => ['credit_note_id' => $creditNoteId],
         ]);
     }
@@ -67,14 +51,6 @@ class CreditNoteClient
      */
     public function cancel(int $creditNoteId, ?string $reason = null): ResponseInterface
     {
-        $headers = ['Accept' => 'application/json'];
-
-        $token = $this->client->settings('access_token');
-
-        if ($token !== null) {
-            $headers['Authorization'] = 'Bearer ' . $token;
-        }
-
         $payload = ['credit_note_id' => $creditNoteId];
 
         if ($reason !== null) {
@@ -82,7 +58,7 @@ class CreditNoteClient
         }
 
         return $this->client->request(RequestMethod::POST->value, 'credit_notes.cancel', [
-            'headers' => $headers,
+            'headers' => $this->client->buildAuthHeaders(),
             'json' => $payload,
         ]);
     }
