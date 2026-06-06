@@ -25,7 +25,11 @@ class StoreCoveClientTest extends TestCase
         $http = $this->createMock(ClientInterface::class);
         $http->expects($this->once())
             ->method('request')
-            ->with('GET', 'https://api.example.test/api/invoices', ['query' => ['a' => 1]])
+            ->with(
+                'GET',
+                'https://api.example.test/api/invoices',
+                $this->callback(fn($opts) => ($opts['query'] ?? null) === ['a' => 1])
+            )
             ->willReturn($response);
 
         $client = new StoreCoveClient($http, 'https://api.example.test', ['invoices.send' => 'api/invoices']);

@@ -89,10 +89,18 @@ class SecurityHelper
      */
     public static function sanitizeFilename(string $filename): string
     {
-        // Remove directory traversal attempts
-        $filename = basename($filename);
+        // Remove null bytes
+        $filename = str_replace("\0", '', $filename);
 
-        // Remove dangerous characters
+        // Strip path traversal sequences (../ or ..\) repeatedly until none remain
+        while (strpos($filename, '..') !== false) {
+            $filename = preg_replace('/\.\.[\\/]/', '', $filename);
+        }
+
+        // Remove any remaining leading path separators
+        $filename = ltrim($filename, '/\\');
+
+        // Replace all characters that are not safe in filenames with underscore
         $filename = preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
 
         return $filename;

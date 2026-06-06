@@ -9,14 +9,20 @@
 class MockSettings
 {
     private static array $store = [
-        'tax_rate_decimal_places' => '2',
-        'default_list_limit'      => '15',
-        'default_item_decimals'   => '2',
-        'currency_symbol'         => '€',
+        'tax_rate_decimal_places'   => '2',
+        'default_list_limit'        => '15',
+        'default_item_decimals'     => '2',
+        'currency_symbol'           => '€',
         'currency_symbol_placement' => 'after',
-        'thousands_separator'     => '.',
-        'decimal_point'           => ',',
-        'default_language'        => 'english',
+        'thousands_separator'       => '.',
+        'decimal_point'             => ',',
+        'default_language'          => 'english',
+        'invoices_due_after'        => '30',
+        'quotes_due_after'          => '15',
+        'invoice_logo'              => '',
+        'disable_read_only'         => 'false',
+        'enable_invoice_deletion'   => 'false',
+        'legacy_calculation'        => 'true',
     ];
 
     public static function set(string $key, mixed $value): void
@@ -26,7 +32,27 @@ class MockSettings
 
     public static function reset(): void
     {
-        self::$store = [];
+        self::$store = self::defaults();
+    }
+
+    private static function defaults(): array
+    {
+        return [
+            'tax_rate_decimal_places'   => '2',
+            'default_list_limit'        => '15',
+            'default_item_decimals'     => '2',
+            'currency_symbol'           => '€',
+            'currency_symbol_placement' => 'after',
+            'thousands_separator'       => '.',
+            'decimal_point'             => ',',
+            'default_language'          => 'english',
+            'invoices_due_after'        => '30',
+            'quotes_due_after'          => '15',
+            'invoice_logo'              => '',
+            'disable_read_only'         => 'false',
+            'enable_invoice_deletion'   => 'false',
+            'legacy_calculation'        => 'true',
+        ];
     }
 
     public function setting(string $key): mixed

@@ -66,6 +66,22 @@ if (! function_exists('get_setting')) {
     }
 }
 
+// CI3 helpers that models call directly (BASEPATH is defined, guards pass)
+// These are normally auto-loaded by CI3 during the HTTP boot sequence.
+$_ci3Helpers = [
+    'string',    // random_string(), etc.
+    'language',  // lang()
+    'url',       // base_url(), site_url(), etc.
+    'date',      // CI3 date helpers (app date_helper.php overrides below)
+];
+foreach ($_ci3Helpers as $_h) {
+    $_hFile = BASEPATH . 'helpers/' . $_h . '_helper.php';
+    if (file_exists($_hFile)) {
+        require_once $_hFile;
+    }
+}
+unset($_ci3Helpers, $_h, $_hFile);
+
 // Application model hierarchy (class guards prevent double-loading)
 if (! class_exists('MY_Model', false)) {
     require_once APPPATH . 'core/MY_Model.php';

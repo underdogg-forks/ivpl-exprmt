@@ -3,6 +3,9 @@
 namespace Tests\Fakes;
 
 use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Promise\PromiseInterface;
+use GuzzleHttp\Promise\FulfilledPromise;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /**
@@ -43,6 +46,26 @@ class FakeLetsPeppolHttpClient implements ClientInterface
         }
 
         return new FakeResponse($this->statusCode);
+    }
+
+    public function send(RequestInterface $request, array $options = []): ResponseInterface
+    {
+        return $this->request($request->getMethod(), (string) $request->getUri(), $options);
+    }
+
+    public function sendAsync(RequestInterface $request, array $options = []): PromiseInterface
+    {
+        return new FulfilledPromise($this->send($request, $options));
+    }
+
+    public function requestAsync(string $method, $uri, array $options = []): PromiseInterface
+    {
+        return new FulfilledPromise($this->request($method, $uri, $options));
+    }
+
+    public function getConfig(?string $option = null): mixed
+    {
+        return null;
     }
 
     // ── PHPUnit assertion helpers ──────────────────────────────────────────────

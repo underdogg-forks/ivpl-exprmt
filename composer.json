@@ -28,7 +28,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Core\\": "application/modules/core/src/"
+            "Core\\": "application/modules/core/src/",
+            "core\\": "application/core/"
         },
         "files": [
             "bootstrap/helpers.php"

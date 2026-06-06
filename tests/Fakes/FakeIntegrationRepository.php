@@ -25,6 +25,9 @@ class FakeIntegrationRepository implements IntegrationRepositoryInterface
     /** @var array<string, array<string, string>> Provider settings, keyed by provider. */
     public array $settings = [];
 
+    /** @var array<string, list<string>> Encrypted key names per provider, set by saveEncryptedSettings(). */
+    private array $encryptedKeys = [];
+
     /** @var array<string, string|null> Active tokens keyed by provider. */
     public array $tokens = [];
 
@@ -36,9 +39,16 @@ class FakeIntegrationRepository implements IntegrationRepositoryInterface
 
     // ── Seeding helpers ───────────────────────────────────────────────────────
 
-    public function setSettings(string $provider, array $settings): static
+    /**
+     * @param list<string> $encryptedKeys Keys that are stored encrypted (will be decoded on settings() read).
+     */
+    public function setSettings(string $provider, array $settings, array $encryptedKeys = []): static
     {
         $this->settings[$provider] = $settings;
+
+        if ($encryptedKeys !== []) {
+            $this->encryptedKeys[$provider] = $encryptedKeys;
+        }
 
         return $this;
     }
@@ -63,7 +73,9 @@ class FakeIntegrationRepository implements IntegrationRepositoryInterface
         array $encryptedKeys,
         CryptInterface $crypt,
     ): void {
-        // Simulate encryption: encode only the listed keys so tests can inspect plaintext.
+        // Track which keys are encrypted so settings() can decode them.
+        $this->encryptedKeys[$provider] = $encryptedKeys;
+
         foreach ($encryptedKeys as $key) {
             if (isset($settings[$key])) {
                 $settings[$key] = $crypt->encode($settings[$key]);
@@ -76,8 +88,14 @@ class FakeIntegrationRepository implements IntegrationRepositoryInterface
     public function settings(string $provider, CryptInterface $crypt): array
     {
         $raw = $this->settings[$provider] ?? [];
+        $keys = $this->encryptedKeys[$provider] ?? [];
 
-        // No-op decode (FakeCrypt round-trips transparently).
+        foreach ($keys as $key) {
+            if (isset($raw[$key])) {
+                $raw[$key] = $crypt->decode($raw[$key]);
+            }
+        }
+
         return $raw;
     }
 

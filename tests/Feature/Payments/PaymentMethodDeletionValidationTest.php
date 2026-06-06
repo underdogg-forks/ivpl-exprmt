@@ -5,8 +5,8 @@ namespace Feature\Payments;
 use Modules\Payments\Services\PaymentLogService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\AbstractTestCase;
 use Tests\Concerns\InteractsWithDatabase;
-use Tests\Feature\Invoices\AbstractTestCase;
 use Tests\Feature\Invoices\PaymentMethodService;
 
 #[CoversClass(PaymentLogService::class)]

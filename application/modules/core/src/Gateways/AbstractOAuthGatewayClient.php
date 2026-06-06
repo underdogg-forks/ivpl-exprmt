@@ -118,7 +118,7 @@ abstract class AbstractOAuthGatewayClient extends ApiClient
      * This allows the provider to use a cached token from IntegrationSettingsService
      * without triggering an OAuth authorization call.
      */
-    public function setAccessToken(string $token): void
+    public function setAccessToken(?string $token): void
     {
         parent::setAccessToken($token);
     }

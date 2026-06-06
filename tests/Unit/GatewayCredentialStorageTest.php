@@ -85,7 +85,7 @@ class GatewayCredentialStorageTest extends TestCase
         $repo->setSettings('storecove', [
             'api_key'  => $existingEncrypted,
             'base_url' => 'https://api.storecove.com',
-        ]);
+        ], ['api_key']);
 
         $service = $this->makeService($repo, $crypt);
 
@@ -116,7 +116,7 @@ class GatewayCredentialStorageTest extends TestCase
         $repo->setSettings('storecove', [
             'api_key'  => base64_encode('my-secret-api-key'),
             'base_url' => 'https://api.storecove.com',
-        ]);
+        ], ['api_key']);
 
         $service = $this->makeService($repo, $crypt);
 
@@ -195,7 +195,7 @@ class GatewayCredentialStorageTest extends TestCase
             'client_id'     => 'pagero-id',
             'client_secret' => base64_encode('pagero-plaintext-secret'),
             'base_url'      => 'https://api.pagero.com',
-        ]);
+        ], ['client_secret']);
 
         $service = $this->makeService($repo, $crypt);
 
@@ -316,7 +316,7 @@ class GatewayCredentialStorageTest extends TestCase
             'client_id'     => 'pagero-id',
             'client_secret' => $existingEncrypted,
             'base_url'      => 'https://api.pagero.com',
-        ]);
+        ], ['client_secret']);
 
         $service = $this->makeService($repo, $crypt);
 
@@ -403,7 +403,7 @@ class GatewayCredentialStorageTest extends TestCase
             'client_id'     => 'sovos-id',
             'client_secret' => base64_encode('sovos-plaintext-secret'),
             'base_url'      => 'https://api.sovos.com',
-        ]);
+        ], ['client_secret']);
 
         $service = $this->makeService($repo, $crypt);
 
@@ -524,7 +524,7 @@ class GatewayCredentialStorageTest extends TestCase
             'client_id'     => 'sovos-id',
             'client_secret' => $existingEncrypted,
             'base_url'      => 'https://api.sovos.com',
-        ]);
+        ], ['client_secret']);
 
         $service = $this->makeService($repo, $crypt);
 

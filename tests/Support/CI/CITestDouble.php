@@ -31,7 +31,9 @@ class CITestDouble
 
     public MockLoader $load;
 
-    public MockSettings $mdl_settings;
+    // Untyped so MockLoader can overwrite with a real Mdl_Settings instance when a test
+    // calls $this->CI->load->model('settings/mdl_settings').
+    public mixed $mdl_settings;
 
     private function __construct()
     {
@@ -64,9 +66,10 @@ class CITestDouble
         return self::$instance;
     }
 
-    /** Re-create the singleton — call in setUp() or tearDown() for isolation. */
+    /** Re-create the singleton and restore all mock defaults — call in setUp() for isolation. */
     public static function reset(): void
     {
+        MockSettings::reset();
         self::$instance = new self();
     }
 }

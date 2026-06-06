@@ -7,6 +7,7 @@ use Modules\Crm\Models\Client;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\AbstractTestCase;
 use Tests\Concerns\InteractsWithDatabase;
 
 /**
@@ -16,7 +17,6 @@ use Tests\Concerns\InteractsWithDatabase;
  * - Clients with invoices, quotes, or projects cannot be deleted
  */
 #[CoversClass(ClientsController::class)]
-#[CoversClass(Tests\Feature\Clients\ClientsAjaxEdgeCases::class)]
 
 class ClientsAjaxEdgeCasesTest extends AbstractTestCase
 {

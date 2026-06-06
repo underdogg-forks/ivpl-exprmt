@@ -1,7 +1,7 @@
 <?php
 
-use App\Providers\LetsPeppolGatewayProvider;
-use App\Services\Integrations\IntegrationSettingsService;
+use Core\Providers\LetsPeppolGatewayProvider;
+use Core\Services\Integrations\IntegrationSettingsService;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

@@ -169,6 +169,6 @@ class CacheHelper
      */
     private static function isExpired(array $item): bool
     {
-        return $item['expires'] > 0 && $item['expires'] < time();
+        return $item['expires'] > 0 && $item['expires'] <= time();
     }
 }

@@ -134,7 +134,7 @@ class LetsPeppolGatewayClient extends ApiClient
      * This allows the provider to use a cached token from IntegrationSettingsService
      * without triggering OAuth authorization.
      */
-    public function setAccessToken(string $token): void
+    public function setAccessToken(?string $token): void
     {
         $this->accessToken = $token;
     }
