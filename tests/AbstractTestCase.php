@@ -12,7 +12,6 @@ abstract class AbstractTestCase extends PhpUnitTestCase
     use InteractsWithDatabase;
 
     protected array $sessionData = [];
-
     protected function setUp(): void
     {
         parent::setUp();
