@@ -45,10 +45,7 @@ class FakeIntegrationRepository implements IntegrationRepositoryInterface
     public function setSettings(string $provider, array $settings, array $encryptedKeys = []): static
     {
         $this->settings[$provider] = $settings;
-
-        if ($encryptedKeys !== []) {
-            $this->encryptedKeys[$provider] = $encryptedKeys;
-        }
+        $this->encryptedKeys[$provider] = $encryptedKeys;
 
         return $this;
     }

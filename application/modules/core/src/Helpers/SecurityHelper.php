@@ -94,7 +94,7 @@ class SecurityHelper
 
         // Strip path traversal sequences (../ or ..\) repeatedly until none remain
         while (strpos($filename, '..') !== false) {
-            $filename = preg_replace('/\.\.[\\/]/', '', $filename);
+            $filename = preg_replace('/\.\.(?:[\/\\\\]|$)/', '', $filename);
         }
 
         // Remove any remaining leading path separators

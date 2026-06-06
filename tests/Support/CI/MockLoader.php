@@ -104,7 +104,11 @@ class MockLoader
         // Resolve the file path
         $file = $this->resolveModelFile($module, $classSegment);
         if ($file === null) {
-            return;
+            throw new \RuntimeException(
+                "MockLoader: Failed to locate model file for class segment '{$classSegment}'" .
+                ($module !== '' ? " in module '{$module}'" : '') .
+                ". Attempted model path: '{$path}'."
+            );
         }
 
         require_once $file;
@@ -113,7 +117,10 @@ class MockLoader
         // Try exact case first, then ucfirst.
         $className = $this->resolveClassName($classSegment);
         if ($className === null) {
-            return;
+            throw new \RuntimeException(
+                "MockLoader: Failed to resolve class name for segment '{$classSegment}'" .
+                " after loading file '{$file}'. The class may not be defined in the file."
+            );
         }
 
         $this->ci->{$propertyName} = new $className();

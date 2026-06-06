@@ -5,6 +5,7 @@ namespace Tests\Fakes;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Promise\FulfilledPromise;
+use GuzzleHttp\Promise\RejectedPromise;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -55,12 +56,20 @@ class FakeLetsPeppolHttpClient implements ClientInterface
 
     public function sendAsync(RequestInterface $request, array $options = []): PromiseInterface
     {
-        return new FulfilledPromise($this->send($request, $options));
+        try {
+            return new FulfilledPromise($this->send($request, $options));
+        } catch (\Throwable $e) {
+            return new RejectedPromise($e);
+        }
     }
 
     public function requestAsync(string $method, $uri, array $options = []): PromiseInterface
     {
-        return new FulfilledPromise($this->request($method, $uri, $options));
+        try {
+            return new FulfilledPromise($this->request($method, $uri, $options));
+        } catch (\Throwable $e) {
+            return new RejectedPromise($e);
+        }
     }
 
     public function getConfig(?string $option = null): mixed

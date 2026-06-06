@@ -20,6 +20,8 @@ abstract class CiTestCase extends AbstractTestCase
         $_GET    = [];
         $_POST   = [];
         $_SERVER = [];
+
+        $this->skipWithoutDatabase();
     }
 
     /**

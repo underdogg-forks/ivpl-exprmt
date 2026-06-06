@@ -46,6 +46,11 @@ class MockSession
 
     public function mark_as_flash(string $key): bool
     {
-        return isset($this->data[$key]);
+        if (isset($this->data[$key])) {
+            $this->flashdata[$key] = $this->data[$key];
+            unset($this->data[$key]);
+            return true;
+        }
+        return false;
     }
 }

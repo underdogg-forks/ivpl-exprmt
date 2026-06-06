@@ -16,7 +16,6 @@ abstract class AbstractTestCase extends PhpUnitTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->skipWithoutDatabase();
     }
 
     protected function actingAsAdmin(int $userId = 1): void
