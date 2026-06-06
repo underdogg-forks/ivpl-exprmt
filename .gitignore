@@ -36,3 +36,4 @@ yarn-error.log
 /stan.txt
 /todo.txt
 /yarnpack.txt
+.phpunit.result.cache
