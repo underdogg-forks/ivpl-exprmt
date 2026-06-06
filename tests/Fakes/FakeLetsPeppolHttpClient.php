@@ -62,6 +62,14 @@ class FakeLetsPeppolHttpClient implements ClientInterface
             return new RejectedPromise($e);
         }
     }
+    public function sendAsync(RequestInterface $request, array $options = []): PromiseInterface
+    {
+        try {
+            return new FulfilledPromise($this->send($request, $options));
+        } catch (\Throwable $e) {
+            return new RejectedPromise($e);
+        }
+    }
 
     public function requestAsync(string $method, $uri, array $options = []): PromiseInterface
     {
