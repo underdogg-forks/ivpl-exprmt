@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    bootstrap="tests/bootstrap.php"
+    colors="true"
+    stopOnFailure="false"
+    backupGlobals="false"
+    backupStaticProperties="false"
+>
+    <testsuites>
+        <testsuite name="Feature">
+            <directory suffix="Test.php">tests/Feature</directory>
+        </testsuite>
+        <testsuite name="Unit">
+            <directory suffix="Test.php">tests/Unit</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory suffix=".php">application/core</directory>
+            <directory suffix=".php">application/helpers</directory>
+            <directory suffix=".php">application/modules</directory>
+            <directory suffix=".php">application/libraries</directory>
+            <directory suffix=".php">application/modules/core/src</directory>
+        </include>
+        <exclude>
+            <directory>application/config</directory>
+            <directory>application/views</directory>
+            <directory>application/cache</directory>
+            <directory>application/logs</directory>
+            <directory>application/language</directory>
+        </exclude>
+    </source>
+
+</phpunit>
