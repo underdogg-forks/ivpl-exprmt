@@ -33,7 +33,27 @@ class MerchantProviderRegistry
 
         $providerPath = APPPATH . 'modules/einvoice/libraries/providers/';
 
-        foreach (glob($providerPath . '*Provider.php') as $file) {
+        $patterns = [
+            $providerPath . '*Provider.php',
+            $providerPath . '*/*Provider.php',
+        ];
+
+        $files = [];
+        foreach ($patterns as $pattern) {
+            $files = array_merge($files, glob($pattern) ?: []);
+        }
+
+        foreach ($files as $file) {
+            $dir = dirname($file);
+            foreach (glob($dir . '/*.php') as $depFile) {
+                if ($depFile !== $file) {
+                    require_once $depFile;
+                }
+            }
+            foreach (glob($dir . '/Endpoints/*.php') as $endpointFile) {
+                require_once $endpointFile;
+            }
+
             require_once $file;
 
             $className = basename($file, '.php');
