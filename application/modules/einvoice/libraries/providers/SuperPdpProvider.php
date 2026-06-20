@@ -88,7 +88,7 @@ class SuperPdpProvider implements MerchantProviderInterface
             'metadata' => json_encode($metadata),
         ];
 
-        return $this->request('POST', $url, $payload, true, [
+        return $this->request(RequestMethod::POST, $url, $payload, true, [
             'document_path' => $documentPath,
             'metadata' => $metadata,
         ]);
@@ -103,7 +103,7 @@ class SuperPdpProvider implements MerchantProviderInterface
         $endpoint = str_replace('{id}', urlencode($externalId), $this->settings['invoice_status_endpoint']);
         $url = $this->buildUrl($endpoint);
 
-        $response = $this->request('GET', $url, [], false, ['external_id' => $externalId]);
+        $response = $this->request(RequestMethod::GET, $url, [], false, ['external_id' => $externalId]);
 
         return array_merge($response, ['external_id' => $externalId]);
     }
@@ -116,7 +116,7 @@ class SuperPdpProvider implements MerchantProviderInterface
 
         $url = $this->buildUrl($this->settings['incoming_invoices_endpoint'], $filters);
 
-        return $this->request('GET', $url);
+        return $this->request(RequestMethod::GET, $url);
     }
 
     public function getInvoiceEvents(array $filters = []): array
@@ -127,7 +127,7 @@ class SuperPdpProvider implements MerchantProviderInterface
 
         $url = $this->buildUrl($this->settings['invoice_events_endpoint'], $filters);
 
-        return $this->request('GET', $url);
+        return $this->request(RequestMethod::GET, $url);
     }
 
     public function buildInvoicePayload($invoice, array $items, array $metadata = []): array
@@ -172,7 +172,7 @@ class SuperPdpProvider implements MerchantProviderInterface
     }
 
     protected function request(
-        string $method,
+        RequestMethod $method,
         string $url,
         array $payload = [],
         bool $multipart = false,
@@ -191,7 +191,7 @@ class SuperPdpProvider implements MerchantProviderInterface
             CURLOPT_HTTPHEADER => $headers,
         ];
 
-        if ($method === 'POST') {
+        if ($method === RequestMethod::POST) {
             $options[CURLOPT_POST] = true;
             $options[CURLOPT_POSTFIELDS] = $multipart ? $payload : json_encode($payload);
 
@@ -218,7 +218,7 @@ class SuperPdpProvider implements MerchantProviderInterface
                 'status' => 'error',
                 'message' => $curlError,
                 'http_code' => $httpCode,
-                'request' => array_merge(['url' => $url, 'method' => $method], $requestDebug),
+                'request' => array_merge(['url' => $url, 'method' => $method->value], $requestDebug),
                 'response' => $rawResponse,
             ];
         }
@@ -229,7 +229,7 @@ class SuperPdpProvider implements MerchantProviderInterface
             'status' => $decoded['status'] ?? ($httpCode >= 200 && $httpCode < 300 ? 'sent' : 'error'),
             'message' => $decoded['message'] ?? 'SuperPDP API response received',
             'http_code' => $httpCode,
-            'request' => array_merge(['url' => $url, 'method' => $method], $requestDebug),
+            'request' => array_merge(['url' => $url, 'method' => $method->value], $requestDebug),
             'response' => $decoded ?: $rawResponse,
         ];
     }

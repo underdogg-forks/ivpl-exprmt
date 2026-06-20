@@ -40,7 +40,7 @@ class FakeSuperPdpProvider extends SuperPdpProvider
     }
 
     protected function request(
-        string $method,
+        \RequestMethod $method,
         string $url,
         array $payload = [],
         bool $multipart = false,
@@ -54,7 +54,7 @@ class FakeSuperPdpProvider extends SuperPdpProvider
             'status' => 'sent',
             'message' => 'ok',
             'http_code' => 200,
-            'request' => ['url' => $url, 'method' => $method],
+            'request' => ['url' => $url, 'method' => $method->value],
             'response' => [],
         ];
     }
@@ -227,7 +227,7 @@ class SuperPdpProviderTest extends TestCase
 
         /* Assert */
         $this->assertTrue($result['success']);
-        $this->assertSame('POST', $provider->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::POST, $provider->requestLog[0]['method']);
         $this->assertTrue($provider->requestLog[0]['multipart']);
     }
 
@@ -331,7 +331,7 @@ class SuperPdpProviderTest extends TestCase
         $provider->getInvoiceEvents();
 
         /* Assert */
-        $this->assertSame('GET', $provider->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::GET, $provider->requestLog[0]['method']);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

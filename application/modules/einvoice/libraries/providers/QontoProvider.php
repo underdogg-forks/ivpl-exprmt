@@ -105,7 +105,7 @@ class QontoProvider implements MerchantProviderInterface
         $endpoint = str_replace('{id}', urlencode($externalId), $this->settings['invoice_status_endpoint']);
         $url = $this->buildUrl($endpoint);
 
-        $response = $this->request('GET', $url);
+        $response = $this->request(RequestMethod::GET, $url);
 
         $invoice = $response['response']['client_invoice']
             ?? $response['response']['data']['attributes']
@@ -129,7 +129,7 @@ class QontoProvider implements MerchantProviderInterface
 
         $url = $this->buildUrl($this->settings['incoming_invoices_endpoint'], $filters);
 
-        return $this->request('GET', $url);
+        return $this->request(RequestMethod::GET, $url);
     }
 
     public function getInvoiceEvents(array $filters = []): array
@@ -138,7 +138,7 @@ class QontoProvider implements MerchantProviderInterface
 
         $url = $this->buildUrl($this->settings['invoice_events_endpoint'], $filters);
 
-        return $this->request('GET', $url);
+        return $this->request(RequestMethod::GET, $url);
     }
 
     private function uploadInvoiceFile(string $documentPath): array
@@ -153,7 +153,7 @@ class QontoProvider implements MerchantProviderInterface
             ),
         ];
 
-        $response = $this->request('POST', $url, $payload, true, [
+        $response = $this->request(RequestMethod::POST, $url, $payload, true, [
             'document_path' => $documentPath,
         ]);
 
@@ -176,7 +176,7 @@ class QontoProvider implements MerchantProviderInterface
     {
         $url = $this->buildUrl($this->settings['invoice_endpoint']);
 
-        $response = $this->request('POST', $url, $payload, false, [
+        $response = $this->request(RequestMethod::POST, $url, $payload, false, [
             'payload' => $payload,
         ]);
 
@@ -206,13 +206,13 @@ class QontoProvider implements MerchantProviderInterface
 
         $url = $this->buildUrl($endpoint);
 
-        return $this->request('POST', $url, [], false, [
+        return $this->request(RequestMethod::POST, $url, [], false, [
             'client_invoice_id' => $clientInvoiceId,
         ]);
     }
 
     protected function request(
-        string $method,
+        RequestMethod $method,
         string $url,
         array $payload = [],
         bool $multipart = false,
@@ -235,7 +235,7 @@ class QontoProvider implements MerchantProviderInterface
             CURLOPT_HTTPHEADER => $headers,
         ];
 
-        if ($method === 'POST') {
+        if ($method === RequestMethod::POST) {
             $options[CURLOPT_POST] = true;
 
             if ($multipart) {
@@ -266,7 +266,7 @@ class QontoProvider implements MerchantProviderInterface
                 'http_code' => $httpCode,
                 'request' => [
                     'url' => $url,
-                    'method' => $method,
+                    'method' => $method->value,
                 ] + $requestDebug,
                 'response' => $rawResponse,
             ];
