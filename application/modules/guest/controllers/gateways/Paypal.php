@@ -4,6 +4,10 @@ if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
 
+if (! enum_exists('MerchantResponseDriver', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/MerchantResponseDriver.php';
+}
+
 /*
  * InvoicePlane
  *
@@ -210,7 +214,7 @@ class Paypal extends Base_Controller
                     'invoice_id'                   => $invoice_id,
                     'merchant_response_successful' => true,
                     'merchant_response_date'       => date('Y-m-d'),
-                    'merchant_response_driver'     => 'paypal',
+                    'merchant_response_driver'     => MerchantResponseDriver::PayPal->value,
                     'merchant_response'            => $capture_status,
                     'merchant_response_reference'  => 'Resource ID:' . $paypal_object->id,
                 ]);
@@ -232,7 +236,7 @@ class Paypal extends Base_Controller
                     'invoice_id'                   => $invoice_id,
                     'merchant_response_successful' => false,
                     'merchant_response_date'       => date('Y-m-d'),
-                    'merchant_response_driver'     => 'paypal',
+                    'merchant_response_driver'     => MerchantResponseDriver::PayPal->value,
                     'merchant_response'            => $capture_status . ': ' . $processor_response_code,
                     'merchant_response_reference'  => 'Resource ID:' . $paypal_object->id,
                 ]);

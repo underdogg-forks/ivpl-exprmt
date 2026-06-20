@@ -4,6 +4,10 @@ if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
 
+if (! enum_exists('MerchantResponseDriver', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/MerchantResponseDriver.php';
+}
+
 /*
  * InvoicePlane
  *
@@ -171,7 +175,7 @@ class Stripe extends Base_Controller
                 'invoice_id'                   => $invoice->invoice_id,
                 'merchant_response_successful' => (int) $ok, // response server API (no)ok
                 'merchant_response_date'       => date('Y-m-d'),
-                'merchant_response_driver'     => __CLASS__,
+                'merchant_response_driver'     => MerchantResponseDriver::Stripe->value,
                 'merchant_response'            => ($ok ? $session->mode . ': ' . $session->payment_status . ', ' : '') . $response,
                 'merchant_response_reference'  => $ok ? 'intent_id: ' . $session->payment_intent : 'none',
             ]);
