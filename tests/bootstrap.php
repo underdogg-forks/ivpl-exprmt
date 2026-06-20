@@ -81,6 +81,9 @@ if (! class_exists('Response_Model', false)) {
 if (! interface_exists('MerchantProviderInterface', false)) {
     require_once APPPATH . 'modules/einvoice/libraries/MerchantProviderInterface.php';
 }
+if (! enum_exists('RequestMethod', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/RequestMethod.php';
+}
 // Flat providers
 foreach (glob(APPPATH . 'modules/einvoice/libraries/providers/*Provider.php') as $_providerFile) {
     $class = basename($_providerFile, '.php');

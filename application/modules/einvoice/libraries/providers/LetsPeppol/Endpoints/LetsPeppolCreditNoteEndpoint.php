@@ -24,7 +24,7 @@ class LetsPeppolCreditNoteEndpoint
             $payload['metadata'] = json_encode($metadata);
         }
 
-        return $this->client->postMultipart($url, $payload);
+        return $this->client->request(RequestMethod::POST, $url, $payload, multipart: true);
     }
 
     public function status(string $externalId): array
@@ -36,7 +36,7 @@ class LetsPeppolCreditNoteEndpoint
         }
 
         $url = $this->client->buildUrl($settings['credit_note_status_endpoint'], $externalId);
-        $response = $this->client->get($url);
+        $response = $this->client->request(RequestMethod::GET, $url);
 
         return array_merge($response, ['external_id' => $externalId]);
     }

@@ -24,7 +24,7 @@ class LetsPeppolInvoiceEndpoint
             $payload['metadata'] = json_encode($metadata);
         }
 
-        return $this->client->postMultipart($url, $payload);
+        return $this->client->request(RequestMethod::POST, $url, $payload, multipart: true);
     }
 
     public function status(string $externalId): array
@@ -36,7 +36,7 @@ class LetsPeppolInvoiceEndpoint
         }
 
         $url = $this->client->buildUrl($settings['invoice_status_endpoint'], $externalId);
-        $response = $this->client->get($url);
+        $response = $this->client->request(RequestMethod::GET, $url);
 
         return array_merge($response, ['external_id' => $externalId]);
     }
@@ -51,7 +51,7 @@ class LetsPeppolInvoiceEndpoint
 
         $url = $this->client->buildUrl($settings['incoming_invoices_endpoint']);
 
-        return $this->client->get($url, $filters);
+        return $this->client->request(RequestMethod::GET, $url, query: $filters);
     }
 
     public function events(array $filters = []): array
@@ -64,6 +64,6 @@ class LetsPeppolInvoiceEndpoint
 
         $url = $this->client->buildUrl($settings['invoice_events_endpoint']);
 
-        return $this->client->get($url, $filters);
+        return $this->client->request(RequestMethod::GET, $url, query: $filters);
     }
 }

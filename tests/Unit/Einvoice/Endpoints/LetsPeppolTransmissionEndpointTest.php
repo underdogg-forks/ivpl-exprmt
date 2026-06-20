@@ -62,7 +62,7 @@ class LetsPeppolTransmissionEndpointTest extends TestCase
         $endpoint->list(['status' => 'delivered']);
 
         /* Assert */
-        $this->assertSame('GET', $client->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::GET, $client->requestLog[0]['method']);
         $this->assertStringContainsString('transmissions', $client->requestLog[0]['url']);
     }
 

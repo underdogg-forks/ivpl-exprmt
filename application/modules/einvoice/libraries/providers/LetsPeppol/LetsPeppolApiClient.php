@@ -37,30 +37,25 @@ class LetsPeppolApiClient
         $this->accessToken = $decoded['access_token'];
     }
 
-    public function get(string $url, array $query = []): array
-    {
-        if (!empty($query)) {
-            $url .= '?' . http_build_query($query);
-        }
-
-        return $this->request('GET', $url);
-    }
-
-    public function post(string $url, array $payload): array
-    {
-        return $this->request('POST', $url, $payload);
-    }
-
-    public function postMultipart(string $url, array $payload): array
-    {
-        return $this->request('POST', $url, $payload, true);
-    }
-
-    public function buildUrl(string $endpoint, string $id = null): string
+    public function buildUrl(string $endpoint, ?string $id = null): string
     {
         $path = $id !== null ? str_replace('{id}', urlencode($id), $endpoint) : $endpoint;
 
         return rtrim($this->settings['api_base_url'], '/') . '/' . ltrim($path, '/');
+    }
+
+    public function request(
+        RequestMethod $method,
+        string $url,
+        array $payload = [],
+        bool $multipart = false,
+        array $query = []
+    ): array {
+        if (!empty($query)) {
+            $url .= '?' . http_build_query($query);
+        }
+
+        return $this->send($method, $url, $payload, $multipart);
     }
 
     protected function fetchToken(string $tokenUrl, string $clientId, string $clientSecret): array
@@ -100,8 +95,8 @@ class LetsPeppolApiClient
         return json_decode($rawResponse, true) ?? [];
     }
 
-    protected function request(
-        string $method,
+    protected function send(
+        RequestMethod $method,
         string $url,
         array $payload = [],
         bool $multipart = false
@@ -119,7 +114,7 @@ class LetsPeppolApiClient
             CURLOPT_HTTPHEADER => $headers,
         ];
 
-        if ($method === 'POST') {
+        if ($method === RequestMethod::POST) {
             $options[CURLOPT_POST] = true;
 
             if ($multipart) {
@@ -143,24 +138,24 @@ class LetsPeppolApiClient
 
         if ($curlError) {
             return [
-                'success' => false,
+                'success'     => false,
                 'external_id' => null,
-                'status' => 'error',
-                'message' => $curlError,
-                'http_code' => 0,
-                'request' => ['url' => $url, 'method' => $method],
-                'response' => [],
+                'status'      => 'error',
+                'message'     => $curlError,
+                'http_code'   => 0,
+                'request'     => ['url' => $url, 'method' => $method->value],
+                'response'    => [],
             ];
         }
 
         return [
-            'success' => $httpCode >= 200 && $httpCode < 300,
+            'success'     => $httpCode >= 200 && $httpCode < 300,
             'external_id' => $decoded['id'] ?? null,
-            'status' => $decoded['status'] ?? ($httpCode >= 200 && $httpCode < 300 ? 'sent' : 'error'),
-            'message' => $decoded['message'] ?? 'LetsPeppol API response received',
-            'http_code' => $httpCode,
-            'request' => ['url' => $url, 'method' => $method],
-            'response' => $decoded ?: [],
+            'status'      => $decoded['status'] ?? ($httpCode >= 200 && $httpCode < 300 ? 'sent' : 'error'),
+            'message'     => $decoded['message'] ?? 'LetsPeppol API response received',
+            'http_code'   => $httpCode,
+            'request'     => ['url' => $url, 'method' => $method->value],
+            'response'    => $decoded ?: [],
         ];
     }
 }

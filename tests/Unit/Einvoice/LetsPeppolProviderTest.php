@@ -248,7 +248,7 @@ class LetsPeppolProviderTest extends TestCase
 
         /* Assert */
         $this->assertTrue($result['success']);
-        $this->assertSame('POST', $client->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::POST, $client->requestLog[0]['method']);
         $this->assertTrue($client->requestLog[0]['multipart']);
     }
 
@@ -355,7 +355,7 @@ class LetsPeppolProviderTest extends TestCase
         $provider->getInvoiceEvents();
 
         /* Assert */
-        $this->assertSame('GET', $client->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::GET, $client->requestLog[0]['method']);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

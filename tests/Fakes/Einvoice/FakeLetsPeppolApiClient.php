@@ -17,9 +17,9 @@ class FakeLetsPeppolApiClient extends \LetsPeppolApiClient
         array $tokenResponse = ['access_token' => 'fake-token'],
         ?string $tokenError = null
     ) {
-        $this->responses    = $responses;
+        $this->responses     = $responses;
         $this->tokenResponse = $tokenResponse;
-        $this->tokenError   = $tokenError;
+        $this->tokenError    = $tokenError;
     }
 
     protected function fetchToken(string $tokenUrl, string $clientId, string $clientSecret): array
@@ -33,8 +33,8 @@ class FakeLetsPeppolApiClient extends \LetsPeppolApiClient
         return $this->tokenResponse;
     }
 
-    protected function request(
-        string $method,
+    protected function send(
+        \RequestMethod $method,
         string $url,
         array $payload = [],
         bool $multipart = false
@@ -47,7 +47,7 @@ class FakeLetsPeppolApiClient extends \LetsPeppolApiClient
             'status'      => 'sent',
             'message'     => 'ok',
             'http_code'   => 200,
-            'request'     => ['url' => $url, 'method' => $method],
+            'request'     => ['url' => $url, 'method' => $method->value],
             'response'    => [],
         ];
     }
