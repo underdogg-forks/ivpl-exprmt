@@ -10,27 +10,27 @@ class Merchant_responses_model extends CI_Model
         int $merchantClientId,
         int $invoiceId,
         array $providerResponse,
-        string $driver = '',
+        MerchantResponseDriver $driver,
         ?string $errorCode = null,
         ?string $errorDetail = null,
     ): int {
         $status = MerchantResponseStatus::tryFrom($providerResponse['status'] ?? '') ?? MerchantResponseStatus::Sent;
 
         $this->db->insert(self::TABLE, [
-            'invoice_id'                  => $invoiceId,
-            'merchant_response_date'      => date('Y-m-d'),
-            'merchant_response_driver'    => $driver,
-            'merchant_response'           => $providerResponse['message'] ?? null,
-            'merchant_response_reference' => $providerResponse['external_id'] ?? null,
+            'invoice_id'                   => $invoiceId,
+            'merchant_response_date'       => date('Y-m-d'),
+            'merchant_response_driver'     => $driver->value,
+            'merchant_response'            => $providerResponse['message'] ?? null,
+            'merchant_response_reference'  => $providerResponse['external_id'] ?? null,
             'merchant_response_successful' => $status->isSuccessful(),
-            'merchant_client_id'          => $merchantClientId,
-            'direction'                   => MerchantResponseDirection::Out->value,
-            'record_type'                 => MerchantResponseType::OutboundStatus->value,
-            'status'                      => $status->value,
-            'http_code'                   => $providerResponse['http_code'] ?? null,
-            'error_code'                  => $errorCode,
-            'error_detail'                => $errorDetail,
-            'created_at'                  => date('Y-m-d H:i:s'),
+            'merchant_client_id'           => $merchantClientId,
+            'direction'                    => MerchantResponseDirection::Out->value,
+            'record_type'                  => MerchantResponseType::OutboundStatus->value,
+            'status'                       => $status->value,
+            'http_code'                    => $providerResponse['http_code'] ?? null,
+            'error_code'                   => $errorCode,
+            'error_detail'                 => $errorDetail,
+            'created_at'                   => date('Y-m-d H:i:s'),
         ]);
 
         return (int) $this->db->insert_id();
@@ -39,45 +39,49 @@ class Merchant_responses_model extends CI_Model
     public function create_inbound(
         int $merchantClientId,
         array $providerResponse,
-        string $driver = '',
+        MerchantResponseDriver $driver,
     ): int {
         $status = MerchantResponseStatus::tryFrom($providerResponse['status'] ?? '') ?? MerchantResponseStatus::Received;
 
         $this->db->insert(self::TABLE, [
-            'invoice_id'                  => null,
-            'merchant_response_date'      => date('Y-m-d'),
-            'merchant_response_driver'    => $driver,
-            'merchant_response'           => $providerResponse['message'] ?? null,
-            'merchant_response_reference' => $providerResponse['external_id'] ?? null,
+            'invoice_id'                   => null,
+            'merchant_response_date'       => date('Y-m-d'),
+            'merchant_response_driver'     => $driver->value,
+            'merchant_response'            => $providerResponse['message'] ?? null,
+            'merchant_response_reference'  => $providerResponse['external_id'] ?? null,
             'merchant_response_successful' => $status->isSuccessful(),
-            'merchant_client_id'          => $merchantClientId,
-            'direction'                   => MerchantResponseDirection::In->value,
-            'record_type'                 => MerchantResponseType::IncomingInvoice->value,
-            'status'                      => $status->value,
-            'http_code'                   => $providerResponse['http_code'] ?? null,
-            'created_at'                  => date('Y-m-d H:i:s'),
+            'merchant_client_id'           => $merchantClientId,
+            'direction'                    => MerchantResponseDirection::In->value,
+            'record_type'                  => MerchantResponseType::IncomingInvoice->value,
+            'status'                       => $status->value,
+            'http_code'                    => $providerResponse['http_code'] ?? null,
+            'created_at'                   => date('Y-m-d H:i:s'),
         ]);
 
         return (int) $this->db->insert_id();
     }
 
-    public function save_status(int $invoiceId, array $status, array $lastResponse = [], string $driver = ''): int
-    {
+    public function save_status(
+        int $invoiceId,
+        array $status,
+        MerchantResponseDriver $driver,
+        array $lastResponse = [],
+    ): int {
         $resolvedStatus = MerchantResponseStatus::tryFrom($status['status'] ?? '') ?? MerchantResponseStatus::Unknown;
 
         $this->db->insert(self::TABLE, [
-            'invoice_id'                  => $invoiceId,
-            'merchant_response_date'      => date('Y-m-d'),
-            'merchant_response_driver'    => $driver,
-            'merchant_response'           => $status['message'] ?? null,
-            'merchant_response_reference' => $status['external_id'] ?? $lastResponse['merchant_response_reference'] ?? null,
+            'invoice_id'                   => $invoiceId,
+            'merchant_response_date'       => date('Y-m-d'),
+            'merchant_response_driver'     => $driver->value,
+            'merchant_response'            => $status['message'] ?? null,
+            'merchant_response_reference'  => $status['external_id'] ?? $lastResponse['merchant_response_reference'] ?? null,
             'merchant_response_successful' => $resolvedStatus->isSuccessful(),
-            'merchant_client_id'          => $lastResponse['merchant_client_id'] ?? null,
-            'direction'                   => MerchantResponseDirection::Out->value,
-            'record_type'                 => MerchantResponseType::OutboundStatus->value,
-            'status'                      => $resolvedStatus->value,
-            'http_code'                   => $status['http_code'] ?? null,
-            'created_at'                  => date('Y-m-d H:i:s'),
+            'merchant_client_id'           => $lastResponse['merchant_client_id'] ?? null,
+            'direction'                    => MerchantResponseDirection::Out->value,
+            'record_type'                  => MerchantResponseType::OutboundStatus->value,
+            'status'                       => $resolvedStatus->value,
+            'http_code'                    => $status['http_code'] ?? null,
+            'created_at'                   => date('Y-m-d H:i:s'),
         ]);
 
         return (int) $this->db->insert_id();
@@ -86,27 +90,27 @@ class Merchant_responses_model extends CI_Model
     public function create_inbound_item(
         int $merchantClientId,
         array $invoice,
-        string $driver = '',
+        MerchantResponseDriver $driver,
         ?string $peppolParticipantId = null,
         ?PeppolDocumentType $peppolDocumentType = null,
     ): int {
         $status = MerchantResponseStatus::tryFrom($invoice['status'] ?? '') ?? MerchantResponseStatus::Received;
 
         $this->db->insert(self::TABLE, [
-            'invoice_id'                  => null,
-            'merchant_response_date'      => date('Y-m-d'),
-            'merchant_response_driver'    => $driver,
-            'merchant_response'           => $invoice['message'] ?? null,
-            'merchant_response_reference' => $invoice['id'] ?? $invoice['external_id'] ?? null,
+            'invoice_id'                   => null,
+            'merchant_response_date'       => date('Y-m-d'),
+            'merchant_response_driver'     => $driver->value,
+            'merchant_response'            => $invoice['message'] ?? null,
+            'merchant_response_reference'  => $invoice['id'] ?? $invoice['external_id'] ?? null,
             'merchant_response_successful' => $status->isSuccessful(),
-            'merchant_client_id'          => $merchantClientId,
-            'direction'                   => MerchantResponseDirection::In->value,
-            'record_type'                 => MerchantResponseType::IncomingInvoice->value,
-            'status'                      => $status->value,
-            'http_code'                   => $invoice['http_code'] ?? null,
-            'peppol_participant_id'       => $peppolParticipantId,
-            'peppol_document_type'        => $peppolDocumentType?->value,
-            'created_at'                  => date('Y-m-d H:i:s'),
+            'merchant_client_id'           => $merchantClientId,
+            'direction'                    => MerchantResponseDirection::In->value,
+            'record_type'                  => MerchantResponseType::IncomingInvoice->value,
+            'status'                       => $status->value,
+            'http_code'                    => $invoice['http_code'] ?? null,
+            'peppol_participant_id'        => $peppolParticipantId,
+            'peppol_document_type'         => $peppolDocumentType?->value,
+            'created_at'                   => date('Y-m-d H:i:s'),
         ]);
 
         return (int) $this->db->insert_id();
@@ -115,27 +119,27 @@ class Merchant_responses_model extends CI_Model
     public function create_event_item(
         int $merchantClientId,
         array $event,
-        string $driver = '',
+        MerchantResponseDriver $driver,
         ?string $peppolParticipantId = null,
         ?PeppolDocumentType $peppolDocumentType = null,
     ): int {
         $status = MerchantResponseStatus::tryFrom($event['status'] ?? '') ?? MerchantResponseStatus::Unknown;
 
         $this->db->insert(self::TABLE, [
-            'invoice_id'                  => null,
-            'merchant_response_date'      => date('Y-m-d'),
-            'merchant_response_driver'    => $driver,
-            'merchant_response'           => $event['message'] ?? $event['event_type'] ?? null,
-            'merchant_response_reference' => $event['invoice_id'] ?? $event['external_id'] ?? $event['id'] ?? null,
+            'invoice_id'                   => null,
+            'merchant_response_date'       => date('Y-m-d'),
+            'merchant_response_driver'     => $driver->value,
+            'merchant_response'            => $event['message'] ?? $event['event_type'] ?? null,
+            'merchant_response_reference'  => $event['invoice_id'] ?? $event['external_id'] ?? $event['id'] ?? null,
             'merchant_response_successful' => $status->isSuccessful(),
-            'merchant_client_id'          => $merchantClientId,
-            'direction'                   => MerchantResponseDirection::In->value,
-            'record_type'                 => MerchantResponseType::InvoiceEvent->value,
-            'status'                      => $status->value,
-            'http_code'                   => $event['http_code'] ?? null,
-            'peppol_participant_id'       => $peppolParticipantId,
-            'peppol_document_type'        => $peppolDocumentType?->value,
-            'created_at'                  => date('Y-m-d H:i:s'),
+            'merchant_client_id'           => $merchantClientId,
+            'direction'                    => MerchantResponseDirection::In->value,
+            'record_type'                  => MerchantResponseType::InvoiceEvent->value,
+            'status'                       => $status->value,
+            'http_code'                    => $event['http_code'] ?? null,
+            'peppol_participant_id'        => $peppolParticipantId,
+            'peppol_document_type'         => $peppolDocumentType?->value,
+            'created_at'                   => date('Y-m-d H:i:s'),
         ]);
 
         return (int) $this->db->insert_id();

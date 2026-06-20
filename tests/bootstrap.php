@@ -84,6 +84,9 @@ if (! interface_exists('EinvoiceClientInterface', false)) {
 if (! enum_exists('RequestMethod', false)) {
     require_once APPPATH . 'modules/einvoice/libraries/RequestMethod.php';
 }
+if (! enum_exists('MerchantResponseDriver', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/MerchantResponseDriver.php';
+}
 if (! enum_exists('MerchantResponseDirection', false)) {
     require_once APPPATH . 'modules/einvoice/libraries/MerchantResponseDirection.php';
 }
