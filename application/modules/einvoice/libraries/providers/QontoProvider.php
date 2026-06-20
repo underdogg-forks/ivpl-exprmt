@@ -211,7 +211,7 @@ class QontoProvider implements MerchantProviderInterface
         ]);
     }
 
-    private function request(
+    protected function request(
         string $method,
         string $url,
         array $payload = [],
