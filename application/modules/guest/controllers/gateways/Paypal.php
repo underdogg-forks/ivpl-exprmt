@@ -5,7 +5,7 @@ if ( ! defined('BASEPATH')) {
 }
 
 if (! enum_exists('MerchantResponseDriver', false)) {
-    require_once APPPATH . 'modules/einvoice/libraries/MerchantResponseDriver.php';
+    require_once APPPATH . 'modules/integrations/libraries/MerchantResponseDriver.php';
 }
 
 /*
@@ -24,7 +24,7 @@ class Paypal extends Base_Controller
     {
         parent::__construct();
         $this->load->helper('file_security');
-        $this->load->model('einvoice/merchant_responses_model');
+        $this->load->model('integrations/merchant_responses_model');
         $this->_create_client();
     }
 

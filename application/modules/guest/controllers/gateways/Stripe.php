@@ -5,7 +5,7 @@ if ( ! defined('BASEPATH')) {
 }
 
 if (! enum_exists('MerchantResponseDriver', false)) {
-    require_once APPPATH . 'modules/einvoice/libraries/MerchantResponseDriver.php';
+    require_once APPPATH . 'modules/integrations/libraries/MerchantResponseDriver.php';
 }
 
 /*
@@ -31,7 +31,7 @@ class Stripe extends Base_Controller
         parent::__construct();
         $this->load->library('crypt');
         $this->load->model('invoices/mdl_invoices');
-        $this->load->model('einvoice/merchant_responses_model');
+        $this->load->model('integrations/merchant_responses_model');
         $this->load->helper('file_security');
 
         $this->stripe = new StripeClient($this->crypt->decode(get_setting('gateway_stripe_apiKey')));
