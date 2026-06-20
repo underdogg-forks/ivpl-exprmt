@@ -76,3 +76,21 @@ if (! class_exists('Form_Validation_Model', false)) {
 if (! class_exists('Response_Model', false)) {
     require_once APPPATH . 'core/Response_Model.php';
 }
+
+// eInvoice module — interface must be loaded before any provider class
+if (! interface_exists('MerchantProviderInterface', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/MerchantProviderInterface.php';
+}
+foreach (glob(APPPATH . 'modules/einvoice/libraries/providers/*Provider.php') as $_providerFile) {
+    $class = basename($_providerFile, '.php');
+    if (! class_exists($class, false)) {
+        require_once $_providerFile;
+    }
+}
+unset($_providerFile, $class);
+if (! class_exists('MerchantProviderRegistry', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/MerchantProviderRegistry.php';
+}
+if (! class_exists('MerchantClient', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/MerchantClient.php';
+}
