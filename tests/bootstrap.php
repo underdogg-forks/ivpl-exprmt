@@ -84,6 +84,18 @@ if (! interface_exists('EinvoiceClientInterface', false)) {
 if (! enum_exists('RequestMethod', false)) {
     require_once APPPATH . 'modules/einvoice/libraries/RequestMethod.php';
 }
+if (! enum_exists('MerchantResponseDirection', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/MerchantResponseDirection.php';
+}
+if (! enum_exists('MerchantResponseType', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/MerchantResponseType.php';
+}
+if (! enum_exists('MerchantResponseStatus', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/MerchantResponseStatus.php';
+}
+if (! enum_exists('PeppolDocumentType', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/PeppolDocumentType.php';
+}
 // Flat providers
 foreach (glob(APPPATH . 'modules/einvoice/libraries/providers/*Client.php') as $_clientFile) {
     $class = basename($_clientFile, '.php');
