@@ -30,4 +30,10 @@ npm-debug.log
 yarn-error.log
 .temp
 /stan.txt
+<<<<<<< HEAD
 /phpunit.txt
+=======
+/todo.txt
+/yarnpack.txt
+.phpunit.result.cache
+>>>>>>> 86d98da0 (Ignore PHPUnit result cache file)
