@@ -11,14 +11,14 @@ class Einvoice extends Admin_Controller
         $this->load->model('einvoice/Merchant_clients_model');
         $this->load->model('einvoice/Merchant_responses_model');
 
-        require_once APPPATH . 'modules/einvoice/libraries/MerchantProviderInterface.php';
-        require_once APPPATH . 'modules/einvoice/libraries/MerchantProviderRegistry.php';
-        require_once APPPATH . 'modules/einvoice/libraries/MerchantClient.php';
+        require_once APPPATH . 'modules/einvoice/libraries/EinvoiceClientInterface.php';
+        require_once APPPATH . 'modules/einvoice/libraries/EinvoiceClientRegistry.php';
+        require_once APPPATH . 'modules/einvoice/libraries/EinvoiceClient.php';
     }
 
     public function providers(): void
     {
-        $registry = new MerchantProviderRegistry();
+        $registry = new EinvoiceClientRegistry();
         $this->output
             ->set_content_type('application/json')
             ->set_output(json_encode($registry->all(), JSON_PRETTY_PRINT));
@@ -38,10 +38,10 @@ class Einvoice extends Admin_Controller
 
         $settings = $this->Merchant_clients_model->get_settings($merchantClient);
 
-        $registry = new MerchantProviderRegistry();
-        $provider = $registry->getProvider($merchantClient['merchant_type']);
+        $registry = new EinvoiceClientRegistry();
+        $provider = $registry->getClient($merchantClient['merchant_type']);
 
-        $client = new MerchantClient($provider, $settings);
+        $client = new EinvoiceClient($provider, $settings);
 
         $this->load->helper('pdf');
         $this->load->model('invoices/mdl_invoices');
@@ -130,9 +130,9 @@ class Einvoice extends Admin_Controller
         }
 
         $settings = $this->Merchant_clients_model->get_settings($merchantClient);
-        $registry = new MerchantProviderRegistry();
-        $provider = $registry->getProvider($merchantClient['merchant_type']);
-        $client = new MerchantClient($provider, $settings);
+        $registry = new EinvoiceClientRegistry();
+        $provider = $registry->getClient($merchantClient['merchant_type']);
+        $client = new EinvoiceClient($provider, $settings);
 
         $response = $client->receiveInvoices();
 
@@ -171,9 +171,9 @@ class Einvoice extends Admin_Controller
 
         $settings = $this->Merchant_clients_model->get_settings($merchantClient);
 
-        $registry = new MerchantProviderRegistry();
-        $provider = $registry->getProvider($merchantClient['merchant_type']);
-        $client = new MerchantClient($provider, $settings);
+        $registry = new EinvoiceClientRegistry();
+        $provider = $registry->getClient($merchantClient['merchant_type']);
+        $client = new EinvoiceClient($provider, $settings);
 
         $events = $client->getInvoiceEvents();
 
@@ -227,13 +227,13 @@ class Einvoice extends Admin_Controller
         $settings = $this->Merchant_clients_model
             ->get_settings($merchantClient);
 
-        $registry = new MerchantProviderRegistry();
+        $registry = new EinvoiceClientRegistry();
 
-        $provider = $registry->getProvider(
+        $provider = $registry->getClient(
             $merchantClient['merchant_type']
         );
 
-        $client = new MerchantClient(
+        $client = new EinvoiceClient(
             $provider,
             $settings
         );

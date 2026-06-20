@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class LetsPeppolProvider implements MerchantProviderInterface
+class LetsPeppolClient implements EinvoiceClientInterface
 {
     private LetsPeppolApiClient $apiClient;
     private LetsPeppolInvoiceEndpoint $invoices;
@@ -21,12 +21,12 @@ class LetsPeppolProvider implements MerchantProviderInterface
         $this->documents    = new LetsPeppolDocumentEndpoint($this->apiClient);
     }
 
-    public static function providerCode(): string
+    public static function clientCode(): string
     {
         return 'letspeppol';
     }
 
-    public static function providerName(): string
+    public static function clientName(): string
     {
         return 'LetsPeppol';
     }

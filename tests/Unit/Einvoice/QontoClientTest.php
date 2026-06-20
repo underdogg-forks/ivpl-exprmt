@@ -3,13 +3,13 @@
 namespace Tests\Unit\Einvoice;
 
 use PHPUnit\Framework\TestCase;
-use QontoProvider;
+use QontoClient;
 use RuntimeException;
 
 /**
  * Stubs request() so no real HTTP is made.
  */
-class FakeQontoProvider extends QontoProvider
+class FakeQontoClient extends QontoClient
 {
     public array $requestLog = [];
     private array $responses;
@@ -41,7 +41,7 @@ class FakeQontoProvider extends QontoProvider
     }
 }
 
-class QontoProviderTest extends TestCase
+class QontoClientTest extends TestCase
 {
     private function defaultSettings(): array
     {
@@ -64,7 +64,7 @@ class QontoProviderTest extends TestCase
     public function it_accepts_valid_settings_on_authenticate(): void
     {
         /* Arrange */
-        $provider = new FakeQontoProvider();
+        $provider = new FakeQontoClient();
 
         /* Act */
         $result = $provider->authenticate($this->defaultSettings());
@@ -77,7 +77,7 @@ class QontoProviderTest extends TestCase
     public function it_rejects_authenticate_when_access_token_is_missing(): void
     {
         /* Arrange */
-        $provider = new FakeQontoProvider();
+        $provider = new FakeQontoClient();
         $settings = $this->defaultSettings();
         $settings['access_token'] = '';
 
@@ -93,7 +93,7 @@ class QontoProviderTest extends TestCase
     public function it_rejects_authenticate_when_api_base_url_is_missing(): void
     {
         /* Arrange */
-        $provider = new FakeQontoProvider();
+        $provider = new FakeQontoClient();
         $settings = $this->defaultSettings();
         $settings['api_base_url'] = '';
 
@@ -111,7 +111,7 @@ class QontoProviderTest extends TestCase
     public function it_rejects_send_when_the_invoice_file_does_not_exist(): void
     {
         /* Arrange */
-        $provider = new FakeQontoProvider();
+        $provider = new FakeQontoClient();
         $provider->authenticate($this->defaultSettings());
 
         /* Act */
@@ -126,7 +126,7 @@ class QontoProviderTest extends TestCase
     public function it_returns_an_error_when_the_upload_step_fails(): void
     {
         /* Arrange */
-        $provider = new FakeQontoProvider([
+        $provider = new FakeQontoClient([
             ['success' => false, 'external_id' => null, 'status' => 'error', 'message' => 'Upload failed', 'http_code' => 500, 'request' => [], 'response' => []],
         ]);
         $provider->authenticate($this->defaultSettings());
@@ -146,7 +146,7 @@ class QontoProviderTest extends TestCase
     public function it_returns_an_error_when_qonto_invoice_payload_is_absent(): void
     {
         /* Arrange */
-        $provider = new FakeQontoProvider([
+        $provider = new FakeQontoClient([
             ['success' => true, 'external_id' => 'upload-1', 'status' => 'sent', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => ['data' => ['id' => 'upload-1']]],
         ]);
         $provider->authenticate($this->defaultSettings());
@@ -166,7 +166,7 @@ class QontoProviderTest extends TestCase
     public function it_sends_an_invoice_through_all_three_steps(): void
     {
         /* Arrange */
-        $provider = new FakeQontoProvider([
+        $provider = new FakeQontoClient([
             ['success' => true, 'external_id' => 'upload-1', 'status' => 'sent', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => ['data' => ['id' => 'upload-1']]],
             ['success' => true, 'external_id' => 'cinv-1', 'status' => 'sent', 'message' => 'ok', 'http_code' => 201, 'request' => [], 'response' => ['client_invoice' => ['id' => 'cinv-1']]],
             ['success' => true, 'external_id' => 'cinv-1', 'status' => 'sent', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => []],
@@ -192,7 +192,7 @@ class QontoProviderTest extends TestCase
     public function it_interpolates_the_invoice_id_into_the_status_url(): void
     {
         /* Arrange */
-        $provider = new FakeQontoProvider([
+        $provider = new FakeQontoClient([
             ['success' => true, 'external_id' => 'inv-99', 'status' => 'sent', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => ['client_invoice' => ['status' => 'paid']]],
         ]);
         $provider->authenticate($this->defaultSettings());
@@ -209,7 +209,7 @@ class QontoProviderTest extends TestCase
     public function it_rejects_get_status_when_endpoint_setting_is_missing(): void
     {
         /* Arrange */
-        $provider = new FakeQontoProvider();
+        $provider = new FakeQontoClient();
         $settings = $this->defaultSettings();
         $settings['invoice_status_endpoint'] = '';
         $provider->authenticate($settings);
@@ -227,7 +227,7 @@ class QontoProviderTest extends TestCase
     public function it_appends_filters_as_a_query_string_when_receiving_invoices(): void
     {
         /* Arrange */
-        $provider = new FakeQontoProvider([
+        $provider = new FakeQontoClient([
             ['success' => true, 'external_id' => null, 'status' => 'received', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => []],
         ]);
         $provider->authenticate($this->defaultSettings());
@@ -246,7 +246,7 @@ class QontoProviderTest extends TestCase
     public function it_fetches_invoice_events_with_a_get_request(): void
     {
         /* Arrange */
-        $provider = new FakeQontoProvider([
+        $provider = new FakeQontoClient([
             ['success' => true, 'external_id' => null, 'status' => 'events_received', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => []],
         ]);
         $provider->authenticate($this->defaultSettings());
@@ -266,7 +266,7 @@ class QontoProviderTest extends TestCase
         /* Arrange */
 
         /* Act */
-        $code = QontoProvider::providerCode();
+        $code = QontoClient::clientCode();
 
         /* Assert */
         $this->assertSame('qonto', $code);
@@ -278,7 +278,7 @@ class QontoProviderTest extends TestCase
         /* Arrange */
 
         /* Act */
-        $name = QontoProvider::providerName();
+        $name = QontoClient::clientName();
 
         /* Assert */
         $this->assertSame('Qonto PA', $name);
@@ -290,7 +290,7 @@ class QontoProviderTest extends TestCase
         /* Arrange */
 
         /* Act */
-        $settings = QontoProvider::defaultSettings();
+        $settings = QontoClient::defaultSettings();
 
         /* Assert */
         foreach (['access_token', 'api_base_url', 'upload_endpoint', 'invoice_endpoint', 'send_invoice_endpoint'] as $key) {

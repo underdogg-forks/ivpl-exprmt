@@ -95,9 +95,9 @@ class Settings extends Admin_Controller
 
     private function sync_provider_registry(): void
     {
-        $this->load->library('einvoice/MerchantProviderRegistry');
+        $this->load->library('einvoice/EinvoiceClientRegistry');
 
-        $registry = new MerchantProviderRegistry();
+        $registry = new EinvoiceClientRegistry();
 
         if (method_exists($registry, 'syncDatabaseProviders')) {
             $registry->syncDatabaseProviders();

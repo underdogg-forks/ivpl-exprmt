@@ -13,9 +13,9 @@ class Sync extends Admin_Controller
         $this->load->model('einvoice/Merchant_clients_model');
         $this->load->model('einvoice/Merchant_responses_model');
 
-        require_once APPPATH . 'modules/einvoice/libraries/MerchantProviderInterface.php';
-        require_once APPPATH . 'modules/einvoice/libraries/MerchantProviderRegistry.php';
-        require_once APPPATH . 'modules/einvoice/libraries/MerchantClient.php';
+        require_once APPPATH . 'modules/einvoice/libraries/EinvoiceClientInterface.php';
+        require_once APPPATH . 'modules/einvoice/libraries/EinvoiceClientRegistry.php';
+        require_once APPPATH . 'modules/einvoice/libraries/EinvoiceClient.php';
     }
 
     public function run($merchant_client_id)
@@ -30,9 +30,9 @@ class Sync extends Admin_Controller
 
         $settings = $this->Merchant_clients_model->get_settings($merchantClient);
 
-        $registry = new MerchantProviderRegistry();
-        $provider = $registry->getProvider($merchantClient['merchant_type']);
-        $client = new MerchantClient($provider, $settings);
+        $registry = new EinvoiceClientRegistry();
+        $provider = $registry->getClient($merchantClient['merchant_type']);
+        $client = new EinvoiceClient($provider, $settings);
 
         $incoming = $client->receiveInvoices();
         $incomingItems = $incoming['response']['data']

@@ -2,11 +2,11 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-interface MerchantProviderInterface
+interface EinvoiceClientInterface
 {
-    public static function providerCode(): string;
+    public static function clientCode(): string;
 
-    public static function providerName(): string;
+    public static function clientName(): string;
 
     public function authenticate(array $settings): bool;
 

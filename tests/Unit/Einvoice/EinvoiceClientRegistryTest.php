@@ -2,16 +2,16 @@
 
 namespace Tests\Unit\Einvoice;
 
-use MerchantProviderInterface;
-use MerchantProviderRegistry;
+use EinvoiceClientInterface;
+use EinvoiceClientRegistry;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
-class MerchantProviderRegistryTest extends TestCase
+class EinvoiceClientRegistryTest extends TestCase
 {
-    private function registry(): MerchantProviderRegistry
+    private function registry(): EinvoiceClientRegistry
     {
-        return new MerchantProviderRegistry();
+        return new EinvoiceClientRegistry();
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -72,8 +72,8 @@ class MerchantProviderRegistryTest extends TestCase
         /* Act + Assert */
         foreach ($providers as $code => $className) {
             $this->assertTrue(
-                is_subclass_of($className, MerchantProviderInterface::class),
-                "Provider '{$code}' ({$className}) must implement MerchantProviderInterface"
+                is_subclass_of($className, EinvoiceClientInterface::class),
+                "Provider '{$code}' ({$className}) must implement EinvoiceClientInterface"
             );
         }
     }
@@ -85,10 +85,10 @@ class MerchantProviderRegistryTest extends TestCase
         $registry = $this->registry();
 
         /* Act */
-        $provider = $registry->getProvider('qonto');
+        $provider = $registry->getClient('qonto');
 
         /* Assert */
-        $this->assertInstanceOf(MerchantProviderInterface::class, $provider);
+        $this->assertInstanceOf(EinvoiceClientInterface::class, $provider);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -98,8 +98,8 @@ class MerchantProviderRegistryTest extends TestCase
         $registry = $this->registry();
 
         /* Act */
-        $a = $registry->getProvider('qonto');
-        $b = $registry->getProvider('qonto');
+        $a = $registry->getClient('qonto');
+        $b = $registry->getClient('qonto');
 
         /* Assert */
         $this->assertNotSame($a, $b);
@@ -116,7 +116,7 @@ class MerchantProviderRegistryTest extends TestCase
         $this->expectExceptionMessage('Unknown e-invoicing provider: nonexistent');
 
         /* Assert */
-        $registry->getProvider('nonexistent');
+        $registry->getClient('nonexistent');
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -128,8 +128,8 @@ class MerchantProviderRegistryTest extends TestCase
         /* Act + Assert */
         foreach ($providers as $code => $className) {
             $this->assertNotEmpty(
-                $className::providerCode(),
-                "Provider class {$className} must return a non-empty providerCode()"
+                $className::clientCode(),
+                "Provider class {$className} must return a non-empty clientCode()"
             );
         }
     }
@@ -143,8 +143,8 @@ class MerchantProviderRegistryTest extends TestCase
         /* Act + Assert */
         foreach ($providers as $code => $className) {
             $this->assertNotEmpty(
-                $className::providerName(),
-                "Provider class {$className} must return a non-empty providerName()"
+                $className::clientName(),
+                "Provider class {$className} must return a non-empty clientName()"
             );
         }
     }

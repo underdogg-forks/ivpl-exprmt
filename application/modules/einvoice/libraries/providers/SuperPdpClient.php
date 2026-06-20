@@ -2,17 +2,17 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class SuperPdpProvider implements MerchantProviderInterface
+class SuperPdpClient implements EinvoiceClientInterface
 {
     private ?string $accessToken = null;
     private array $settings = [];
 
-    public static function providerCode(): string
+    public static function clientCode(): string
     {
         return 'superpdp';
     }
 
-    public static function providerName(): string
+    public static function clientName(): string
     {
         return 'SuperPDP';
     }

@@ -78,25 +78,25 @@ if (! class_exists('Response_Model', false)) {
 }
 
 // eInvoice module — interface must be loaded before any provider class
-if (! interface_exists('MerchantProviderInterface', false)) {
-    require_once APPPATH . 'modules/einvoice/libraries/MerchantProviderInterface.php';
+if (! interface_exists('EinvoiceClientInterface', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/EinvoiceClientInterface.php';
 }
 if (! enum_exists('RequestMethod', false)) {
     require_once APPPATH . 'modules/einvoice/libraries/RequestMethod.php';
 }
 // Flat providers
-foreach (glob(APPPATH . 'modules/einvoice/libraries/providers/*Provider.php') as $_providerFile) {
-    $class = basename($_providerFile, '.php');
+foreach (glob(APPPATH . 'modules/einvoice/libraries/providers/*Client.php') as $_clientFile) {
+    $class = basename($_clientFile, '.php');
     if (! class_exists($class, false)) {
-        require_once $_providerFile;
+        require_once $_clientFile;
     }
 }
-// Nested providers (e.g. LetsPeppol/): load all supporting files first, then the Provider
-foreach (glob(APPPATH . 'modules/einvoice/libraries/providers/*/*Provider.php') as $_providerFile) {
-    $_dir = dirname($_providerFile);
+// Nested clients (e.g. LetsPeppol/): load all supporting files first, then the Client
+foreach (glob(APPPATH . 'modules/einvoice/libraries/providers/*/*Client.php') as $_clientFile) {
+    $_dir = dirname($_clientFile);
     // API client and other peer files
     foreach (glob($_dir . '/*.php') as $_peerFile) {
-        if ($_peerFile !== $_providerFile) {
+        if ($_peerFile !== $_clientFile) {
             require_once $_peerFile;
         }
     }
@@ -104,16 +104,16 @@ foreach (glob(APPPATH . 'modules/einvoice/libraries/providers/*/*Provider.php') 
     foreach (glob($_dir . '/Endpoints/*.php') as $_endpointFile) {
         require_once $_endpointFile;
     }
-    $class = basename($_providerFile, '.php');
+    $class = basename($_clientFile, '.php');
     if (! class_exists($class, false)) {
-        require_once $_providerFile;
+        require_once $_clientFile;
     }
 }
 // Also load Fake helpers used by tests (namespace-autoloaded, but listed here for completeness)
-unset($_providerFile, $_dir, $_peerFile, $_endpointFile, $class);
-if (! class_exists('MerchantProviderRegistry', false)) {
-    require_once APPPATH . 'modules/einvoice/libraries/MerchantProviderRegistry.php';
+unset($_clientFile, $_dir, $_peerFile, $_endpointFile, $class);
+if (! class_exists('EinvoiceClientRegistry', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/EinvoiceClientRegistry.php';
 }
-if (! class_exists('MerchantClient', false)) {
-    require_once APPPATH . 'modules/einvoice/libraries/MerchantClient.php';
+if (! class_exists('EinvoiceClient', false)) {
+    require_once APPPATH . 'modules/einvoice/libraries/EinvoiceClient.php';
 }

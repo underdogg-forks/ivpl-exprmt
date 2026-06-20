@@ -2,12 +2,12 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class MerchantClient
+class EinvoiceClient
 {
-    private MerchantProviderInterface $provider;
+    private EinvoiceClientInterface $provider;
     private array $settings;
 
-    public function __construct(MerchantProviderInterface $provider, array $settings)
+    public function __construct(EinvoiceClientInterface $provider, array $settings)
     {
         $this->provider = $provider;
         $this->settings = $settings;

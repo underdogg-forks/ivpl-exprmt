@@ -4,12 +4,12 @@ namespace Tests\Unit\Einvoice;
 
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
-use SuperPdpProvider;
+use SuperPdpClient;
 
 /**
  * Stubs fetchToken() and request() so no real HTTP is made.
  */
-class FakeSuperPdpProvider extends SuperPdpProvider
+class FakeSuperPdpClient extends SuperPdpClient
 {
     public array $requestLog = [];
     public array $tokenLog = [];
@@ -60,7 +60,7 @@ class FakeSuperPdpProvider extends SuperPdpProvider
     }
 }
 
-class SuperPdpProviderTest extends TestCase
+class SuperPdpClientTest extends TestCase
 {
     private function defaultSettings(): array
     {
@@ -83,7 +83,7 @@ class SuperPdpProviderTest extends TestCase
     public function it_calls_fetch_token_with_the_configured_credentials(): void
     {
         /* Arrange */
-        $provider = new FakeSuperPdpProvider();
+        $provider = new FakeSuperPdpClient();
 
         /* Act */
         $result = $provider->authenticate($this->defaultSettings());
@@ -100,7 +100,7 @@ class SuperPdpProviderTest extends TestCase
     public function it_rejects_authenticate_when_client_id_is_missing(): void
     {
         /* Arrange */
-        $provider = new FakeSuperPdpProvider();
+        $provider = new FakeSuperPdpClient();
         $settings = $this->defaultSettings();
         $settings['client_id'] = '';
 
@@ -116,7 +116,7 @@ class SuperPdpProviderTest extends TestCase
     public function it_rejects_authenticate_when_client_secret_is_missing(): void
     {
         /* Arrange */
-        $provider = new FakeSuperPdpProvider();
+        $provider = new FakeSuperPdpClient();
         $settings = $this->defaultSettings();
         $settings['client_secret'] = '';
 
@@ -131,7 +131,7 @@ class SuperPdpProviderTest extends TestCase
     public function it_rejects_authenticate_when_token_url_is_missing(): void
     {
         /* Arrange */
-        $provider = new FakeSuperPdpProvider();
+        $provider = new FakeSuperPdpClient();
         $settings = $this->defaultSettings();
         $settings['token_url'] = '';
 
@@ -146,7 +146,7 @@ class SuperPdpProviderTest extends TestCase
     public function it_rejects_authenticate_when_the_token_response_contains_no_access_token(): void
     {
         /* Arrange */
-        $provider = new FakeSuperPdpProvider([], ['error' => 'invalid_client']);
+        $provider = new FakeSuperPdpClient([], ['error' => 'invalid_client']);
 
         /* Act */
         $this->expectException(RuntimeException::class);
@@ -160,7 +160,7 @@ class SuperPdpProviderTest extends TestCase
     public function it_propagates_a_fetch_token_network_exception(): void
     {
         /* Arrange */
-        $provider = new FakeSuperPdpProvider([], ['access_token' => 'tok'], 'SuperPDP OAuth error: connection refused');
+        $provider = new FakeSuperPdpClient([], ['access_token' => 'tok'], 'SuperPDP OAuth error: connection refused');
 
         /* Act */
         $this->expectException(RuntimeException::class);
@@ -176,7 +176,7 @@ class SuperPdpProviderTest extends TestCase
     public function it_rejects_send_when_the_invoice_file_does_not_exist(): void
     {
         /* Arrange */
-        $provider = new FakeSuperPdpProvider();
+        $provider = new FakeSuperPdpClient();
         $provider->authenticate($this->defaultSettings());
 
         /* Act */
@@ -191,7 +191,7 @@ class SuperPdpProviderTest extends TestCase
     public function it_rejects_send_when_no_access_token_is_present(): void
     {
         /* Arrange */
-        $noTokenProvider = new FakeSuperPdpProvider([], []);
+        $noTokenProvider = new FakeSuperPdpClient([], []);
         try {
             $noTokenProvider->authenticate($this->defaultSettings());
         } catch (RuntimeException) {
@@ -216,7 +216,7 @@ class SuperPdpProviderTest extends TestCase
     public function it_sends_an_invoice_as_a_multipart_post(): void
     {
         /* Arrange */
-        $provider = new FakeSuperPdpProvider();
+        $provider = new FakeSuperPdpClient();
         $provider->authenticate($this->defaultSettings());
         $tmp = tempnam(sys_get_temp_dir(), 'inv') . '.pdf';
         file_put_contents($tmp, '%PDF-1.4');
@@ -237,7 +237,7 @@ class SuperPdpProviderTest extends TestCase
         /* Arrange */
         $settings = $this->defaultSettings();
         $settings['disable_pre_check'] = true;
-        $provider = new FakeSuperPdpProvider();
+        $provider = new FakeSuperPdpClient();
         $provider->authenticate($settings);
         $tmp = tempnam(sys_get_temp_dir(), 'inv') . '.pdf';
         file_put_contents($tmp, '%PDF-1.4');
@@ -256,7 +256,7 @@ class SuperPdpProviderTest extends TestCase
     public function it_interpolates_the_invoice_id_into_the_status_url(): void
     {
         /* Arrange */
-        $provider = new FakeSuperPdpProvider([
+        $provider = new FakeSuperPdpClient([
             ['success' => true, 'external_id' => 'inv-5', 'status' => 'sent', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => []],
         ]);
         $provider->authenticate($this->defaultSettings());
@@ -276,7 +276,7 @@ class SuperPdpProviderTest extends TestCase
         /* Arrange */
         $settings = $this->defaultSettings();
         $settings['invoice_status_endpoint'] = '';
-        $provider = new FakeSuperPdpProvider();
+        $provider = new FakeSuperPdpClient();
         $provider->authenticate($settings);
 
         /* Act */
@@ -292,7 +292,7 @@ class SuperPdpProviderTest extends TestCase
     public function it_appends_filters_as_a_query_string_when_receiving_invoices(): void
     {
         /* Arrange */
-        $provider = new FakeSuperPdpProvider();
+        $provider = new FakeSuperPdpClient();
         $provider->authenticate($this->defaultSettings());
 
         /* Act */
@@ -308,7 +308,7 @@ class SuperPdpProviderTest extends TestCase
         /* Arrange */
         $settings = $this->defaultSettings();
         $settings['incoming_invoices_endpoint'] = '';
-        $provider = new FakeSuperPdpProvider();
+        $provider = new FakeSuperPdpClient();
         $provider->authenticate($settings);
 
         /* Act */
@@ -324,7 +324,7 @@ class SuperPdpProviderTest extends TestCase
     public function it_fetches_invoice_events_with_a_get_request(): void
     {
         /* Arrange */
-        $provider = new FakeSuperPdpProvider();
+        $provider = new FakeSuperPdpClient();
         $provider->authenticate($this->defaultSettings());
 
         /* Act */
@@ -340,7 +340,7 @@ class SuperPdpProviderTest extends TestCase
         /* Arrange */
         $settings = $this->defaultSettings();
         $settings['invoice_events_endpoint'] = '';
-        $provider = new FakeSuperPdpProvider();
+        $provider = new FakeSuperPdpClient();
         $provider->authenticate($settings);
 
         /* Act */
@@ -358,7 +358,7 @@ class SuperPdpProviderTest extends TestCase
         /* Arrange */
 
         /* Act */
-        $code = SuperPdpProvider::providerCode();
+        $code = SuperPdpClient::clientCode();
 
         /* Assert */
         $this->assertSame('superpdp', $code);
@@ -370,7 +370,7 @@ class SuperPdpProviderTest extends TestCase
         /* Arrange */
 
         /* Act */
-        $name = SuperPdpProvider::providerName();
+        $name = SuperPdpClient::clientName();
 
         /* Assert */
         $this->assertSame('SuperPDP', $name);
@@ -382,7 +382,7 @@ class SuperPdpProviderTest extends TestCase
         /* Arrange */
 
         /* Act */
-        $settings = SuperPdpProvider::defaultSettings();
+        $settings = SuperPdpClient::defaultSettings();
 
         /* Assert */
         foreach (['client_id', 'client_secret', 'token_url', 'api_base_url'] as $key) {
@@ -394,7 +394,7 @@ class SuperPdpProviderTest extends TestCase
     public function it_returns_metadata_unchanged_from_build_invoice_payload(): void
     {
         /* Arrange */
-        $provider = new FakeSuperPdpProvider();
+        $provider = new FakeSuperPdpClient();
         $metadata = ['ref' => 'INV-001', 'custom' => true];
 
         /* Act */

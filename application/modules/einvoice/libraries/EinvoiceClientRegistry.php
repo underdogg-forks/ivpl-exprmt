@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class MerchantProviderRegistry
+class EinvoiceClientRegistry
 {
     private array $providers = [];
 
@@ -11,15 +11,15 @@ class MerchantProviderRegistry
         $this->loadProviders();
     }
 
-    public function getProvider(string $providerCode): MerchantProviderInterface
+    public function getClient(string $clientCode): EinvoiceClientInterface
     {
-        if (empty($this->providers[$providerCode])) {
-            throw new RuntimeException('Unknown e-invoicing provider: ' . $providerCode);
+        if (empty($this->providers[$clientCode])) {
+            throw new RuntimeException('Unknown e-invoicing provider: ' . $clientCode);
         }
 
-        $providerClass = $this->providers[$providerCode];
+        $clientClass = $this->providers[$clientCode];
 
-        return new $providerClass();
+        return new $clientClass();
     }
 
     public function all(): array
@@ -29,13 +29,13 @@ class MerchantProviderRegistry
 
     private function loadProviders(): void
     {
-        require_once APPPATH . 'modules/einvoice/libraries/MerchantProviderInterface.php';
+        require_once APPPATH . 'modules/einvoice/libraries/EinvoiceClientInterface.php';
 
-        $providerPath = APPPATH . 'modules/einvoice/libraries/providers/';
+        $clientPath = APPPATH . 'modules/einvoice/libraries/providers/';
 
         $patterns = [
-            $providerPath . '*Provider.php',
-            $providerPath . '*/*Provider.php',
+            $clientPath . '*Client.php',
+            $clientPath . '*/*Client.php',
         ];
 
         $files = [];
@@ -62,15 +62,15 @@ class MerchantProviderRegistry
                 continue;
             }
 
-            if (!is_subclass_of($className, MerchantProviderInterface::class)) {
+            if (!is_subclass_of($className, EinvoiceClientInterface::class)) {
                 continue;
             }
 
-            if (!method_exists($className, 'providerCode')) {
+            if (!method_exists($className, 'clientCode')) {
                 continue;
             }
 
-            $this->providers[$className::providerCode()] = $className;
+            $this->providers[$className::clientCode()] = $className;
         }
     }
 
@@ -78,29 +78,29 @@ class MerchantProviderRegistry
     {
         $CI = &get_instance();
 
-        foreach ($this->providers as $providerCode => $providerClass) {
+        foreach ($this->providers as $clientCode => $clientClass) {
             $existing = $CI->db
-                ->where('merchant_type', $providerCode)
+                ->where('merchant_type', $clientCode)
                 ->get('ip_merchant_clients')
                 ->row_array();
 
 	    if ($existing) {
                 log_message(
                     'debug',
-                    'eInvoice provider already registered: ' . $providerCode
+                    'eInvoice provider already registered: ' . $clientCode
                 );
                 continue;
             }
 
             $settings = [];
 
-            if (method_exists($providerClass, 'defaultSettings')) {
-                $settings = $providerClass::defaultSettings();
+            if (method_exists($clientClass, 'defaultSettings')) {
+                $settings = $clientClass::defaultSettings();
             }
 
             $CI->db->insert('ip_merchant_clients', [
-                'merchant_type' => $providerCode,
-                'label' => $providerClass::providerName(),
+                'merchant_type' => $clientCode,
+                'label' => $clientClass::clientName(),
                 'enabled' => 0,
                 'auth_type' => $this->guessAuthType($settings),
                 'settings_json' => json_encode($settings),

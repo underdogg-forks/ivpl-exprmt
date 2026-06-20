@@ -2,16 +2,16 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class QontoProvider implements MerchantProviderInterface
+class QontoClient implements EinvoiceClientInterface
 {
     private array $settings = [];
 
-    public static function providerCode(): string
+    public static function clientCode(): string
     {
         return 'qonto';
     }
 
-    public static function providerName(): string
+    public static function clientName(): string
     {
         return 'Qonto PA';
     }

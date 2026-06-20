@@ -2,12 +2,12 @@
 
 namespace Tests\Unit\Einvoice;
 
-use LetsPeppolProvider;
+use LetsPeppolClient;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Tests\Fakes\Einvoice\FakeLetsPeppolApiClient;
 
-class LetsPeppolProviderTest extends TestCase
+class LetsPeppolClientTest extends TestCase
 {
     private function defaultSettings(): array
     {
@@ -34,7 +34,7 @@ class LetsPeppolProviderTest extends TestCase
     private function makeProvider(array $responses = [], array $tokenResponse = ['access_token' => 'fake-token']): array
     {
         $client   = new FakeLetsPeppolApiClient($responses, $tokenResponse);
-        $provider = new LetsPeppolProvider($client);
+        $provider = new LetsPeppolClient($client);
 
         return [$provider, $client];
     }
@@ -47,7 +47,7 @@ class LetsPeppolProviderTest extends TestCase
         /* Arrange */
 
         /* Act */
-        $code = LetsPeppolProvider::providerCode();
+        $code = LetsPeppolClient::clientCode();
 
         /* Assert */
         $this->assertSame('letspeppol', $code);
@@ -59,7 +59,7 @@ class LetsPeppolProviderTest extends TestCase
         /* Arrange */
 
         /* Act */
-        $name = LetsPeppolProvider::providerName();
+        $name = LetsPeppolClient::clientName();
 
         /* Assert */
         $this->assertSame('LetsPeppol', $name);
@@ -71,7 +71,7 @@ class LetsPeppolProviderTest extends TestCase
         /* Arrange */
 
         /* Act */
-        $settings = LetsPeppolProvider::defaultSettings();
+        $settings = LetsPeppolClient::defaultSettings();
 
         /* Assert */
         foreach (['client_id', 'client_secret', 'token_url', 'api_base_url'] as $key) {
@@ -85,7 +85,7 @@ class LetsPeppolProviderTest extends TestCase
         /* Arrange */
 
         /* Act */
-        $settings = LetsPeppolProvider::defaultSettings();
+        $settings = LetsPeppolClient::defaultSettings();
 
         /* Assert */
         $expected = [
@@ -204,7 +204,7 @@ class LetsPeppolProviderTest extends TestCase
     {
         /* Arrange */
         $client   = new FakeLetsPeppolApiClient([], ['access_token' => 'tok'], 'LetsPeppol OAuth error: connection refused');
-        $provider = new LetsPeppolProvider($client);
+        $provider = new LetsPeppolClient($client);
 
         /* Act */
         $this->expectException(RuntimeException::class);
