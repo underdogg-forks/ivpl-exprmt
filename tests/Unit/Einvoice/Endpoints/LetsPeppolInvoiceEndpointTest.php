@@ -39,7 +39,7 @@ class LetsPeppolInvoiceEndpointTest extends TestCase
         unlink($tmp);
 
         /* Assert */
-        $this->assertSame('POST', $client->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::POST, $client->requestLog[0]['method']);
         $this->assertTrue($client->requestLog[0]['multipart']);
     }
 
@@ -142,7 +142,7 @@ class LetsPeppolInvoiceEndpointTest extends TestCase
         $endpoint->incoming(['status' => 'new']);
 
         /* Assert */
-        $this->assertSame('GET', $client->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::GET, $client->requestLog[0]['method']);
         $this->assertStringContainsString('incoming-invoices', $client->requestLog[0]['url']);
     }
 
@@ -173,7 +173,7 @@ class LetsPeppolInvoiceEndpointTest extends TestCase
         $endpoint->events();
 
         /* Assert */
-        $this->assertSame('GET', $client->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::GET, $client->requestLog[0]['method']);
         $this->assertStringContainsString('invoice-events', $client->requestLog[0]['url']);
     }
 

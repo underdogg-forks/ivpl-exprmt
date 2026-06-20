@@ -32,7 +32,7 @@ class LetsPeppolDocumentEndpointTest extends TestCase
         $endpoint->get('doc-33');
 
         /* Assert */
-        $this->assertSame('GET', $client->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::GET, $client->requestLog[0]['method']);
         $this->assertStringContainsString('doc-33', $client->requestLog[0]['url']);
         $this->assertStringNotContainsString('{id}', $client->requestLog[0]['url']);
     }
@@ -62,7 +62,7 @@ class LetsPeppolDocumentEndpointTest extends TestCase
         $endpoint->list(['type' => 'invoice']);
 
         /* Assert */
-        $this->assertSame('GET', $client->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::GET, $client->requestLog[0]['method']);
         $this->assertStringContainsString('documents', $client->requestLog[0]['url']);
     }
 

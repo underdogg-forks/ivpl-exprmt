@@ -16,7 +16,7 @@ class LetsPeppolParticipantEndpoint
 
         $url = $this->client->buildUrl($settings['participant_lookup_endpoint'], $participantId);
 
-        return $this->client->get($url);
+        return $this->client->request(RequestMethod::GET, $url);
     }
 
     public function list(array $filters = []): array
@@ -29,6 +29,6 @@ class LetsPeppolParticipantEndpoint
 
         $url = $this->client->buildUrl($settings['participants_endpoint']);
 
-        return $this->client->get($url, $filters);
+        return $this->client->request(RequestMethod::GET, $url, query: $filters);
     }
 }

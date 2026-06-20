@@ -35,7 +35,7 @@ class LetsPeppolCreditNoteEndpointTest extends TestCase
         unlink($tmp);
 
         /* Assert */
-        $this->assertSame('POST', $client->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::POST, $client->requestLog[0]['method']);
         $this->assertTrue($client->requestLog[0]['multipart']);
     }
 

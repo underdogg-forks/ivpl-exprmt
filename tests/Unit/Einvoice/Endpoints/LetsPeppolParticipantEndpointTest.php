@@ -32,7 +32,7 @@ class LetsPeppolParticipantEndpointTest extends TestCase
         $endpoint->lookup('0088:1234567890');
 
         /* Assert */
-        $this->assertSame('GET', $client->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::GET, $client->requestLog[0]['method']);
         $this->assertStringContainsString('participants', $client->requestLog[0]['url']);
     }
 
@@ -75,7 +75,7 @@ class LetsPeppolParticipantEndpointTest extends TestCase
         $endpoint->list(['page' => 1]);
 
         /* Assert */
-        $this->assertSame('GET', $client->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::GET, $client->requestLog[0]['method']);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
