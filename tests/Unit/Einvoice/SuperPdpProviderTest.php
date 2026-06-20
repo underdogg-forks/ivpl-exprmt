@@ -79,15 +79,16 @@ class SuperPdpProviderTest extends TestCase
 
     // --- authenticate ---
 
-    public function test_authenticate_calls_fetchToken_with_correct_args(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_calls_fetch_token_with_the_configured_credentials(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeSuperPdpProvider();
 
-        // Act
+        /* Act */
         $result = $provider->authenticate($this->defaultSettings());
 
-        // Assert
+        /* Assert */
         $this->assertTrue($result);
         $this->assertCount(1, $provider->tokenLog);
         $this->assertSame('https://api.superpdp.tech/oauth2/token', $provider->tokenLog[0]['tokenUrl']);
@@ -95,125 +96,145 @@ class SuperPdpProviderTest extends TestCase
         $this->assertSame('csecret', $provider->tokenLog[0]['clientSecret']);
     }
 
-    public function test_authenticate_throws_when_client_id_missing(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_rejects_authenticate_when_client_id_is_missing(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeSuperPdpProvider();
         $settings = $this->defaultSettings();
         $settings['client_id'] = '';
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Missing SuperPDP OAuth2 settings.');
+
+        /* Assert */
         $provider->authenticate($settings);
     }
 
-    public function test_authenticate_throws_when_client_secret_missing(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_rejects_authenticate_when_client_secret_is_missing(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeSuperPdpProvider();
         $settings = $this->defaultSettings();
         $settings['client_secret'] = '';
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
+
+        /* Assert */
         $provider->authenticate($settings);
     }
 
-    public function test_authenticate_throws_when_token_url_missing(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_rejects_authenticate_when_token_url_is_missing(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeSuperPdpProvider();
         $settings = $this->defaultSettings();
         $settings['token_url'] = '';
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
+
+        /* Assert */
         $provider->authenticate($settings);
     }
 
-    public function test_authenticate_throws_when_fetchToken_returns_no_access_token(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_rejects_authenticate_when_the_token_response_contains_no_access_token(): void
     {
-        // Arrange — token endpoint returns response without access_token
+        /* Arrange */
         $provider = new FakeSuperPdpProvider([], ['error' => 'invalid_client']);
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('no access_token');
+
+        /* Assert */
         $provider->authenticate($this->defaultSettings());
     }
 
-    public function test_authenticate_propagates_fetchToken_exception(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_propagates_a_fetch_token_network_exception(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeSuperPdpProvider([], ['access_token' => 'tok'], 'SuperPDP OAuth error: connection refused');
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('connection refused');
+
+        /* Assert */
         $provider->authenticate($this->defaultSettings());
     }
 
     // --- sendInvoice ---
 
-    public function test_sendInvoice_throws_when_file_not_found(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_rejects_send_when_the_invoice_file_does_not_exist(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeSuperPdpProvider();
         $provider->authenticate($this->defaultSettings());
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Invoice document not found');
+
+        /* Assert */
         $provider->sendInvoice('/nonexistent/invoice.pdf', []);
     }
 
-    public function test_sendInvoice_throws_when_access_token_absent(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_rejects_send_when_no_access_token_is_present(): void
     {
-        // Arrange — settings applied manually so api_base_url is present but no token exchange happened
-        $provider = new FakeSuperPdpProvider();
-        $tmp = tempnam(sys_get_temp_dir(), 'inv') . '.pdf';
-        file_put_contents($tmp, '%PDF-1.4');
-
-        // Inject settings directly via authenticate with a provider that returns no token
+        /* Arrange */
         $noTokenProvider = new FakeSuperPdpProvider([], []);
         try {
             $noTokenProvider->authenticate($this->defaultSettings());
         } catch (RuntimeException) {
-            // expected — no access_token returned
+            // expected — fetchToken returns no access_token
         }
+        $tmp = tempnam(sys_get_temp_dir(), 'inv') . '.pdf';
+        file_put_contents($tmp, '%PDF-1.4');
 
+        /* Act */
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Missing SuperPDP access token.');
+
+        /* Assert */
         try {
-            // Act + Assert
-            $this->expectException(RuntimeException::class);
-            $this->expectExceptionMessage('Missing SuperPDP access token.');
             $noTokenProvider->sendInvoice($tmp, []);
         } finally {
             unlink($tmp);
         }
     }
 
-    public function test_sendInvoice_makes_multipart_post(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_sends_an_invoice_as_a_multipart_post(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeSuperPdpProvider();
         $provider->authenticate($this->defaultSettings());
         $tmp = tempnam(sys_get_temp_dir(), 'inv') . '.pdf';
         file_put_contents($tmp, '%PDF-1.4');
 
-        // Act
+        /* Act */
         $result = $provider->sendInvoice($tmp, ['ref' => 'INV-001']);
         unlink($tmp);
 
-        // Assert
+        /* Assert */
         $this->assertTrue($result['success']);
         $this->assertSame('POST', $provider->requestLog[0]['method']);
         $this->assertTrue($provider->requestLog[0]['multipart']);
     }
 
-    public function test_sendInvoice_appends_disable_pre_check_flag(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_appends_the_disable_pre_check_flag_to_the_url(): void
     {
-        // Arrange
+        /* Arrange */
         $settings = $this->defaultSettings();
         $settings['disable_pre_check'] = true;
         $provider = new FakeSuperPdpProvider();
@@ -221,133 +242,165 @@ class SuperPdpProviderTest extends TestCase
         $tmp = tempnam(sys_get_temp_dir(), 'inv') . '.pdf';
         file_put_contents($tmp, '%PDF-1.4');
 
-        // Act
+        /* Act */
         $provider->sendInvoice($tmp, []);
         unlink($tmp);
 
-        // Assert
+        /* Assert */
         $this->assertStringContainsString('disable_pre_check=1', $provider->requestLog[0]['url']);
     }
 
     // --- getInvoiceStatus ---
 
-    public function test_getInvoiceStatus_interpolates_id_in_url(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_interpolates_the_invoice_id_into_the_status_url(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeSuperPdpProvider([
             ['success' => true, 'external_id' => 'inv-5', 'status' => 'sent', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => []],
         ]);
         $provider->authenticate($this->defaultSettings());
 
-        // Act
+        /* Act */
         $result = $provider->getInvoiceStatus('inv-5');
 
-        // Assert
+        /* Assert */
         $this->assertSame('inv-5', $result['external_id']);
         $this->assertStringContainsString('inv-5', $provider->requestLog[0]['url']);
         $this->assertStringNotContainsString('{id}', $provider->requestLog[0]['url']);
     }
 
-    public function test_getInvoiceStatus_throws_when_endpoint_missing(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_rejects_get_status_when_the_endpoint_setting_is_missing(): void
     {
-        // Arrange
+        /* Arrange */
         $settings = $this->defaultSettings();
         $settings['invoice_status_endpoint'] = '';
         $provider = new FakeSuperPdpProvider();
         $provider->authenticate($settings);
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
+
+        /* Assert */
         $provider->getInvoiceStatus('inv-1');
     }
 
     // --- receiveInvoices ---
 
-    public function test_receiveInvoices_passes_filters_as_query(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_appends_filters_as_a_query_string_when_receiving_invoices(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeSuperPdpProvider();
         $provider->authenticate($this->defaultSettings());
 
-        // Act
+        /* Act */
         $provider->receiveInvoices(['status' => 'new', 'page' => 1]);
 
-        // Assert
+        /* Assert */
         $this->assertStringContainsString('status=new', $provider->requestLog[0]['url']);
     }
 
-    public function test_receiveInvoices_throws_when_endpoint_missing(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_rejects_receive_when_the_endpoint_setting_is_missing(): void
     {
-        // Arrange
+        /* Arrange */
         $settings = $this->defaultSettings();
         $settings['incoming_invoices_endpoint'] = '';
         $provider = new FakeSuperPdpProvider();
         $provider->authenticate($settings);
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
+
+        /* Assert */
         $provider->receiveInvoices();
     }
 
     // --- getInvoiceEvents ---
 
-    public function test_getInvoiceEvents_makes_get_request(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_fetches_invoice_events_with_a_get_request(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeSuperPdpProvider();
         $provider->authenticate($this->defaultSettings());
 
-        // Act
+        /* Act */
         $provider->getInvoiceEvents();
 
-        // Assert
+        /* Assert */
         $this->assertSame('GET', $provider->requestLog[0]['method']);
     }
 
-    public function test_getInvoiceEvents_throws_when_endpoint_missing(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_rejects_get_events_when_the_endpoint_setting_is_missing(): void
     {
-        // Arrange
+        /* Arrange */
         $settings = $this->defaultSettings();
         $settings['invoice_events_endpoint'] = '';
         $provider = new FakeSuperPdpProvider();
         $provider->authenticate($settings);
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
+
+        /* Assert */
         $provider->getInvoiceEvents();
     }
 
     // --- static metadata ---
 
-    public function test_providerCode_returns_superpdp(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_superpdp_as_the_provider_code(): void
     {
-        $this->assertSame('superpdp', SuperPdpProvider::providerCode());
+        /* Arrange */
+
+        /* Act */
+        $code = SuperPdpProvider::providerCode();
+
+        /* Assert */
+        $this->assertSame('superpdp', $code);
     }
 
-    public function test_providerName_returns_SuperPDP(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_SuperPDP_as_the_provider_name(): void
     {
-        $this->assertSame('SuperPDP', SuperPdpProvider::providerName());
+        /* Arrange */
+
+        /* Act */
+        $name = SuperPdpProvider::providerName();
+
+        /* Assert */
+        $this->assertSame('SuperPDP', $name);
     }
 
-    public function test_defaultSettings_contains_required_oauth_keys(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_includes_all_required_oauth_keys_in_default_settings(): void
     {
+        /* Arrange */
+
+        /* Act */
         $settings = SuperPdpProvider::defaultSettings();
 
+        /* Assert */
         foreach (['client_id', 'client_secret', 'token_url', 'api_base_url'] as $key) {
             $this->assertArrayHasKey($key, $settings);
         }
     }
 
-    public function test_buildInvoicePayload_returns_metadata_unchanged(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_metadata_unchanged_from_build_invoice_payload(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeSuperPdpProvider();
         $metadata = ['ref' => 'INV-001', 'custom' => true];
 
-        // Act
+        /* Act */
         $result = $provider->buildInvoicePayload((object)[], [], $metadata);
 
-        // Assert
+        /* Assert */
         $this->assertSame($metadata, $result);
     }
 }

@@ -11,45 +11,53 @@ class MerchantProviderRegistryTest extends TestCase
 {
     private function registry(): MerchantProviderRegistry
     {
-        // Registry auto-discovers providers from the filesystem on construction.
-        // APPPATH is defined by the test bootstrap, pointing at application/.
         return new MerchantProviderRegistry();
     }
 
-    public function test_all_returns_array_of_registered_providers(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_discovers_at_least_one_provider_on_construction(): void
     {
-        // Arrange + Act
+        /* Arrange */
+
+        /* Act */
         $providers = $this->registry()->all();
 
-        // Assert
+        /* Assert */
         $this->assertIsArray($providers);
         $this->assertNotEmpty($providers);
     }
 
-    public function test_qonto_provider_is_auto_discovered(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_auto_discovers_the_qonto_provider(): void
     {
-        // Arrange + Act
+        /* Arrange */
+
+        /* Act */
         $providers = $this->registry()->all();
 
-        // Assert
+        /* Assert */
         $this->assertArrayHasKey('qonto', $providers);
     }
 
-    public function test_superpdp_provider_is_auto_discovered(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_auto_discovers_the_superpdp_provider(): void
     {
-        // Arrange + Act
+        /* Arrange */
+
+        /* Act */
         $providers = $this->registry()->all();
 
-        // Assert
+        /* Assert */
         $this->assertArrayHasKey('superpdp', $providers);
     }
 
-    public function test_all_discovered_providers_implement_interface(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_registers_only_classes_that_implement_the_provider_interface(): void
     {
-        // Arrange
+        /* Arrange */
         $providers = $this->registry()->all();
 
-        // Act + Assert
+        /* Act + Assert */
         foreach ($providers as $code => $className) {
             $this->assertTrue(
                 is_subclass_of($className, MerchantProviderInterface::class),
@@ -58,48 +66,54 @@ class MerchantProviderRegistryTest extends TestCase
         }
     }
 
-    public function test_getProvider_returns_instance_for_known_code(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_a_provider_instance_for_a_known_code(): void
     {
-        // Arrange
+        /* Arrange */
         $registry = $this->registry();
 
-        // Act
+        /* Act */
         $provider = $registry->getProvider('qonto');
 
-        // Assert
+        /* Assert */
         $this->assertInstanceOf(MerchantProviderInterface::class, $provider);
     }
 
-    public function test_getProvider_returns_different_instances_each_call(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_a_new_instance_on_each_get_provider_call(): void
     {
-        // Arrange
+        /* Arrange */
         $registry = $this->registry();
 
-        // Act
+        /* Act */
         $a = $registry->getProvider('qonto');
         $b = $registry->getProvider('qonto');
 
-        // Assert
+        /* Assert */
         $this->assertNotSame($a, $b);
     }
 
-    public function test_getProvider_throws_for_unknown_provider(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_throws_for_an_unknown_provider_code(): void
     {
-        // Arrange
+        /* Arrange */
         $registry = $this->registry();
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Unknown e-invoicing provider: nonexistent');
+
+        /* Assert */
         $registry->getProvider('nonexistent');
     }
 
-    public function test_all_discovered_providers_have_non_empty_providerCode(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_requires_every_discovered_provider_to_return_a_non_empty_code(): void
     {
-        // Arrange
+        /* Arrange */
         $providers = $this->registry()->all();
 
-        // Act + Assert
+        /* Act + Assert */
         foreach ($providers as $code => $className) {
             $this->assertNotEmpty(
                 $className::providerCode(),
@@ -108,12 +122,13 @@ class MerchantProviderRegistryTest extends TestCase
         }
     }
 
-    public function test_all_discovered_providers_have_non_empty_providerName(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_requires_every_discovered_provider_to_return_a_non_empty_name(): void
     {
-        // Arrange
+        /* Arrange */
         $providers = $this->registry()->all();
 
-        // Act + Assert
+        /* Act + Assert */
         foreach ($providers as $code => $className) {
             $this->assertNotEmpty(
                 $className::providerName(),

@@ -60,61 +60,72 @@ class QontoProviderTest extends TestCase
 
     // --- authenticate ---
 
-    public function test_authenticate_returns_true_with_valid_settings(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_accepts_valid_settings_on_authenticate(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeQontoProvider();
 
-        // Act
+        /* Act */
         $result = $provider->authenticate($this->defaultSettings());
 
-        // Assert
+        /* Assert */
         $this->assertTrue($result);
     }
 
-    public function test_authenticate_throws_when_access_token_missing(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_rejects_authenticate_when_access_token_is_missing(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeQontoProvider();
         $settings = $this->defaultSettings();
         $settings['access_token'] = '';
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Missing Qonto setting: access_token');
+
+        /* Assert */
         $provider->authenticate($settings);
     }
 
-    public function test_authenticate_throws_when_api_base_url_missing(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_rejects_authenticate_when_api_base_url_is_missing(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeQontoProvider();
         $settings = $this->defaultSettings();
         $settings['api_base_url'] = '';
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Missing Qonto setting: api_base_url');
+
+        /* Assert */
         $provider->authenticate($settings);
     }
 
     // --- sendInvoice ---
 
-    public function test_sendInvoice_throws_when_file_not_found(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_rejects_send_when_the_invoice_file_does_not_exist(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeQontoProvider();
         $provider->authenticate($this->defaultSettings());
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Invoice document not found');
+
+        /* Assert */
         $provider->sendInvoice('/nonexistent/invoice.pdf', []);
     }
 
-    public function test_sendInvoice_returns_error_when_upload_fails(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_an_error_when_the_upload_step_fails(): void
     {
-        // Arrange — first request() call (upload) returns failure
+        /* Arrange */
         $provider = new FakeQontoProvider([
             ['success' => false, 'external_id' => null, 'status' => 'error', 'message' => 'Upload failed', 'http_code' => 500, 'request' => [], 'response' => []],
         ]);
@@ -122,18 +133,19 @@ class QontoProviderTest extends TestCase
         $tmp = tempnam(sys_get_temp_dir(), 'inv') . '.pdf';
         file_put_contents($tmp, '%PDF-1.4');
 
-        // Act
+        /* Act */
         $result = $provider->sendInvoice($tmp, []);
         unlink($tmp);
 
-        // Assert
+        /* Assert */
         $this->assertFalse($result['success']);
         $this->assertCount(1, $provider->requestLog);
     }
 
-    public function test_sendInvoice_returns_error_when_qonto_payload_missing(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_an_error_when_qonto_invoice_payload_is_absent(): void
     {
-        // Arrange — upload succeeds with a real external_id but metadata has no qonto_invoice_payload
+        /* Arrange */
         $provider = new FakeQontoProvider([
             ['success' => true, 'external_id' => 'upload-1', 'status' => 'sent', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => ['data' => ['id' => 'upload-1']]],
         ]);
@@ -141,18 +153,19 @@ class QontoProviderTest extends TestCase
         $tmp = tempnam(sys_get_temp_dir(), 'inv') . '.pdf';
         file_put_contents($tmp, '%PDF-1.4');
 
-        // Act
+        /* Act */
         $result = $provider->sendInvoice($tmp, []);
         unlink($tmp);
 
-        // Assert
+        /* Assert */
         $this->assertFalse($result['success']);
         $this->assertStringContainsString('qonto_invoice_payload', $result['message']);
     }
 
-    public function test_sendInvoice_succeeds_through_all_three_steps(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_sends_an_invoice_through_all_three_steps(): void
     {
-        // Arrange — upload → create → send
+        /* Arrange */
         $provider = new FakeQontoProvider([
             ['success' => true, 'external_id' => 'upload-1', 'status' => 'sent', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => ['data' => ['id' => 'upload-1']]],
             ['success' => true, 'external_id' => 'cinv-1', 'status' => 'sent', 'message' => 'ok', 'http_code' => 201, 'request' => [], 'response' => ['client_invoice' => ['id' => 'cinv-1']]],
@@ -163,11 +176,11 @@ class QontoProviderTest extends TestCase
         file_put_contents($tmp, '%PDF-1.4');
         $metadata = ['qonto_invoice_payload' => ['client_invoice' => ['number' => 'INV-001']]];
 
-        // Act
+        /* Act */
         $result = $provider->sendInvoice($tmp, $metadata);
         unlink($tmp);
 
-        // Assert
+        /* Assert */
         $this->assertTrue($result['success']);
         $this->assertCount(3, $provider->requestLog);
         $this->assertSame('cinv-1', $result['external_id']);
@@ -175,86 +188,111 @@ class QontoProviderTest extends TestCase
 
     // --- getInvoiceStatus ---
 
-    public function test_getInvoiceStatus_builds_correct_url(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_interpolates_the_invoice_id_into_the_status_url(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeQontoProvider([
             ['success' => true, 'external_id' => 'inv-99', 'status' => 'sent', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => ['client_invoice' => ['status' => 'paid']]],
         ]);
         $provider->authenticate($this->defaultSettings());
 
-        // Act
+        /* Act */
         $result = $provider->getInvoiceStatus('inv-99');
 
-        // Assert
+        /* Assert */
         $this->assertTrue($result['success']);
         $this->assertStringContainsString('inv-99', $provider->requestLog[0]['url']);
     }
 
-    public function test_getInvoiceStatus_throws_when_endpoint_missing(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_rejects_get_status_when_endpoint_setting_is_missing(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeQontoProvider();
         $settings = $this->defaultSettings();
         $settings['invoice_status_endpoint'] = '';
         $provider->authenticate($settings);
 
-        // Act + Assert
+        /* Act */
         $this->expectException(RuntimeException::class);
+
+        /* Assert */
         $provider->getInvoiceStatus('inv-1');
     }
 
     // --- receiveInvoices ---
 
-    public function test_receiveInvoices_passes_filters_as_query_string(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_appends_filters_as_a_query_string_when_receiving_invoices(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeQontoProvider([
             ['success' => true, 'external_id' => null, 'status' => 'received', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => []],
         ]);
         $provider->authenticate($this->defaultSettings());
 
-        // Act
+        /* Act */
         $provider->receiveInvoices(['status' => 'pending', 'page' => 2]);
 
-        // Assert
+        /* Assert */
         $this->assertStringContainsString('status=pending', $provider->requestLog[0]['url']);
         $this->assertStringContainsString('page=2', $provider->requestLog[0]['url']);
     }
 
     // --- getInvoiceEvents ---
 
-    public function test_getInvoiceEvents_makes_get_request(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_fetches_invoice_events_with_a_get_request(): void
     {
-        // Arrange
+        /* Arrange */
         $provider = new FakeQontoProvider([
             ['success' => true, 'external_id' => null, 'status' => 'events_received', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => []],
         ]);
         $provider->authenticate($this->defaultSettings());
 
-        // Act
+        /* Act */
         $provider->getInvoiceEvents();
 
-        // Assert
+        /* Assert */
         $this->assertSame('GET', $provider->requestLog[0]['method']);
     }
 
-    // --- providerCode / providerName ---
+    // --- static metadata ---
 
-    public function test_providerCode_returns_qonto(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_qonto_as_the_provider_code(): void
     {
-        $this->assertSame('qonto', QontoProvider::providerCode());
+        /* Arrange */
+
+        /* Act */
+        $code = QontoProvider::providerCode();
+
+        /* Assert */
+        $this->assertSame('qonto', $code);
     }
 
-    public function test_providerName_returns_qonto_pa(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_qonto_pa_as_the_provider_name(): void
     {
-        $this->assertSame('Qonto PA', QontoProvider::providerName());
+        /* Arrange */
+
+        /* Act */
+        $name = QontoProvider::providerName();
+
+        /* Assert */
+        $this->assertSame('Qonto PA', $name);
     }
 
-    public function test_defaultSettings_contains_required_keys(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_includes_all_required_keys_in_default_settings(): void
     {
+        /* Arrange */
+
+        /* Act */
         $settings = QontoProvider::defaultSettings();
 
+        /* Assert */
         foreach (['access_token', 'api_base_url', 'upload_endpoint', 'invoice_endpoint', 'send_invoice_endpoint'] as $key) {
             $this->assertArrayHasKey($key, $settings);
         }
