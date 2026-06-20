@@ -13,7 +13,8 @@ jobs:
       - name: Fail if conflict markers are present
         run: |
           if git grep -rn --perl-regexp '^(<{7}|={7}|>{7})' -- \
-              ':!*.yml' ':!*.yaml' ':!vendor' ':!node_modules'; then
+              ':!*.yml' ':!*.yaml' ':!*.pem' ':!*.crt' ':!*.cert' \
+              ':!vendor' ':!node_modules'; then
             echo "::error::Conflict markers found. Resolve all merge conflicts before pushing."
             exit 1
           fi
