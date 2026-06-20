@@ -52,6 +52,18 @@ class MerchantProviderRegistryTest extends TestCase
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
+    public function it_auto_discovers_the_letspeppol_provider(): void
+    {
+        /* Arrange */
+
+        /* Act */
+        $providers = $this->registry()->all();
+
+        /* Assert */
+        $this->assertArrayHasKey('letspeppol', $providers);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
     public function it_registers_only_classes_that_implement_the_provider_interface(): void
     {
         /* Arrange */
