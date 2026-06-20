@@ -24,26 +24,41 @@ class InvoiceStatusTest extends CITestCase
         $this->model = new \Mdl_Invoices();
     }
 
-    public function test_statuses_returns_four_states(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_four_invoice_statuses(): void
     {
+        /* Arrange */
+
+        /* Act */
         $statuses = $this->model->statuses();
 
+        /* Assert */
         $this->assertCount(4, $statuses);
     }
 
-    public function test_status_keys_are_string_integers(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_keys_statuses_by_numeric_strings(): void
     {
+        /* Arrange */
+
+        /* Act */
         $statuses = $this->model->statuses();
 
+        /* Assert */
         foreach (array_keys($statuses) as $key) {
             $this->assertMatchesRegularExpression('/^\d+$/', (string) $key, "Status key '{$key}' should be numeric");
         }
     }
 
-    public function test_each_status_has_required_fields(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_includes_label_class_and_href_in_every_status(): void
     {
+        /* Arrange */
+
+        /* Act */
         $statuses = $this->model->statuses();
 
+        /* Assert */
         foreach ($statuses as $id => $status) {
             $this->assertArrayHasKey('label', $status, "Status {$id} missing 'label'");
             $this->assertArrayHasKey('class', $status, "Status {$id} missing 'class'");
@@ -51,42 +66,70 @@ class InvoiceStatusTest extends CITestCase
         }
     }
 
-    public function test_draft_is_status_1(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_assigns_the_draft_class_to_status_1(): void
     {
+        /* Arrange */
+
+        /* Act */
         $statuses = $this->model->statuses();
 
+        /* Assert */
         $this->assertArrayHasKey('1', $statuses);
         $this->assertSame('draft', $statuses['1']['class']);
     }
 
-    public function test_sent_is_status_2(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_assigns_the_sent_class_to_status_2(): void
     {
+        /* Arrange */
+
+        /* Act */
         $statuses = $this->model->statuses();
 
+        /* Assert */
         $this->assertSame('sent', $statuses['2']['class']);
     }
 
-    public function test_viewed_is_status_3(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_assigns_the_viewed_class_to_status_3(): void
     {
+        /* Arrange */
+
+        /* Act */
         $statuses = $this->model->statuses();
 
+        /* Assert */
         $this->assertSame('viewed', $statuses['3']['class']);
     }
 
-    public function test_paid_is_status_4(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_assigns_the_paid_class_to_status_4(): void
     {
+        /* Arrange */
+
+        /* Act */
         $statuses = $this->model->statuses();
 
+        /* Assert */
         $this->assertSame('paid', $statuses['4']['class']);
     }
 
-    public function test_table_is_ip_invoices(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_uses_ip_invoices_as_the_table_name(): void
     {
+        /* Arrange */
+
+        /* Act + Assert */
         $this->assertSame('ip_invoices', $this->model->table);
     }
 
-    public function test_primary_key(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_uses_the_fully_qualified_column_as_the_primary_key(): void
     {
+        /* Arrange */
+
+        /* Act + Assert */
         $this->assertSame('ip_invoices.invoice_id', $this->model->primary_key);
     }
 }
