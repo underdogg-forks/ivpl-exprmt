@@ -26,33 +26,45 @@ class StandardizeAmountTest extends CITestCase
     // Period-decimal, comma-thousands  (US/EN locale)
     // -----------------------------------------------------------------
 
-    public function test_already_numeric_value_is_returned_as_is(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_a_numeric_value_unchanged(): void
     {
+        /* Arrange */
         $this->setSetting('thousands_separator', ',');
         $this->setSetting('decimal_point', '.');
 
+        /* Act */
         $result = standardize_amount(1234.56);
 
+        /* Assert */
         $this->assertSame(1234.56, $result);
     }
 
-    public function test_string_float_is_returned_as_is_when_already_numeric(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_a_plain_numeric_string_unchanged(): void
     {
+        /* Arrange */
         $this->setSetting('thousands_separator', ',');
         $this->setSetting('decimal_point', '.');
 
+        /* Act */
         $result = standardize_amount('1234.56');
 
+        /* Assert */
         $this->assertSame('1234.56', $result);
     }
 
-    public function test_comma_thousands_period_decimal(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_strips_comma_thousands_separator_with_period_decimal(): void
     {
+        /* Arrange */
         $this->setSetting('thousands_separator', ',');
         $this->setSetting('decimal_point', '.');
 
+        /* Act */
         $result = standardize_amount('1,234.56');
 
+        /* Assert */
         $this->assertSame('1234.56', (string) $result);
     }
 
@@ -60,23 +72,31 @@ class StandardizeAmountTest extends CITestCase
     // Period-thousands, comma-decimal  (EU / DE / NL locale)
     // -----------------------------------------------------------------
 
-    public function test_period_thousands_comma_decimal(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_strips_period_thousands_separator_with_comma_decimal(): void
     {
+        /* Arrange */
         $this->setSetting('thousands_separator', '.');
         $this->setSetting('decimal_point', ',');
 
+        /* Act */
         $result = standardize_amount('1.234,56');
 
+        /* Assert */
         $this->assertSame('1234.56', (string) $result);
     }
 
-    public function test_no_thousands_separator_comma_decimal(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_normalises_comma_decimal_when_no_thousands_separator_is_set(): void
     {
+        /* Arrange */
         $this->setSetting('thousands_separator', '');
         $this->setSetting('decimal_point', ',');
 
+        /* Act */
         $result = standardize_amount('1234,56');
 
+        /* Assert */
         $this->assertSame('1234.56', (string) $result);
     }
 
@@ -84,17 +104,27 @@ class StandardizeAmountTest extends CITestCase
     // Edge cases
     // -----------------------------------------------------------------
 
-    public function test_null_is_passed_through(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_null_unchanged(): void
     {
+        /* Arrange */
+
+        /* Act */
         $result = standardize_amount(null);
 
+        /* Assert */
         $this->assertNull($result);
     }
 
-    public function test_zero_string_is_returned_unchanged(): void
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function it_returns_zero_string_unchanged(): void
     {
+        /* Arrange */
+
+        /* Act */
         $result = standardize_amount('0');
 
+        /* Assert */
         $this->assertSame('0', $result);
     }
 }
