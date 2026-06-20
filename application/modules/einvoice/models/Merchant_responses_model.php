@@ -6,6 +6,31 @@ class Merchant_responses_model extends CI_Model
 {
     private const TABLE = 'ip_merchant_responses';
 
+    public function create_payment_response(
+        int $invoiceId,
+        MerchantResponseDriver $driver,
+        string $message,
+        string $reference,
+        bool $successful,
+    ): int {
+        $status = $successful ? MerchantResponseStatus::Accepted : MerchantResponseStatus::Rejected;
+
+        $this->db->insert(self::TABLE, [
+            'invoice_id'                   => $invoiceId,
+            'merchant_response_date'       => date('Y-m-d'),
+            'merchant_response_driver'     => $driver->value,
+            'merchant_response'            => $message,
+            'merchant_response_reference'  => $reference,
+            'merchant_response_successful' => (int) $successful,
+            'direction'                    => MerchantResponseDirection::Out->value,
+            'record_type'                  => MerchantResponseType::Payment->value,
+            'status'                       => $status->value,
+            'created_at'                   => date('Y-m-d H:i:s'),
+        ]);
+
+        return (int) $this->db->insert_id();
+    }
+
     public function create_outbound(
         int $merchantClientId,
         int $invoiceId,
