@@ -21,7 +21,7 @@ class FakeQontoProvider extends QontoProvider
     }
 
     protected function request(
-        string $method,
+        \RequestMethod $method,
         string $url,
         array $payload = [],
         bool $multipart = false,
@@ -35,7 +35,7 @@ class FakeQontoProvider extends QontoProvider
             'status' => 'sent',
             'message' => 'ok',
             'http_code' => 200,
-            'request' => ['url' => $url, 'method' => $method],
+            'request' => ['url' => $url, 'method' => $method->value],
             'response' => [],
         ];
     }
@@ -255,7 +255,7 @@ class QontoProviderTest extends TestCase
         $provider->getInvoiceEvents();
 
         /* Assert */
-        $this->assertSame('GET', $provider->requestLog[0]['method']);
+        $this->assertSame(\RequestMethod::GET, $provider->requestLog[0]['method']);
     }
 
     // --- static metadata ---
