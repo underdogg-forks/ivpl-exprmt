@@ -1,0 +1,114 @@
+<?php
+
+namespace Tests\Unit\Einvoice;
+
+use MerchantClient;
+use MerchantProviderInterface;
+use PHPUnit\Framework\TestCase;
+use RuntimeException;
+
+class MerchantClientTest extends TestCase
+{
+    private function makeProvider(array $overrides = []): MerchantProviderInterface
+    {
+        $stub = $this->createMock(MerchantProviderInterface::class);
+
+        $stub->method('authenticate')->willReturn($overrides['authenticate'] ?? true);
+        $stub->method('sendInvoice')->willReturn($overrides['sendInvoice'] ?? ['success' => true, 'external_id' => 'inv-1', 'status' => 'sent', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => []]);
+        $stub->method('getInvoiceStatus')->willReturn($overrides['getInvoiceStatus'] ?? ['success' => true, 'external_id' => 'inv-1', 'status' => 'sent', 'message' => 'ok', 'http_code' => 200, 'request' => [], 'response' => []]);
+        $stub->method('receiveInvoices')->willReturn($overrides['receiveInvoices'] ?? ['success' => true, 'status' => 'received', 'message' => 'ok', 'http_code' => 200, 'response' => []]);
+        $stub->method('getInvoiceEvents')->willReturn($overrides['getInvoiceEvents'] ?? ['success' => true, 'status' => 'events_received', 'message' => 'ok', 'http_code' => 200, 'response' => []]);
+
+        return $stub;
+    }
+
+    private function settings(): array
+    {
+        return ['access_token' => 'tok', 'api_base_url' => 'https://example.com'];
+    }
+
+    public function test_authenticate_delegates_to_provider(): void
+    {
+        // Arrange
+        $provider = $this->createMock(MerchantProviderInterface::class);
+        $provider->expects($this->once())->method('authenticate')->with($this->settings())->willReturn(true);
+        $client = new MerchantClient($provider, $this->settings());
+
+        // Act + Assert
+        $this->assertTrue($client->authenticate());
+    }
+
+    public function test_sendInvoice_calls_authenticate_first(): void
+    {
+        // Arrange
+        $provider = $this->createMock(MerchantProviderInterface::class);
+        $provider->expects($this->once())->method('authenticate')->willReturn(true);
+        $provider->expects($this->once())->method('sendInvoice')->willReturn(['success' => true, 'external_id' => 'x', 'status' => 'sent', 'message' => '', 'http_code' => 200, 'request' => [], 'response' => []]);
+        $client = new MerchantClient($provider, $this->settings());
+
+        // Act
+        $result = $client->sendInvoice('/tmp/invoice.pdf', []);
+
+        // Assert
+        $this->assertTrue($result['success']);
+    }
+
+    public function test_getInvoiceStatus_calls_authenticate_first(): void
+    {
+        // Arrange
+        $provider = $this->createMock(MerchantProviderInterface::class);
+        $provider->expects($this->once())->method('authenticate')->willReturn(true);
+        $provider->expects($this->once())->method('getInvoiceStatus')->with('inv-42')->willReturn(['success' => true, 'external_id' => 'inv-42', 'status' => 'sent', 'message' => '', 'http_code' => 200, 'request' => [], 'response' => []]);
+        $client = new MerchantClient($provider, $this->settings());
+
+        // Act
+        $result = $client->getInvoiceStatus('inv-42');
+
+        // Assert
+        $this->assertSame('inv-42', $result['external_id']);
+    }
+
+    public function test_receiveInvoices_calls_authenticate_first(): void
+    {
+        // Arrange
+        $provider = $this->createMock(MerchantProviderInterface::class);
+        $provider->expects($this->once())->method('authenticate')->willReturn(true);
+        $provider->expects($this->once())->method('receiveInvoices')->with(['status' => 'pending'])->willReturn(['success' => true, 'status' => 'received', 'message' => '', 'http_code' => 200, 'response' => []]);
+        $client = new MerchantClient($provider, $this->settings());
+
+        // Act
+        $result = $client->receiveInvoices(['status' => 'pending']);
+
+        // Assert
+        $this->assertTrue($result['success']);
+    }
+
+    public function test_getInvoiceEvents_calls_authenticate_first(): void
+    {
+        // Arrange
+        $provider = $this->createMock(MerchantProviderInterface::class);
+        $provider->expects($this->once())->method('authenticate')->willReturn(true);
+        $provider->expects($this->once())->method('getInvoiceEvents')->willReturn(['success' => true, 'status' => 'events_received', 'message' => '', 'http_code' => 200, 'response' => []]);
+        $client = new MerchantClient($provider, $this->settings());
+
+        // Act
+        $result = $client->getInvoiceEvents();
+
+        // Assert
+        $this->assertTrue($result['success']);
+    }
+
+    public function test_sendInvoice_propagates_provider_failure(): void
+    {
+        // Arrange
+        $provider = $this->makeProvider(['sendInvoice' => ['success' => false, 'external_id' => null, 'status' => 'error', 'message' => 'Upload failed', 'http_code' => 500, 'request' => [], 'response' => []]]);
+        $client = new MerchantClient($provider, $this->settings());
+
+        // Act
+        $result = $client->sendInvoice('/tmp/invoice.pdf', []);
+
+        // Assert
+        $this->assertFalse($result['success']);
+        $this->assertSame('error', $result['status']);
+    }
+}
