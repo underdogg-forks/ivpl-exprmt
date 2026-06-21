@@ -41,3 +41,10 @@ if ( ! function_exists('env_bool')) {
 }
 
 defined('IP_DEBUG') || define('IP_DEBUG', env_bool('ENABLE_DEBUG', false));
+
+// THEME_FOLDER points to the compiled/source asset tree under resources/assets/.
+// Subdirectories there (core/, invoiceplane/, invoiceplane_blue/, …) are the
+// available themes as listed by Settings. Do not change this to views/themes/.
+defined('THEME_FOLDER') || define('THEME_FOLDER', $base . '/resources/assets/');
+
+defined('SUMEX_SETTINGS') || define('SUMEX_SETTINGS', env_bool('SUMEX_SETTINGS', false));
