@@ -22,6 +22,15 @@ defined('APPPATH') || define('APPPATH', $base . '/application/');
 defined('BASEPATH') || define('BASEPATH', $base . '/vendor/pocketarc/codeigniter/system/');
 defined('VIEWPATH') || define('VIEWPATH', APPPATH . 'views/');
 
+// Upload / filesystem path constants (previously defined in the legacy root index.php).
+defined('IPCONFIG_FILE')          || define('IPCONFIG_FILE',          $base . '/ipconfig.php');
+defined('LOGS_FOLDER')            || define('LOGS_FOLDER',            APPPATH . 'logs/');
+defined('UPLOADS_FOLDER')         || define('UPLOADS_FOLDER',         FCPATH . 'uploads/');
+defined('UPLOADS_ARCHIVE_FOLDER') || define('UPLOADS_ARCHIVE_FOLDER', UPLOADS_FOLDER . 'archive/');
+defined('UPLOADS_CFILES_FOLDER')  || define('UPLOADS_CFILES_FOLDER',  UPLOADS_FOLDER . 'customer_files/');
+defined('UPLOADS_TEMP_FOLDER')    || define('UPLOADS_TEMP_FOLDER',    UPLOADS_FOLDER . 'temp/');
+defined('UPLOADS_TEMP_MPDF_FOLDER') || define('UPLOADS_TEMP_MPDF_FOLDER', UPLOADS_TEMP_FOLDER . 'mpdf/');
+
 if ( ! function_exists('env')) {
     function env(string $key, mixed $default = null): mixed
     {
