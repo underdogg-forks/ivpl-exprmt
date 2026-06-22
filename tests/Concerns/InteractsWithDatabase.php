@@ -10,6 +10,17 @@ trait InteractsWithDatabase
 {
     private static ?PDO $testDb = null;
 
+    /**
+     * Drop the cached PDO connection so the next DB call opens a fresh one.
+     *
+     * Use this after an HTTP subprocess writes to the database to ensure the
+     * test process doesn't read a SQLite WAL snapshot that pre-dates the write.
+     */
+    protected function resetDatabaseConnection(): void
+    {
+        self::$testDb = null;
+    }
+
     protected function databaseInsert(string $table, array $row): int
     {
         $db = $this->db();
