@@ -6,6 +6,12 @@ class SuperPdpClient implements IntegrationClientInterface
 {
     private ?string $accessToken = null;
     private array $settings = [];
+    private ApiClientInterface $http;
+
+    public function __construct(?ApiClientInterface $http = null)
+    {
+        $this->http = $http ?? new CurlApiClient();
+    }
 
     public static function clientCode(): string
     {
@@ -41,17 +47,17 @@ class SuperPdpClient implements IntegrationClientInterface
             empty($settings['client_secret']) ||
             empty($settings['token_url'])
         ) {
-            throw new RuntimeException('Missing SuperPDP OAuth2 settings.');
+            throw new \RuntimeException('Missing SuperPDP OAuth2 settings.');
         }
 
-        $decoded = $this->fetchToken(
+        $decoded = $this->oauthFetchToken(
             $settings['token_url'],
             $settings['client_id'],
             $settings['client_secret']
         );
 
         if (empty($decoded['access_token'])) {
-            throw new RuntimeException('SuperPDP OAuth failed: no access_token in response.');
+            throw new \RuntimeException('SuperPDP OAuth failed: no access_token in response.');
         }
 
         $this->accessToken = $decoded['access_token'];
@@ -59,22 +65,45 @@ class SuperPdpClient implements IntegrationClientInterface
         return true;
     }
 
+    public function fetchToken(array $settings): string
+    {
+        $decoded = $this->oauthFetchToken(
+            $settings['token_url'] ?? '',
+            $settings['client_id'] ?? '',
+            $settings['client_secret'] ?? ''
+        );
+
+        return $decoded['access_token'] ?? '';
+    }
+
+    /**
+     * POST /v1.beta/invoices  (multipart)
+     *
+     * Request:
+     *   file      file    PDF invoice document
+     *   metadata  string  JSON-encoded metadata object
+     *
+     * Response (JSON):
+     *   id              string  external invoice ID
+     *   status          string  processing|sent|error
+     *   external_id     string  alias for id
+     */
     public function sendInvoice(string $documentPath, array $metadata): array
     {
         if (!file_exists($documentPath)) {
-            throw new RuntimeException('Invoice document not found: ' . $documentPath);
+            throw new \RuntimeException('Invoice document not found: ' . $documentPath);
         }
 
         if (empty($this->settings['api_base_url'])) {
-            throw new RuntimeException('Missing SuperPDP API base URL.');
+            throw new \RuntimeException('Missing SuperPDP API base URL.');
         }
 
         if (empty($this->accessToken)) {
-            throw new RuntimeException('Missing SuperPDP access token.');
+            throw new \RuntimeException('Missing SuperPDP access token.');
         }
 
         if (empty($this->settings['invoice_endpoint'])) {
-            throw new RuntimeException('Missing invoice endpoint configuration.');
+            throw new \RuntimeException('Missing invoice endpoint configuration.');
         }
 
         $url = $this->buildUrl($this->settings['invoice_endpoint']);
@@ -84,7 +113,7 @@ class SuperPdpClient implements IntegrationClientInterface
         }
 
         $payload = [
-            'file' => new CURLFile($documentPath, 'application/pdf', basename($documentPath)),
+            'file' => new \CURLFile($documentPath, 'application/pdf', basename($documentPath)),
             'metadata' => json_encode($metadata),
         ];
 
@@ -94,10 +123,17 @@ class SuperPdpClient implements IntegrationClientInterface
         ]);
     }
 
+    /**
+     * GET /v1.beta/invoices/{id}
+     *
+     * Response (JSON):
+     *   id      string  invoice external ID
+     *   status  string  processing|sent|error
+     */
     public function getInvoiceStatus(string $externalId): array
     {
         if (empty($this->settings['invoice_status_endpoint'])) {
-            throw new RuntimeException('Missing invoice status endpoint configuration.');
+            throw new \RuntimeException('Missing invoice status endpoint configuration.');
         }
 
         $endpoint = str_replace('{id}', urlencode($externalId), $this->settings['invoice_status_endpoint']);
@@ -108,10 +144,16 @@ class SuperPdpClient implements IntegrationClientInterface
         return array_merge($response, ['external_id' => $externalId]);
     }
 
+    /**
+     * GET /v1.beta/invoices?{filters}
+     *
+     * Response (JSON):
+     *   data[]  array  list of invoice objects
+     */
     public function receiveInvoices(array $filters = []): array
     {
         if (empty($this->settings['incoming_invoices_endpoint'])) {
-            throw new RuntimeException('Missing incoming invoices endpoint configuration.');
+            throw new \RuntimeException('Missing incoming invoices endpoint configuration.');
         }
 
         $url = $this->buildUrl($this->settings['incoming_invoices_endpoint'], $filters);
@@ -119,10 +161,16 @@ class SuperPdpClient implements IntegrationClientInterface
         return $this->request(RequestMethod::GET, $url);
     }
 
+    /**
+     * GET /v1.beta/invoice_events?{filters}
+     *
+     * Response (JSON):
+     *   data[]  array  list of invoice event objects
+     */
     public function getInvoiceEvents(array $filters = []): array
     {
         if (empty($this->settings['invoice_events_endpoint'])) {
-            throw new RuntimeException('Missing invoice events endpoint configuration.');
+            throw new \RuntimeException('Missing invoice events endpoint configuration.');
         }
 
         $url = $this->buildUrl($this->settings['invoice_events_endpoint'], $filters);
@@ -135,42 +183,34 @@ class SuperPdpClient implements IntegrationClientInterface
         return $metadata;
     }
 
-    protected function fetchToken(string $tokenUrl, string $clientId, string $clientSecret): array
+    /**
+     * POST {token_url}  (form-encoded)
+     *
+     * Request:
+     *   grant_type     client_credentials
+     *   client_id      string
+     *   client_secret  string
+     *
+     * Response (JSON):
+     *   access_token  string
+     *   token_type    string  "Bearer"
+     *   expires_in    int
+     */
+    protected function oauthFetchToken(string $tokenUrl, string $clientId, string $clientSecret): array
     {
-        $ch = curl_init();
-
-        curl_setopt_array($ch, [
-            CURLOPT_URL             => $tokenUrl,
-            CURLOPT_POST            => true,
-            CURLOPT_RETURNTRANSFER  => true,
-            CURLOPT_PROTOCOLS       => CURLPROTO_HTTPS,
-            CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
-            CURLOPT_HTTPHEADER      => [
-                'Accept: application/json',
-                'Content-Type: application/x-www-form-urlencoded',
-            ],
-            CURLOPT_POSTFIELDS => http_build_query([
-                'grant_type' => 'client_credentials',
-                'client_id' => $clientId,
+        $result = $this->http->request(RequestMethod::POST, $tokenUrl, [
+            'form_params' => [
+                'grant_type'    => 'client_credentials',
+                'client_id'     => $clientId,
                 'client_secret' => $clientSecret,
-            ]),
+            ],
         ]);
 
-        $rawResponse = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-
-        curl_close($ch);
-
-        if ($curlError) {
-            throw new RuntimeException('SuperPDP OAuth error: ' . $curlError);
+        if (!$result['success']) {
+            throw new \RuntimeException('SuperPDP OAuth error: ' . $result['message']);
         }
 
-        if ($httpCode < 200 || $httpCode >= 300) {
-            throw new RuntimeException('SuperPDP OAuth failed: ' . $rawResponse);
-        }
-
-        return json_decode($rawResponse, true) ?? [];
+        return $result['response'];
     }
 
     protected function request(
@@ -180,62 +220,15 @@ class SuperPdpClient implements IntegrationClientInterface
         bool $multipart = false,
         array $requestDebug = []
     ): array {
-        $headers = [
-            'Authorization: Bearer ' . $this->accessToken,
-            'Accept: application/json',
-        ];
+        $options = ['bearer' => $this->accessToken];
 
-        $ch = curl_init();
-
-        $options = [
-            CURLOPT_URL             => $url,
-            CURLOPT_RETURNTRANSFER  => true,
-            CURLOPT_HTTPHEADER      => $headers,
-            CURLOPT_PROTOCOLS       => CURLPROTO_HTTPS,
-            CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
-        ];
-
-        if ($method === RequestMethod::POST) {
-            $options[CURLOPT_POST] = true;
-            $options[CURLOPT_POSTFIELDS] = $multipart ? $payload : json_encode($payload);
-
-            if (!$multipart) {
-                $headers[] = 'Content-Type: application/json';
-                $options[CURLOPT_HTTPHEADER] = $headers;
-            }
+        if ($multipart) {
+            $options['multipart'] = $payload;
+        } elseif ($method === RequestMethod::POST && !empty($payload)) {
+            $options['json'] = $payload;
         }
 
-        curl_setopt_array($ch, $options);
-
-        $rawResponse = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-
-        curl_close($ch);
-
-        $decoded = json_decode($rawResponse, true);
-
-        if ($curlError) {
-            return [
-                'success' => false,
-                'external_id' => null,
-                'status' => 'error',
-                'message' => $curlError,
-                'http_code' => $httpCode,
-                'request' => array_merge(['url' => $url, 'method' => $method->value], $requestDebug),
-                'response' => $rawResponse,
-            ];
-        }
-
-        return [
-            'success' => $httpCode >= 200 && $httpCode < 300,
-            'external_id' => $decoded['id'] ?? $decoded['external_id'] ?? null,
-            'status' => $decoded['status'] ?? ($httpCode >= 200 && $httpCode < 300 ? 'sent' : 'error'),
-            'message' => $decoded['message'] ?? 'SuperPDP API response received',
-            'http_code' => $httpCode,
-            'request' => array_merge(['url' => $url, 'method' => $method->value], $requestDebug),
-            'response' => $decoded ?: $rawResponse,
-        ];
+        return $this->http->request($method, $url, $options);
     }
 
     private function buildUrl(string $endpoint, array $query = []): string

@@ -5,6 +5,12 @@ defined('BASEPATH') or exit('No direct script access allowed');
 class QontoClient implements IntegrationClientInterface
 {
     private array $settings = [];
+    private ApiClientInterface $http;
+
+    public function __construct(?ApiClientInterface $http = null)
+    {
+        $this->http = $http ?? new CurlApiClient();
+    }
 
     public static function clientCode(): string
     {
@@ -37,17 +43,22 @@ class QontoClient implements IntegrationClientInterface
 
         foreach (['access_token', 'api_base_url'] as $field) {
             if (empty($settings[$field])) {
-                throw new RuntimeException('Missing Qonto setting: ' . $field);
+                throw new \RuntimeException('Missing Qonto setting: ' . $field);
             }
         }
 
         return true;
     }
 
+    public function fetchToken(array $settings): string
+    {
+        return $settings['access_token'] ?? '';
+    }
+
     public function sendInvoice(string $documentPath, array $metadata): array
     {
         if (!file_exists($documentPath)) {
-            throw new RuntimeException('Invoice document not found: ' . $documentPath);
+            throw new \RuntimeException('Invoice document not found: ' . $documentPath);
         }
 
         foreach (['upload_endpoint', 'invoice_endpoint', 'send_invoice_endpoint'] as $field) {
@@ -98,6 +109,14 @@ class QontoClient implements IntegrationClientInterface
         return $sendResponse;
     }
 
+    /**
+     * GET /v2/client_invoices/{id}
+     *
+     * Response (JSON):
+     *   client_invoice.id      string
+     *   client_invoice.status  string  pending|sent|paid|rejected
+     *   client_invoice.*       mixed   full invoice attributes
+     */
     public function getInvoiceStatus(string $externalId): array
     {
         $this->requireSetting('invoice_status_endpoint');
@@ -123,6 +142,13 @@ class QontoClient implements IntegrationClientInterface
         ];
     }
 
+    /**
+     * GET /v2/supplier_invoices?{filters}
+     *
+     * Response (JSON):
+     *   data[]  array  list of supplier invoice objects
+     *   meta    object pagination metadata
+     */
     public function receiveInvoices(array $filters = []): array
     {
         $this->requireSetting('incoming_invoices_endpoint');
@@ -132,6 +158,12 @@ class QontoClient implements IntegrationClientInterface
         return $this->request(RequestMethod::GET, $url);
     }
 
+    /**
+     * GET /v2/client_invoices/{id}?{filters}
+     *
+     * Response (JSON):
+     *   client_invoice  object  includes status history events
+     */
     public function getInvoiceEvents(array $filters = []): array
     {
         $this->requireSetting('invoice_events_endpoint');
@@ -141,12 +173,22 @@ class QontoClient implements IntegrationClientInterface
         return $this->request(RequestMethod::GET, $url);
     }
 
+    /**
+     * POST /v2/client_invoices/uploads  (multipart)
+     *
+     * Request:
+     *   client_invoices_upload  file  PDF invoice file
+     *
+     * Response (JSON):
+     *   data.id         string  upload UUID to reference in invoice creation
+     *   data.attributes object  upload metadata
+     */
     private function uploadInvoiceFile(string $documentPath): array
     {
         $url = $this->buildUrl($this->settings['upload_endpoint']);
 
         $payload = [
-            'client_invoices_upload' => new CURLFile(
+            'client_invoices_upload' => new \CURLFile(
                 $documentPath,
                 'application/pdf',
                 basename($documentPath)
@@ -172,6 +214,21 @@ class QontoClient implements IntegrationClientInterface
         return $response;
     }
 
+    /**
+     * POST /v2/client_invoices
+     *
+     * Request (JSON):
+     *   client_invoice.number     string
+     *   client_invoice.issue_date string  YYYY-MM-DD
+     *   client_invoice.due_date   string  YYYY-MM-DD
+     *   client_invoice.currency   string  ISO 4217 (e.g. EUR)
+     *   client_invoice.upload_id  string  from upload step
+     *   client_invoice.client     object  {name, email}
+     *   client_invoice.line_items array   [{title, quantity, unit_price}]
+     *
+     * Response (JSON):
+     *   client_invoice.id  string  created invoice UUID
+     */
     private function createClientInvoice(array $payload): array
     {
         $url = $this->buildUrl($this->settings['invoice_endpoint']);
@@ -196,6 +253,15 @@ class QontoClient implements IntegrationClientInterface
         return $response;
     }
 
+    /**
+     * POST /v2/client_invoices/{id}/send_by_einvoice
+     *
+     * Request: empty body
+     *
+     * Response (JSON):
+     *   client_invoice.id      string
+     *   client_invoice.status  string  "sent"
+     */
     private function sendClientInvoiceByEinvoice(string $clientInvoiceId): array
     {
         $endpoint = str_replace(
@@ -218,79 +284,19 @@ class QontoClient implements IntegrationClientInterface
         bool $multipart = false,
         array $requestDebug = []
     ): array {
-        $headers = [
-            'Authorization: Bearer ' . $this->settings['access_token'],
-            'Accept: application/json',
-        ];
+        $options = ['bearer' => $this->settings['access_token']];
 
         if (!empty($this->settings['staging_token'])) {
-            $headers[] = 'X-Qonto-Staging-Token: ' . $this->settings['staging_token'];
+            $options['headers'] = ['X-Qonto-Staging-Token: ' . $this->settings['staging_token']];
         }
 
-        $ch = curl_init();
-
-        $options = [
-            CURLOPT_URL              => $url,
-            CURLOPT_RETURNTRANSFER   => true,
-            CURLOPT_HTTPHEADER       => $headers,
-            // Defence-in-depth: reject non-HTTPS at the curl layer even if
-            // a URL somehow bypasses save-time SsrfGuard validation.
-            CURLOPT_PROTOCOLS        => CURLPROTO_HTTPS,
-            CURLOPT_REDIR_PROTOCOLS  => CURLPROTO_HTTPS,
-        ];
-
-        if ($method === RequestMethod::POST) {
-            $options[CURLOPT_POST] = true;
-
-            if ($multipart) {
-                $options[CURLOPT_POSTFIELDS] = $payload;
-            } else {
-                $headers[] = 'Content-Type: application/json';
-                $options[CURLOPT_HTTPHEADER] = $headers;
-                $options[CURLOPT_POSTFIELDS] = json_encode($payload);
-            }
+        if ($multipart) {
+            $options['multipart'] = $payload;
+        } elseif ($method === RequestMethod::POST && !empty($payload)) {
+            $options['json'] = $payload;
         }
 
-        curl_setopt_array($ch, $options);
-
-        $rawResponse = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-
-        curl_close($ch);
-
-        $decoded = json_decode($rawResponse, true);
-
-        if ($curlError) {
-            return [
-                'success' => false,
-                'external_id' => null,
-                'status' => 'error',
-                'message' => $curlError,
-                'http_code' => $httpCode,
-                'request' => [
-                    'url' => $url,
-                    'method' => $method->value,
-                ] + $requestDebug,
-                'response' => $rawResponse,
-            ];
-        }
-
-        return [
-            'success' => $httpCode >= 200 && $httpCode < 300,
-            'external_id' => $decoded['id'] ?? $decoded['data']['id'] ?? null,
-            'status' => $decoded['status']
-                ?? $decoded['client_invoice']['status']
-                ?? $decoded['data']['attributes']['status']
-                ?? ($httpCode >= 200 && $httpCode < 300 ? 'sent' : 'error'),
-            'message' => $decoded['message'] ?? 'Qonto API response received',
-            'http_code' => $httpCode,
-            'request' => [
-                'url' => $url,
-                'method' => $method,
-            ] + $requestDebug,
-            'response' => $decoded ?: $rawResponse,
-        ];
+        return $this->http->request($method, $url, $options);
     }
 
     private function buildUrl(string $endpoint, array $query = []): string
@@ -307,7 +313,7 @@ class QontoClient implements IntegrationClientInterface
     private function requireSetting(string $key): void
     {
         if (empty($this->settings[$key])) {
-            throw new RuntimeException('Missing Qonto setting: ' . $key);
+            throw new \RuntimeException('Missing Qonto setting: ' . $key);
         }
     }
 
@@ -337,4 +343,3 @@ class QontoClient implements IntegrationClientInterface
         return $metadata;
     }
 }
-

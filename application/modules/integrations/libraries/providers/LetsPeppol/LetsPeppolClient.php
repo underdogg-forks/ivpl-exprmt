@@ -96,6 +96,14 @@ class LetsPeppolClient implements IntegrationClientInterface
         return $metadata;
     }
 
+    public function fetchToken(array $settings): string
+    {
+        $this->apiClient->configure($settings);
+        $this->apiClient->authenticate();
+
+        return $this->apiClient->getAccessToken() ?? '';
+    }
+
     public function participants(): LetsPeppolParticipantEndpoint
     {
         return $this->participants;

@@ -19,4 +19,6 @@ interface IntegrationClientInterface
     public function getInvoiceEvents(array $filters = []): array;
 
     public function buildInvoicePayload($invoice, array $items, array $metadata = []): array;
+
+    public function fetchToken(array $settings): string;
 }

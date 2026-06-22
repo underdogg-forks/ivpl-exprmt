@@ -28,7 +28,7 @@ class FakeSuperPdpClient extends SuperPdpClient
         $this->tokenError = $tokenError;
     }
 
-    protected function fetchToken(string $tokenUrl, string $clientId, string $clientSecret): array
+    protected function oauthFetchToken(string $tokenUrl, string $clientId, string $clientSecret): array
     {
         $this->tokenLog[] = compact('tokenUrl', 'clientId', 'clientSecret');
 
