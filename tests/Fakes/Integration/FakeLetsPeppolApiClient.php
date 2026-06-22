@@ -2,53 +2,28 @@
 
 namespace Tests\Fakes\Integration;
 
+/**
+ * A LetsPeppolApiClient pre-wired with a FakeLetsPeppolHttpClient.
+ *
+ * Exposes requestLog and tokenLog as shortcuts so existing tests that depend
+ * on FakeLetsPeppolApiClient don't need to change their assertion style.
+ */
 class FakeLetsPeppolApiClient extends \LetsPeppolApiClient
 {
-    public array $requestLog = [];
-    public array $tokenLog = [];
+    public array $requestLog;
+    public array $tokenLog;
 
-    private array $responses;
-    private int $callIndex = 0;
-    private array $tokenResponse;
-    private ?string $tokenError;
+    private FakeLetsPeppolHttpClient $fakeHttp;
 
     public function __construct(
-        array $responses = [],
-        array $tokenResponse = ['access_token' => 'fake-token'],
-        ?string $tokenError = null
+        array   $responses     = [],
+        array   $tokenResponse = ['access_token' => 'fake-token'],
+        ?string $tokenError    = null
     ) {
-        $this->responses     = $responses;
-        $this->tokenResponse = $tokenResponse;
-        $this->tokenError    = $tokenError;
-    }
+        $this->fakeHttp   = new FakeLetsPeppolHttpClient($responses, $tokenResponse, $tokenError);
+        $this->requestLog = &$this->fakeHttp->requestLog;
+        $this->tokenLog   = &$this->fakeHttp->tokenLog;
 
-    protected function fetchToken(string $tokenUrl, string $clientId, string $clientSecret): array
-    {
-        $this->tokenLog[] = compact('tokenUrl', 'clientId', 'clientSecret');
-
-        if ($this->tokenError !== null) {
-            throw new \RuntimeException($this->tokenError);
-        }
-
-        return $this->tokenResponse;
-    }
-
-    protected function send(
-        \RequestMethod $method,
-        string $url,
-        array $payload = [],
-        bool $multipart = false
-    ): array {
-        $this->requestLog[] = compact('method', 'url', 'payload', 'multipart');
-
-        return $this->responses[$this->callIndex++] ?? [
-            'success'     => true,
-            'external_id' => null,
-            'status'      => 'sent',
-            'message'     => 'ok',
-            'http_code'   => 200,
-            'request'     => ['url' => $url, 'method' => $method->value],
-            'response'    => [],
-        ];
+        parent::__construct($this->fakeHttp);
     }
 }
