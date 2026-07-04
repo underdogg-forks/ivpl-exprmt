@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS `ip_merchant_clients` (
 ALTER TABLE `ip_merchant_responses`
 
   ADD COLUMN `merchant_client_id` INT(11) NULL
-    COMMENT 'FK to ip_merchant_clients; NULL for legacy payment-gateway rows'
+    COMMENT 'FK to ip_merchant_clients — NULL for legacy payment-gateway rows'
     AFTER `invoice_id`,
 
   ADD COLUMN `direction` VARCHAR(3) NOT NULL DEFAULT 'out'
@@ -84,11 +84,11 @@ ALTER TABLE `ip_merchant_responses`
     AFTER `peppol_participant_id`,
 
   ADD COLUMN `created_at` DATETIME NULL
-    COMMENT 'Full datetime precision; merchant_response_date stores the DATE portion'
+    COMMENT 'Full datetime precision — merchant_response_date stores the DATE portion'
     AFTER `peppol_document_type`,
 
   ADD COLUMN `raw_payload` LONGTEXT NULL
-    COMMENT 'Full provider JSON response for incoming documents; NULL for outbound rows'
+    COMMENT 'Full provider JSON response for incoming documents — NULL for outbound rows'
     AFTER `created_at`,
 
   ADD INDEX `idx_merchant_client_id` (`merchant_client_id`),
