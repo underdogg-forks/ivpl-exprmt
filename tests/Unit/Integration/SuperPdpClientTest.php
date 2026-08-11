@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Integration;
 
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use RequestMethod;
 use RuntimeException;
@@ -70,7 +71,7 @@ class SuperPdpClientTest extends TestCase
 {
     // --- authenticate ---
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_calls_fetch_token_with_the_configured_credentials(): void
     {
         /* Arrange */
@@ -87,7 +88,7 @@ class SuperPdpClientTest extends TestCase
         $this->assertSame('csecret', $provider->tokenLog[0]['clientSecret']);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_authenticate_when_client_id_is_missing(): void
     {
         /* Arrange */
@@ -103,7 +104,7 @@ class SuperPdpClientTest extends TestCase
         $provider->authenticate($settings);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_authenticate_when_client_secret_is_missing(): void
     {
         /* Arrange */
@@ -118,7 +119,7 @@ class SuperPdpClientTest extends TestCase
         $provider->authenticate($settings);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_authenticate_when_token_url_is_missing(): void
     {
         /* Arrange */
@@ -133,7 +134,7 @@ class SuperPdpClientTest extends TestCase
         $provider->authenticate($settings);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_authenticate_when_the_token_response_contains_no_access_token(): void
     {
         /* Arrange */
@@ -147,7 +148,7 @@ class SuperPdpClientTest extends TestCase
         $provider->authenticate($this->defaultSettings());
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_propagates_a_fetch_token_network_exception(): void
     {
         /* Arrange */
@@ -163,7 +164,7 @@ class SuperPdpClientTest extends TestCase
 
     // --- sendInvoice ---
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_send_when_the_invoice_file_does_not_exist(): void
     {
         /* Arrange */
@@ -178,7 +179,7 @@ class SuperPdpClientTest extends TestCase
         $provider->sendInvoice('/nonexistent/invoice.pdf', []);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_send_when_no_access_token_is_present(): void
     {
         /* Arrange */
@@ -203,7 +204,7 @@ class SuperPdpClientTest extends TestCase
         }
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_sends_an_invoice_as_a_multipart_post(): void
     {
         /* Arrange */
@@ -222,7 +223,7 @@ class SuperPdpClientTest extends TestCase
         $this->assertTrue($provider->requestLog[0]['multipart']);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_appends_the_disable_pre_check_flag_to_the_url(): void
     {
         /* Arrange */
@@ -243,7 +244,7 @@ class SuperPdpClientTest extends TestCase
 
     // --- getInvoiceStatus ---
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_interpolates_the_invoice_id_into_the_status_url(): void
     {
         /* Arrange */
@@ -261,7 +262,7 @@ class SuperPdpClientTest extends TestCase
         $this->assertStringNotContainsString('{id}', $provider->requestLog[0]['url']);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_get_status_when_the_endpoint_setting_is_missing(): void
     {
         /* Arrange */
@@ -279,7 +280,7 @@ class SuperPdpClientTest extends TestCase
 
     // --- receiveInvoices ---
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_appends_filters_as_a_query_string_when_receiving_invoices(): void
     {
         /* Arrange */
@@ -293,7 +294,7 @@ class SuperPdpClientTest extends TestCase
         $this->assertStringContainsString('status=new', $provider->requestLog[0]['url']);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_receive_when_the_endpoint_setting_is_missing(): void
     {
         /* Arrange */
@@ -311,7 +312,7 @@ class SuperPdpClientTest extends TestCase
 
     // --- getInvoiceEvents ---
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_fetches_invoice_events_with_a_get_request(): void
     {
         /* Arrange */
@@ -325,7 +326,7 @@ class SuperPdpClientTest extends TestCase
         $this->assertSame(RequestMethod::GET, $provider->requestLog[0]['method']);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_get_events_when_the_endpoint_setting_is_missing(): void
     {
         /* Arrange */
@@ -343,7 +344,7 @@ class SuperPdpClientTest extends TestCase
 
     // --- static metadata ---
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_returns_superpdp_as_the_provider_code(): void
     {
         /* Arrange */
@@ -355,7 +356,7 @@ class SuperPdpClientTest extends TestCase
         $this->assertSame('superpdp', $code);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_returns_SuperPDP_as_the_provider_name(): void
     {
         /* Arrange */
@@ -367,7 +368,7 @@ class SuperPdpClientTest extends TestCase
         $this->assertSame('SuperPDP', $name);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_includes_all_required_oauth_keys_in_default_settings(): void
     {
         /* Arrange */
@@ -381,7 +382,7 @@ class SuperPdpClientTest extends TestCase
         }
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_returns_metadata_unchanged_from_build_invoice_payload(): void
     {
         /* Arrange */

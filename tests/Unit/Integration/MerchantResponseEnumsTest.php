@@ -7,7 +7,6 @@ use MerchantResponseDriver;
 use MerchantResponseStatus;
 use MerchantResponseType;
 use PeppolDocumentType;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -46,17 +45,15 @@ class MerchantResponseEnumsTest extends TestCase
     }
 
     #[Test]
-    #[DataProvider('statusSuccessProvider')]
-    public function it_maps_status_to_success_state(MerchantResponseStatus $status, ?bool $expected): void
+    public function it_maps_status_to_success_state(): void
     {
-        /* Arrange */
-        $expectedSuccessState = $expected;
+        foreach (self::statusSuccessProvider() as $label => [$status, $expected]) {
+            /* Act */
+            $successState = $status->isSuccessful();
 
-        /* Act */
-        $successState = $status->isSuccessful();
-
-        /* Assert */
-        self::assertSame($expectedSuccessState, $successState);
+            /* Assert */
+            self::assertSame($expected, $successState, 'Failed data set: ' . $label);
+        }
     }
 
     #[Test]

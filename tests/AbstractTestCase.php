@@ -181,6 +181,34 @@ abstract class AbstractTestCase extends PhpUnitTestCase
         self::assertSame($expectedUrl, $response->redirectUrl());
     }
 
+    /**
+     * Assert both that a response redirects and where it redirects.
+     *
+     * CI may generate an absolute URL and may include index.php depending on the
+     * test configuration, so route tests compare the application path rather
+     * than accepting any 3xx response.
+     */
+    protected function assertResponseRedirectsToRoute(HttpResponse $response, string $expectedRoute): void
+    {
+        self::assertTrue(
+            $response->isRedirect(),
+            sprintf('Expected redirect status code, got [%d].', $response->statusCode())
+        );
+
+        $redirectUrl = $response->redirectUrl();
+        self::assertNotSame('', $redirectUrl, 'The redirect response must include a Location header.');
+
+        $path          = parse_url($redirectUrl, PHP_URL_PATH);
+        $normalized    = trim((string) $path, '/');
+        $expectedRoute = trim($expectedRoute, '/');
+
+        if (str_starts_with($normalized, 'index.php/')) {
+            $normalized = substr($normalized, strlen('index.php/'));
+        }
+
+        self::assertSame($expectedRoute, $normalized, 'The response redirected to an unexpected route.');
+    }
+
     protected function assertResponseBodyContains(HttpResponse $response, string $needle): void
     {
         self::assertStringContainsString($needle, $response->body());

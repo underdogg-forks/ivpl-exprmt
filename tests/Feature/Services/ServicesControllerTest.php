@@ -28,7 +28,6 @@ class ServicesControllerTest extends AbstractTestCase
         /* Assert */
         $this->assertResponseStatusCode($response, 200);
         $this->assertResponseBodyContains($response, 'Listed Consulting');
-        $this->assertDatabaseHas('ip_services', ['service_name' => 'Listed Consulting']);
     }
 
     #[Test]

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Integrations;
 
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\AbstractTestCase;
@@ -147,21 +146,19 @@ class IntegrationSettingsSsrfTest extends AbstractTestCase
     // -------------------------------------------------------------------------
 
     #[Test]
-    #[DataProvider('blockedApiBaseUrls')]
-    public function it_rejects_a_blocked_api_base_url(string $url, string $reason): void
+    public function it_rejects_a_blocked_api_base_url(): void
     {
-        /* Arrange */
-        $payload = $this->validPayload(['api_base_url' => $url]);
+        foreach (self::blockedApiBaseUrls() as [$url, $reason]) {
+            /* Arrange */
+            $payload = $this->validPayload(['api_base_url' => $url]);
 
-        /* Act */
-        $response = $this->post('/integrations/settings/save/' . $this->rowid, $payload);
+            /* Act */
+            $response = $this->post('/integrations/settings/save/' . $this->rowid, $payload);
 
-        /* Assert */
-        self::assertTrue(
-            $response->isRedirect(),
-            "Blocked api_base_url [{$url}] ({$reason}) must redirect. Got: " . $response->statusCode()
-        );
-        $this->assertUrlNotPersistedInRow($url);
+            /* Assert */
+            self::assertTrue($response->isRedirect(), "Blocked URL [{$url}] ({$reason}) must redirect.");
+            $this->assertUrlNotPersistedInRow($url);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -169,21 +166,19 @@ class IntegrationSettingsSsrfTest extends AbstractTestCase
     // -------------------------------------------------------------------------
 
     #[Test]
-    #[DataProvider('blockedTokenUrls')]
-    public function it_rejects_a_blocked_token_url(string $url, string $reason): void
+    public function it_rejects_a_blocked_token_url(): void
     {
-        /* Arrange */
-        $payload = $this->validPayload(['token_url' => $url]);
+        foreach (self::blockedTokenUrls() as [$url, $reason]) {
+            /* Arrange */
+            $payload = $this->validPayload(['token_url' => $url]);
 
-        /* Act */
-        $response = $this->post('/integrations/settings/save/' . $this->rowid, $payload);
+            /* Act */
+            $response = $this->post('/integrations/settings/save/' . $this->rowid, $payload);
 
-        /* Assert */
-        self::assertTrue(
-            $response->isRedirect(),
-            "Blocked token_url [{$url}] ({$reason}) must redirect. Got: " . $response->statusCode()
-        );
-        $this->assertUrlNotPersistedInRow($url);
+            /* Assert */
+            self::assertTrue($response->isRedirect(), "Blocked URL [{$url}] ({$reason}) must redirect.");
+            $this->assertUrlNotPersistedInRow($url);
+        }
     }
 
     // -------------------------------------------------------------------------

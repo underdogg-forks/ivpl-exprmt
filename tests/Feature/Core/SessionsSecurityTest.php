@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Core;
 
+use PHPUnit\Framework\Attributes\Test;
 use DateTime;
 use DateTimeZone;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\AbstractTestCase;
 
@@ -34,7 +34,7 @@ class SessionsSecurityTest extends AbstractTestCase
         $this->security = new StubSessionsSecurity(baseUrl: 'https://invoiceplane.example.com/');
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_allows_a_referer_from_the_same_base_url(): void
     {
         /* Arrange */
@@ -50,7 +50,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_a_referer_from_an_external_domain(): void
     {
         /* Arrange */
@@ -66,7 +66,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_returns_the_safe_default_when_referer_is_empty(): void
     {
         /* Arrange */
@@ -82,7 +82,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_a_referer_that_starts_with_a_double_slash(): void
     {
         /* Arrange */
@@ -98,7 +98,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_accepts_an_alphanumeric_password_reset_token(): void
     {
         /* Arrange */
@@ -112,7 +112,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_accepts_a_hex_token_of_typical_length(): void
     {
         /* Arrange */
@@ -127,7 +127,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_a_token_containing_a_path_traversal_sequence(): void
     {
         /* Arrange */
@@ -141,7 +141,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_a_token_containing_a_slash(): void
     {
         /* Arrange */
@@ -155,7 +155,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_a_token_containing_special_characters(): void
     {
         /* Arrange */
@@ -169,7 +169,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_considers_an_expired_token_as_expired(): void
     {
         /* Arrange */
@@ -184,7 +184,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_considers_a_future_token_as_not_expired(): void
     {
         /* Arrange */
@@ -199,7 +199,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_enforces_the_max_expiry_minutes_cap_of_1440(): void
     {
         /* Arrange */
@@ -215,7 +215,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_allows_a_valid_expiry_minutes_value_within_range(): void
     {
         /* Arrange */
@@ -231,7 +231,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_a_zero_expiry_minutes_and_falls_back_to_default(): void
     {
         /* Arrange */
@@ -247,7 +247,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_detects_curl_as_a_bot_user_agent(): void
     {
         /* Arrange */
@@ -261,7 +261,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_detects_python_requests_as_a_bot_user_agent(): void
     {
         /* Arrange */
@@ -275,7 +275,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_detects_an_empty_user_agent_as_a_bot(): void
     {
         /* Arrange */
@@ -289,7 +289,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_does_not_flag_a_normal_browser_user_agent_as_a_bot(): void
     {
         /* Arrange */
@@ -304,7 +304,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_removes_attempts_outside_the_rate_limit_time_window(): void
     {
         /* Arrange */
@@ -330,7 +330,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_considers_the_ip_rate_limited_when_attempt_count_meets_the_threshold(): void
     {
         /* Arrange */
@@ -347,7 +347,7 @@ class SessionsSecurityTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_does_not_rate_limit_when_attempt_count_is_below_the_threshold(): void
     {
         /* Arrange */
@@ -382,25 +382,20 @@ class SessionsSecurityTest extends AbstractTestCase
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
-    #[DataProvider('expiryFormatProvider')]
-    public function it_accepts_only_canonical_password_reset_expiry_strings(string $expiry, bool $accepted): void
+    #[Test]
+    public function it_accepts_only_canonical_password_reset_expiry_strings(): void
     {
-        /* Arrange */
+        foreach (self::expiryFormatProvider() as [$expiry, $accepted]) {
+            /* Act */
+            $result = $this->security->isCanonicalExpiry($expiry);
 
-        /* Act */
-        $result = $this->security->isCanonicalExpiry($expiry);
-
-        /* Assert */
-        self::assertSame(
-            $accepted,
-            $result,
-            sprintf(
-                'Expiry string "%s" must be %s by strict canonical parsing.',
-                $expiry,
-                $accepted ? 'accepted' : 'rejected'
-            )
-        );
+            /* Assert */
+            self::assertSame(
+                $accepted,
+                $result,
+                sprintf('Expiry string "%s" must be %s.', $expiry, $accepted ? 'accepted' : 'rejected')
+            );
+        }
     }
 }
 

@@ -27,15 +27,14 @@ class InvoicesControllerTest extends AbstractTestCase
     {
         /* Arrange */
         $clientId  = $this->seedClient(['client_name' => 'Invoice List Client']);
-        $invoiceId = $this->seedInvoice($clientId, ['invoice_number' => 'INV-LIST-001']);
+        $this->seedInvoice($clientId, ['invoice_number' => 'INV-LIST-001']);
 
         /* Act */
         $response = $this->get('/invoices/status/all');
 
         /* Assert */
         $this->assertResponseStatusCode($response, 200);
-        $this->assertDatabaseHas('ip_invoices', ['invoice_number' => 'INV-LIST-001']);
-        $this->assertResponseBodyContains($response, '<html');
+        $this->assertResponseBodyContains($response, 'INV-LIST-001');
     }
 
     #[Test]

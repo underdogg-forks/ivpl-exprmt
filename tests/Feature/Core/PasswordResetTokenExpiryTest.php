@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core;
 
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\AbstractTestCase;
 
@@ -51,7 +52,7 @@ class PasswordResetTokenExpiryTest extends AbstractTestCase
         ]);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_a_password_change_when_the_reset_token_has_expired(): void
     {
         /* Arrange: a reset token whose 15-minute lifetime elapsed 5 minutes ago. */
@@ -81,7 +82,7 @@ class PasswordResetTokenExpiryTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_clears_the_expired_token_after_a_rejected_password_change(): void
     {
         /* Arrange */
@@ -105,7 +106,7 @@ class PasswordResetTokenExpiryTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_allows_a_password_change_with_a_valid_unexpired_token(): void
     {
         /* Arrange: a token that is valid for another 10 minutes. */
@@ -132,7 +133,7 @@ class PasswordResetTokenExpiryTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_allows_a_password_change_when_no_expiry_is_stored(): void
     {
         /* Arrange: a legacy token issued before the expiry column existed (NULL expiry). */
@@ -159,7 +160,7 @@ class PasswordResetTokenExpiryTest extends AbstractTestCase
         );
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_rejects_the_reset_link_when_the_token_has_expired(): void
     {
         /* Arrange */
