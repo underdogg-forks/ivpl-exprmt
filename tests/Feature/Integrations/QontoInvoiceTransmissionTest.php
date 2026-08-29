@@ -3,6 +3,7 @@
 namespace Tests\Feature\Integrations;
 
 use Tests\AbstractTestCase;
+use Tests\Fixtures\InvoiceFixtures;
 
 /**
  * Qonto Invoice Transmission Feature Tests
@@ -12,11 +13,11 @@ use Tests\AbstractTestCase;
 class QontoInvoiceTransmissionTest extends AbstractTestCase
 {
     use \Tests\InteractsWithDatabase;
+    use InvoiceFixtures;
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_sends_invoice_to_qonto_successfully(): void
     {
-        $this->markTestSkipped('Requires Qonto API configuration');
 
         $invoice = $this->seedInvoice(
             invoice_status: 'published',
@@ -48,7 +49,6 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_tracks_payment_via_qonto_reconciliation(): void
     {
-        $this->markTestSkipped('Requires Qonto payment reconciliation');
 
         $invoice = $this->seedPayableInvoice(invoice_balance: 500.00);
 
@@ -85,7 +85,6 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_qonto_oauth2_token_refresh(): void
     {
-        $this->markTestSkipped('Requires Qonto OAuth2 handling');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -110,7 +109,6 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_qonto_rate_limiting(): void
     {
-        $this->markTestSkipped('Requires Qonto rate limit mock');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -130,7 +128,6 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_transmission_timeout(): void
     {
-        $this->markTestSkipped('Requires timeout mock');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -149,7 +146,6 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_partial_payment_via_qonto_reconciliation(): void
     {
-        $this->markTestSkipped('Requires Qonto partial payment');
 
         $invoice = $this->seedPayableInvoice(invoice_balance: 1000.00);
 
@@ -205,7 +201,6 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_duplicate_payment_webhook_from_qonto(): void
     {
-        $this->markTestSkipped('Requires idempotent webhook handling');
 
         $invoice = $this->seedPayableInvoice(invoice_balance: 250.00);
 
@@ -244,7 +239,6 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework_Attributes\Test]
     public function it_validates_webhook_signature_from_qonto(): void
     {
-        $this->markTestSkipped('Requires webhook signature validation');
 
         $webhook_payload = [
             'event' => 'payment.received',
@@ -262,7 +256,6 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_malformed_qonto_webhook(): void
     {
-        $this->markTestSkipped('Requires malformed payload handling');
 
         $malformed = [
             'event' => 'payment.received',
