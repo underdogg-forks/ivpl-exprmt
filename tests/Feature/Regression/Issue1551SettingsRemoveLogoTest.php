@@ -107,7 +107,7 @@ class Issue1551SettingsRemoveLogoTest extends AbstractTestCase
         $getResponse = $this->get('/settings/remove_logo/invoice');
 
         /* Assert - GET request is rejected */
-        self::assertNotSame(200, $getResponse->getStatusCode(), 'GET request to remove_logo should fail');
+        self::assertNotSame(200, $getResponse->statusCode(), 'GET request to remove_logo should fail');
     }
 
     #[Test]
@@ -133,7 +133,7 @@ class Issue1551SettingsRemoveLogoTest extends AbstractTestCase
     public function removing_nonexistent_logo_succeeds_idempotently(): void
     {
         /* Arrange - Ensure no logo is set */
-        $this->database->where('setting_key', 'invoice_logo')->delete('ip_settings');
+        $this->databaseDelete('ip_settings', ['setting_key' => 'invoice_logo']);
 
         /* Act - Try to remove non-existent logo */
         $response = $this->post('/settings/remove_logo/invoice', []);
