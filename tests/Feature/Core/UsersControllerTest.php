@@ -255,4 +255,215 @@ class UsersControllerTest extends AbstractTestCase
         $this->assertResponseStatusCode($response, 200);
         $this->assertResponseHasNoPhpErrors($response);
     }
+
+    #[Test]
+    #[Group('security')]
+    public function it_prevents_secondary_admin_from_viewing_other_user_form(): void
+    {
+        /* Arrange: secondary admin tries to view primary admin's edit form */
+        $primaryAdminId = 1; // Primary admin always has user_id = 1
+        $secondaryAdminId = $this->databaseInsert('ip_users', [
+            'user_name'          => 'Secondary Admin',
+            'user_password'      => password_hash('secondary-secret', PASSWORD_DEFAULT),
+            'user_psalt'         => bin2hex(random_bytes(10)),
+            'user_email'         => 'secondary@test.local',
+            'user_type'          => 1,
+            'user_active'        => 1,
+            'user_date_created'  => date('Y-m-d H:i:s'),
+            'user_date_modified' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->actingAsAdmin($secondaryAdminId);
+
+        /* Act */
+        $response = $this->get('/users/form/' . $primaryAdminId);
+
+        /* Assert */
+        self::assertSame(403, $response->statusCode(), 'Secondary admin must not access another user\'s form.');
+    }
+
+    #[Test]
+    #[Group('security')]
+    public function it_prevents_secondary_admin_from_editing_other_user(): void
+    {
+        /* Arrange: secondary admin tries to edit primary admin's email */
+        $primaryAdminId = 1; // Primary admin always has user_id = 1
+        $originalEmail = $this->databaseFetchOne('ip_users', ['user_id' => $primaryAdminId])['user_email'];
+
+        $secondaryAdminId = $this->databaseInsert('ip_users', [
+            'user_name'          => 'Attacker Admin',
+            'user_password'      => password_hash('attacker-secret', PASSWORD_DEFAULT),
+            'user_psalt'         => bin2hex(random_bytes(10)),
+            'user_email'         => 'attacker@test.local',
+            'user_type'          => 1,
+            'user_active'        => 1,
+            'user_date_created'  => date('Y-m-d H:i:s'),
+            'user_date_modified' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->actingAsAdmin($secondaryAdminId);
+
+        /* Act: attempt to change primary admin's email */
+        $response = $this->post('/users/form/' . $primaryAdminId, [
+            'user_type'     => '1',
+            'user_email'    => 'hijacked@attacker.com',
+            'user_name'     => 'Hijacked Primary Admin',
+            'user_language' => 'system',
+            'btn_submit'    => '1',
+        ]);
+
+        /* Assert */
+        self::assertSame(403, $response->statusCode(), 'Secondary admin must not be able to edit primary admin.');
+
+        $primaryAdmin = $this->databaseFetchOne('ip_users', ['user_id' => $primaryAdminId]);
+        self::assertNotNull($primaryAdmin);
+        self::assertSame($originalEmail, $primaryAdmin['user_email'], 'Primary admin\'s email must remain unchanged.');
+    }
+
+    #[Test]
+    #[Group('security')]
+    public function it_allows_secondary_admin_to_edit_their_own_account(): void
+    {
+        /* Arrange: secondary admin edits their own account */
+        $secondaryAdminId = $this->databaseInsert('ip_users', [
+            'user_name'          => 'Secondary Admin',
+            'user_password'      => password_hash('secondary-secret', PASSWORD_DEFAULT),
+            'user_psalt'         => bin2hex(random_bytes(10)),
+            'user_email'         => 'secondary@test.local',
+            'user_type'          => 1,
+            'user_active'        => 1,
+            'user_date_created'  => date('Y-m-d H:i:s'),
+            'user_date_modified' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->actingAsAdmin($secondaryAdminId);
+
+        /* Act */
+        $response = $this->post('/users/form/' . $secondaryAdminId, [
+            'user_type'     => '1',
+            'user_email'    => 'updated@test.local',
+            'user_name'     => 'Updated Secondary Admin',
+            'user_language' => 'system',
+            'btn_submit'    => '1',
+        ]);
+
+        /* Assert */
+        self::assertTrue($response->isRedirect(), 'Secondary admin must be able to edit their own account.');
+
+        $user = $this->databaseFetchOne('ip_users', ['user_id' => $secondaryAdminId]);
+        self::assertNotNull($user);
+        self::assertSame('updated@test.local', $user['user_email']);
+        self::assertSame('Updated Secondary Admin', $user['user_name']);
+    }
+
+    #[Test]
+    #[Group('security')]
+    public function it_allows_primary_admin_to_edit_any_user(): void
+    {
+        /* Arrange: primary admin edits another user */
+        $targetUserId = $this->databaseInsert('ip_users', [
+            'user_name'          => 'Target User',
+            'user_password'      => password_hash('target-secret', PASSWORD_DEFAULT),
+            'user_psalt'         => bin2hex(random_bytes(10)),
+            'user_email'         => 'target@test.local',
+            'user_type'          => 2,
+            'user_active'        => 1,
+            'user_date_created'  => date('Y-m-d H:i:s'),
+            'user_date_modified' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->actingAsAdmin(); // Primary admin with user_id = 1
+
+        /* Act */
+        $response = $this->post('/users/form/' . $targetUserId, [
+            'user_type'     => '2',
+            'user_email'    => 'modified@test.local',
+            'user_name'     => 'Modified Target User',
+            'user_language' => 'system',
+            'btn_submit'    => '1',
+        ]);
+
+        /* Assert */
+        self::assertTrue($response->isRedirect(), 'Primary admin must be able to edit any user.');
+
+        $user = $this->databaseFetchOne('ip_users', ['user_id' => $targetUserId]);
+        self::assertNotNull($user);
+        self::assertSame('modified@test.local', $user['user_email']);
+        self::assertSame('Modified Target User', $user['user_name']);
+    }
+
+    #[Test]
+    #[Group('security')]
+    public function it_does_not_allow_secondary_admin_to_escalate_user_type(): void
+    {
+        /* Arrange: secondary admin tries to promote themselves to primary admin
+         * by editing their own account (should be blocked by not allowing self-escalation) */
+        $secondaryAdminId = $this->databaseInsert('ip_users', [
+            'user_name'          => 'Would-be Escalator',
+            'user_password'      => password_hash('secondary-secret', PASSWORD_DEFAULT),
+            'user_psalt'         => bin2hex(random_bytes(10)),
+            'user_email'         => 'escalator@test.local',
+            'user_type'          => 1, // Secondary admin
+            'user_active'        => 1,
+            'user_date_created'  => date('Y-m-d H:i:s'),
+            'user_date_modified' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->actingAsAdmin($secondaryAdminId);
+
+        /* Act: attempt to change own user_type to primary admin */
+        $response = $this->post('/users/form/' . $secondaryAdminId, [
+            'user_type'     => '1', // Attempt to keep or change to primary
+            'user_email'    => 'escalator@test.local',
+            'user_name'     => 'Would-be Escalator',
+            'user_language' => 'system',
+            'btn_submit'    => '1',
+        ]);
+
+        /* Assert */
+        self::assertTrue($response->isRedirect(), 'Self-edit must be allowed to submit.');
+
+        $user = $this->databaseFetchOne('ip_users', ['user_id' => $secondaryAdminId]);
+        self::assertNotNull($user);
+        self::assertSame('1', (string) $user['user_type'], 'User type should not change during self-edit.');
+    }
+
+    #[Test]
+    #[Group('security')]
+    public function it_prevents_secondary_admin_email_takeover_via_password_recovery(): void
+    {
+        /* Arrange: complete scenario of secondary admin trying to hijack primary admin
+         * by changing email, then using password recovery */
+        $primaryAdminId = 1;
+        $primaryAdminOriginalEmail = $this->databaseFetchOne('ip_users', ['user_id' => $primaryAdminId])['user_email'];
+
+        $secondaryAdminId = $this->databaseInsert('ip_users', [
+            'user_name'          => 'Email Hijacker',
+            'user_password'      => password_hash('hijacker-secret', PASSWORD_DEFAULT),
+            'user_psalt'         => bin2hex(random_bytes(10)),
+            'user_email'         => 'hijacker@test.local',
+            'user_type'          => 1,
+            'user_active'        => 1,
+            'user_date_created'  => date('Y-m-d H:i:s'),
+            'user_date_modified' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->actingAsAdmin($secondaryAdminId);
+
+        /* Act: attempt to hijack primary admin's account */
+        $response = $this->post('/users/form/' . $primaryAdminId, [
+            'user_type'     => '1',
+            'user_email'    => 'hijacker-new@attacker.com',
+            'user_name'     => 'Hijacked Admin',
+            'user_language' => 'system',
+            'btn_submit'    => '1',
+        ]);
+
+        /* Assert: unauthorized access must be blocked at form level */
+        self::assertSame(403, $response->statusCode(), 'Unauthorized user edit must return 403.');
+
+        $primaryAdmin = $this->databaseFetchOne('ip_users', ['user_id' => $primaryAdminId]);
+        self::assertNotNull($primaryAdmin);
+        self::assertSame($primaryAdminOriginalEmail, $primaryAdmin['user_email'], 'Primary admin email must not be modified by unauthorized user.');
+    }
 }
