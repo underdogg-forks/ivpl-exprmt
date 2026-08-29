@@ -128,34 +128,40 @@ class Issue1601AjaxCsrfRegenerationTest extends AbstractTestCase
         $clientId = $this->seedClient();
         $invoiceId = $this->seedInvoice($clientId);
 
-        /* Act - Call 1: Update discount */
-        $updatePayload = [
-            'invoice_id' => (string) $invoiceId,
-            'invoice_discount_percent' => '10',
-        ];
-        $updateResponse = $this->ajax('POST', '/invoices/ajax/update', $updatePayload);
-        $updateData = json_decode($updateResponse->body(), true);
-
-        self::assertSame(1, $updateData['success'] ?? null, 'Update failed: ' . $updateResponse->body());
-
-        /* Act - Call 2: Save invoice */
-        $savePayload = [
+        /* Act - Call 1: Save invoice with discount update */
+        $firstPayload = [
             'invoice_id' => (string) $invoiceId,
             'invoice_date_created' => date('Y-m-d'),
             'invoice_date_due' => date('Y-m-d', strtotime('+30 days')),
             'invoice_time_created' => date('H:i:s'),
             'invoice_status_id' => '1',
+            'invoice_discount_percent' => '10',
             'items' => json_encode([]),
         ];
-        $saveResponse = $this->ajax('POST', '/invoices/ajax/save', $savePayload);
-        $saveData = json_decode($saveResponse->body(), true);
+        $firstResponse = $this->ajax('POST', '/invoices/ajax/save', $firstPayload);
+        $firstData = json_decode($firstResponse->body(), true);
+
+        self::assertSame(1, $firstData['success'] ?? null, 'First save failed: ' . $firstResponse->body());
+
+        /* Act - Call 2: Save invoice again with different discount */
+        $secondPayload = [
+            'invoice_id' => (string) $invoiceId,
+            'invoice_date_created' => date('Y-m-d'),
+            'invoice_date_due' => date('Y-m-d', strtotime('+30 days')),
+            'invoice_time_created' => date('H:i:s'),
+            'invoice_status_id' => '1',
+            'invoice_discount_percent' => '15',
+            'items' => json_encode([]),
+        ];
+        $secondResponse = $this->ajax('POST', '/invoices/ajax/save', $secondPayload);
+        $secondData = json_decode($secondResponse->body(), true);
 
         /* Assert - Multiple sequential calls work (regression test for #1601) */
         self::assertSame(
             1,
-            $saveData['success'] ?? null,
+            $secondData['success'] ?? null,
             'Multiple sequential AJAX calls failed. This indicates CSRF token regeneration is broken. ' .
-            'Response: ' . $saveResponse->body()
+            'Response: ' . $secondResponse->body()
         );
     }
 }
