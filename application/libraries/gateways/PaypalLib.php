@@ -231,16 +231,16 @@ class PaypalLib
     /**
      * Validates a PayPal Order ID before it is interpolated into a request URL.
      *
-     * PayPal Order IDs are alphanumeric (observed pattern: uppercase letters and
-     * digits). Rejecting anything else — in particular path segments like "/" or
-     * "." — prevents a crafted order_id from redirecting the request to a
-     * different PayPal API endpoint than v2/checkout/orders/{id}[/capture].
+     * PayPal Order IDs are alphanumeric and may contain hyphens and underscores.
+     * Rejecting anything else — in particular path segments like "/" or "." —
+     * prevents a crafted order_id from redirecting the request to a different
+     * PayPal API endpoint than v2/checkout/orders/{id}[/capture].
      *
      * @throws InvalidArgumentException on invalid format
      */
     private function validateOrderId(string $order_id): string
     {
-        if ( ! preg_match('/^[A-Za-z0-9]+$/', $order_id)) {
+        if ( ! preg_match('/^[A-Za-z0-9\-_]+$/', $order_id)) {
             throw new InvalidArgumentException('Invalid PayPal order ID format');
         }
 
