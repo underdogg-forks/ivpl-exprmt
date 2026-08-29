@@ -3,6 +3,7 @@
 namespace Tests\Feature\Integrations;
 
 use Tests\AbstractTestCase;
+use Tests\Fixtures\InvoiceFixtures;
 
 /**
  * SuperPDP Invoice Transmission Feature Tests
@@ -12,11 +13,11 @@ use Tests\AbstractTestCase;
 class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
 {
     use \Tests\InteractsWithDatabase;
+    use InvoiceFixtures;
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_sends_invoice_to_superpdp_successfully(): void
     {
-        $this->markTestSkipped('Requires SuperPDP API configuration');
 
         $invoice = $this->seedInvoice(
             invoice_status: 'published',
@@ -48,7 +49,6 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_performs_pre_validation_when_enabled(): void
     {
-        $this->markTestSkipped('Requires SuperPDP pre-validation');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -70,7 +70,6 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_superpdp_validation_warnings(): void
     {
-        $this->markTestSkipped('Requires SuperPDP validation warnings');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -96,7 +95,6 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_rejects_invalid_invoices_during_pre_check(): void
     {
-        $this->markTestSkipped('Requires SuperPDP invalid pre-check');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -122,7 +120,6 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_superpdp_oauth2_token_expiration(): void
     {
-        $this->markTestSkipped('Requires SuperPDP OAuth2 token handling');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -147,7 +144,6 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_superpdp_rate_limiting(): void
     {
-        $this->markTestSkipped('Requires SuperPDP rate limit');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -167,7 +163,6 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_transmission_timeout(): void
     {
-        $this->markTestSkipped('Requires timeout mock');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -186,7 +181,6 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_incoming_invoice_webhook_from_superpdp(): void
     {
-        $this->markTestSkipped('Requires incoming invoice webhook');
 
         // SuperPDP can send us incoming invoices
         $webhook_payload = [
@@ -208,7 +202,6 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_retrieves_invoice_document_from_superpdp(): void
     {
-        $this->markTestSkipped('Requires document retrieval');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 

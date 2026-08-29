@@ -3,6 +3,7 @@
 namespace Tests\Feature\Integrations;
 
 use Tests\AbstractTestCase;
+use Tests\Fixtures\InvoiceFixtures;
 
 /**
  * LetsPeppol Invoice Transmission Feature Tests
@@ -12,11 +13,11 @@ use Tests\AbstractTestCase;
 class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
 {
     use \Tests\InteractsWithDatabase;
+    use InvoiceFixtures;
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_sends_invoice_to_letspeppol_successfully(): void
     {
-        $this->markTestSkipped('Requires LetsPeppol API configuration');
 
         $invoice = $this->seedInvoice(
             invoice_status: 'published',
@@ -52,7 +53,6 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_letspeppol_oauth2_token_refresh(): void
     {
-        $this->markTestSkipped('Requires LetsPeppol OAuth2 configuration');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -77,7 +77,6 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_letspeppol_rate_limiting(): void
     {
-        $this->markTestSkipped('Requires LetsPeppol rate limit mock');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -98,7 +97,6 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_polls_transmission_status_from_letspeppol(): void
     {
-        $this->markTestSkipped('Requires LetsPeppol status polling');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -138,7 +136,6 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_participant_validation_failure(): void
     {
-        $this->markTestSkipped('Requires LetsPeppol participant validation');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -158,7 +155,6 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_validates_ubl_xml_format_before_transmission(): void
     {
-        $this->markTestSkipped('Requires XML validation');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -171,7 +167,6 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_timeout_during_letspeppol_transmission(): void
     {
-        $this->markTestSkipped('Requires timeout mock');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
@@ -191,7 +186,6 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_retries_failed_letspeppol_transmissions(): void
     {
-        $this->markTestSkipped('Requires retry mechanism');
 
         $invoice = $this->seedInvoice(einvoicing_enabled: true);
 
