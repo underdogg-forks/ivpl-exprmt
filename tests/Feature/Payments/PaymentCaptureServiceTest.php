@@ -2,14 +2,16 @@
 
 namespace Tests\Feature\Payments;
 
-use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Psr7\Request;
-use GuzzleHttp\Psr7\Response;
 use Tests\AbstractTestCase;
 
 class PaymentCaptureServiceTest extends AbstractTestCase
 {
-    use \Tests\InteractsWithDatabase;
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->databaseInsertOrIgnore('ip_settings', ['setting_key' => 'gateway_paypal_currency', 'setting_value' => 'USD']);
+        $this->databaseInsertOrIgnore('ip_settings', ['setting_key' => 'gateway_paypal_payment_method', 'setting_value' => '1']);
+    }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_processes_successful_completed_payment(): void
@@ -25,7 +27,7 @@ class PaymentCaptureServiceTest extends AbstractTestCase
                         'captures' => [[
                             'id' => 'CAP-123',
                             'status' => 'COMPLETED',
-                            'invoice_id' => $invoice->invoice_id,
+                            'invoice_id' => $invoice['invoice_id'],
                             'amount' => ['value' => '100.00', 'currency_code' => 'USD'],
                         ]],
                     ],
@@ -33,13 +35,16 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-1');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-1');
 
-        $payment = $this->db->where('payment_external_id', 'CAP-123')->get('ip_payments')->row();
-        $this->assertNotNull($payment);
-        $this->assertEquals($invoice->invoice_id, $payment->invoice_id);
-        $this->assertEquals('100.00', $payment->payment_amount);
+        // Reset connection to ensure we see committed data
+        $this->resetDatabaseConnection();
+
+        $payment = $this->databaseFetchOne('ip_payments', ['payment_external_id' => 'CAP-123']);
+        $this->assertNotEmpty($payment);
+        $this->assertEquals($invoice['invoice_id'], $payment['invoice_id'] ?? null);
+        $this->assertEquals('100.00', $payment['payment_amount'] ?? null);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -56,7 +61,7 @@ class PaymentCaptureServiceTest extends AbstractTestCase
                         'captures' => [[
                             'id' => 'CAP-456',
                             'status' => 'PENDING',
-                            'invoice_id' => $invoice->invoice_id,
+                            'invoice_id' => $invoice['invoice_id'],
                             'amount' => ['value' => '50.00', 'currency_code' => 'USD'],
                         ]],
                     ],
@@ -64,12 +69,14 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-2');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-2');
 
-        $payment = $this->db->where('payment_external_id', 'CAP-456')->get('ip_payments')->row();
-        $this->assertNotNull($payment);
-        $this->assertStringContainsString('pending', mb_strtolower($payment->payment_note ?? ''));
+        $this->resetDatabaseConnection();
+
+        $payment = $this->databaseFetchOne('ip_payments', ['payment_external_id' => 'CAP-456']);
+        $this->assertNotEmpty($payment);
+        $this->assertStringContainsString('pending', mb_strtolower($payment['payment_note'] ?? ''));
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -87,7 +94,7 @@ class PaymentCaptureServiceTest extends AbstractTestCase
                         'captures' => [[
                             'id' => 'CAP-DUP',
                             'status' => 'COMPLETED',
-                            'invoice_id' => $invoice->invoice_id,
+                            'invoice_id' => $invoice['invoice_id'],
                             'amount' => ['value' => '75.00', 'currency_code' => 'USD'],
                         ]],
                     ],
@@ -95,10 +102,11 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response1))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-3');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response1)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-3');
 
-        $payment_count_1 = $this->db->where('payment_external_id', 'CAP-DUP')->count_all_results('ip_payments');
+        $this->resetDatabaseConnection();
+        $payment_count_1 = count($this->databaseFetchAll('ip_payments', ['payment_external_id' => 'CAP-DUP']));
         $this->assertEquals(1, $payment_count_1);
 
         // Second attempt with same capture ID
@@ -111,7 +119,7 @@ class PaymentCaptureServiceTest extends AbstractTestCase
                         'captures' => [[
                             'id' => 'CAP-DUP',
                             'status' => 'COMPLETED',
-                            'invoice_id' => $invoice->invoice_id,
+                            'invoice_id' => $invoice['invoice_id'],
                             'amount' => ['value' => '75.00', 'currency_code' => 'USD'],
                         ]],
                     ],
@@ -119,10 +127,11 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response2))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-3-RETRY');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response2)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-3-RETRY');
 
-        $payment_count_2 = $this->db->where('payment_external_id', 'CAP-DUP')->count_all_results('ip_payments');
+        $this->resetDatabaseConnection();
+        $payment_count_2 = count($this->databaseFetchAll('ip_payments', ['payment_external_id' => 'CAP-DUP']));
         $this->assertEquals(1, $payment_count_2); // Still only 1 payment
     }
 
@@ -140,7 +149,7 @@ class PaymentCaptureServiceTest extends AbstractTestCase
                         'captures' => [[
                             'id' => 'CAP-CURR',
                             'status' => 'COMPLETED',
-                            'invoice_id' => $invoice->invoice_id,
+                            'invoice_id' => $invoice['invoice_id'],
                             'amount' => ['value' => '100.00', 'currency_code' => 'EUR'],
                         ]],
                     ],
@@ -148,11 +157,12 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-4');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-4');
 
-        $payment = $this->db->where('payment_external_id', 'CAP-CURR')->get('ip_payments')->row();
-        $this->assertNull($payment);
+        $this->resetDatabaseConnection();
+        $payment = $this->databaseFetchOne('ip_payments', ['payment_external_id' => 'CAP-CURR']);
+        $this->assertEmpty($payment);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -169,7 +179,7 @@ class PaymentCaptureServiceTest extends AbstractTestCase
                         'captures' => [[
                             'id' => 'CAP-AMOUNT',
                             'status' => 'COMPLETED',
-                            'invoice_id' => $invoice->invoice_id,
+                            'invoice_id' => $invoice['invoice_id'],
                             'amount' => ['value' => '50.00', 'currency_code' => 'USD'],
                         ]],
                     ],
@@ -177,11 +187,12 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-5');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-5');
 
-        $payment = $this->db->where('payment_external_id', 'CAP-AMOUNT')->get('ip_payments')->row();
-        $this->assertNull($payment);
+        $this->resetDatabaseConnection();
+        $payment = $this->databaseFetchOne('ip_payments', ['payment_external_id' => 'CAP-AMOUNT']);
+        $this->assertEmpty($payment);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -198,7 +209,7 @@ class PaymentCaptureServiceTest extends AbstractTestCase
                         'captures' => [[
                             'id' => 'CAP-TOL',
                             'status' => 'COMPLETED',
-                            'invoice_id' => $invoice->invoice_id,
+                            'invoice_id' => $invoice['invoice_id'],
                             'amount' => ['value' => '100.00005', 'currency_code' => 'USD'],
                         ]],
                     ],
@@ -206,11 +217,12 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-6');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-6');
 
-        $payment = $this->db->where('payment_external_id', 'CAP-TOL')->get('ip_payments')->row();
-        $this->assertNotNull($payment);
+        $this->resetDatabaseConnection();
+        $payment = $this->databaseFetchOne('ip_payments', ['payment_external_id' => 'CAP-TOL']);
+        $this->assertNotEmpty($payment);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -227,7 +239,7 @@ class PaymentCaptureServiceTest extends AbstractTestCase
                         'captures' => [[
                             'id' => 'CAP-PAID',
                             'status' => 'COMPLETED',
-                            'invoice_id' => $invoice->invoice_id,
+                            'invoice_id' => $invoice['invoice_id'],
                             'amount' => ['value' => '100.00', 'currency_code' => 'USD'],
                         ]],
                     ],
@@ -235,11 +247,12 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-7');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-7');
 
-        $payment = $this->db->where('payment_external_id', 'CAP-PAID')->get('ip_payments')->row();
-        $this->assertNull($payment);
+        $this->resetDatabaseConnection();
+        $payment = $this->databaseFetchOne('ip_payments', ['payment_external_id' => 'CAP-PAID']);
+        $this->assertEmpty($payment);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -262,11 +275,12 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-8');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-8');
 
-        $payment = $this->db->where('payment_external_id', 'CAP-NOTFOUND')->get('ip_payments')->row();
-        $this->assertNull($payment);
+        $this->resetDatabaseConnection();
+        $payment = $this->databaseFetchOne('ip_payments', ['payment_external_id' => 'CAP-NOTFOUND']);
+        $this->assertEmpty($payment);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -283,7 +297,7 @@ class PaymentCaptureServiceTest extends AbstractTestCase
                         'captures' => [[
                             'id' => 'CAP-DECLINED',
                             'status' => 'DECLINED',
-                            'invoice_id' => $invoice->invoice_id,
+                            'invoice_id' => $invoice['invoice_id'],
                             'amount' => ['value' => '100.00', 'currency_code' => 'USD'],
                             'processor_response' => ['response_code' => '1111'],
                         ]],
@@ -292,18 +306,16 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-9');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-9');
 
-        $payment = $this->db->where('payment_external_id', 'CAP-DECLINED')->get('ip_payments')->row();
-        $this->assertNull($payment);
+        $this->resetDatabaseConnection();
+        $payment = $this->databaseFetchOne('ip_payments', ['payment_external_id' => 'CAP-DECLINED']);
+        $this->assertEmpty($payment);
 
-        $merchant_response = $this->db->where('invoice_id', $invoice->invoice_id)
-            ->where('merchant_response_successful', false)
-            ->get('ip_merchant_responses')
-            ->row();
-        $this->assertNotNull($merchant_response);
-        $this->assertStringContainsString('DECLINED', $merchant_response->merchant_response);
+        $merchant_responses = $this->databaseFetchAll('ip_merchant_responses', ['invoice_id' => $invoice['invoice_id'], 'merchant_response_successful' => 0]);
+        $this->assertNotEmpty($merchant_responses);
+        $this->assertStringContainsString('DECLINED', $merchant_responses[0]['merchant_response'] ?? '');
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -316,11 +328,12 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ['status' => 200, 'body' => json_encode(['invalid' => 'structure'])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-10');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-10');
 
-        $payment = $this->db->where('payment_external_id', 'like', 'CAP-%')->get('ip_payments')->row();
-        $this->assertNull($payment);
+        $this->resetDatabaseConnection();
+        $payments = $this->databaseFetchAll('ip_payments', []);
+        $this->assertEmpty($payments);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -343,11 +356,12 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-11');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-11');
 
-        $payment = $this->db->where('payment_external_id', 'like', 'CAP-%')->get('ip_payments')->row();
-        $this->assertNull($payment);
+        $this->resetDatabaseConnection();
+        $payments = $this->databaseFetchAll('ip_payments', []);
+        $this->assertEmpty($payments);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -366,7 +380,7 @@ class PaymentCaptureServiceTest extends AbstractTestCase
                         'captures' => [[
                             'id' => $long_capture_id,
                             'status' => 'COMPLETED',
-                            'invoice_id' => $invoice->invoice_id,
+                            'invoice_id' => $invoice['invoice_id'],
                             'amount' => ['value' => '100.00', 'currency_code' => 'USD'],
                         ]],
                     ],
@@ -374,11 +388,12 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-12');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-12');
 
-        $payment = $this->db->where('payment_external_id', $long_capture_id)->get('ip_payments')->row();
-        $this->assertNull($payment);
+        $this->resetDatabaseConnection();
+        $payment = $this->databaseFetchOne('ip_payments', ['payment_external_id' => $long_capture_id]);
+        $this->assertEmpty($payment);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -395,7 +410,7 @@ class PaymentCaptureServiceTest extends AbstractTestCase
                         'captures' => [[
                             'id' => 'CAP-RESP',
                             'status' => 'COMPLETED',
-                            'invoice_id' => $invoice->invoice_id,
+                            'invoice_id' => $invoice['invoice_id'],
                             'amount' => ['value' => '100.00', 'currency_code' => 'USD'],
                         ]],
                     ],
@@ -403,17 +418,15 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-RESP');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-RESP');
 
-        $merchant_response = $this->db->where('invoice_id', $invoice->invoice_id)
-            ->where('merchant_response_successful', true)
-            ->get('ip_merchant_responses')
-            ->row();
+        $this->resetDatabaseConnection();
+        $merchant_responses = $this->databaseFetchAll('ip_merchant_responses', ['invoice_id' => $invoice['invoice_id'], 'merchant_response_successful' => 1]);
 
-        $this->assertNotNull($merchant_response);
-        $this->assertEquals('COMPLETED', $merchant_response->merchant_response);
-        $this->assertStringContainsString('ORDER-RESP', $merchant_response->merchant_response_reference);
+        $this->assertNotEmpty($merchant_responses);
+        $this->assertEquals('COMPLETED', $merchant_responses[0]['merchant_response'] ?? null);
+        $this->assertStringContainsString('ORDER-RESP', $merchant_responses[0]['merchant_response_reference'] ?? '');
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -430,7 +443,7 @@ class PaymentCaptureServiceTest extends AbstractTestCase
                         'captures' => [[
                             'id' => 'CAP-HYPHEN',
                             'status' => 'COMPLETED',
-                            'invoice_id' => $invoice->invoice_id,
+                            'invoice_id' => $invoice['invoice_id'],
                             'amount' => ['value' => '100.00', 'currency_code' => 'USD'],
                         ]],
                     ],
@@ -438,31 +451,68 @@ class PaymentCaptureServiceTest extends AbstractTestCase
             ])],
         ];
 
-        $this->withEnvironment('PAYPAL_MOCK_RESPONSES', json_encode($paypal_response))
-            ->post('guest/gateways/paypal/paypal_capture_payment/ORDER-WITH-HYPHENS');
+        $this->withEnvironment(['PAYPAL_MOCK_RESPONSES' => json_encode($paypal_response)]);
+        $this->post('guest/gateways/paypal/paypal_capture_payment/ORDER-WITH-HYPHENS');
 
-        $payment = $this->db->where('payment_external_id', 'CAP-HYPHEN')->get('ip_payments')->row();
-        $this->assertNotNull($payment);
+        $this->resetDatabaseConnection();
+        $payment = $this->databaseFetchOne('ip_payments', ['payment_external_id' => 'CAP-HYPHEN']);
+        $this->assertNotEmpty($payment);
     }
 
-    private function seedPayableInvoice(float $invoice_balance = 100.00)
+    private function seedPayableInvoice(float $invoice_balance = 100.00): array
     {
-        $client_id = $this->db->insert('ip_clients', [
-            'client_name' => 'Test Client',
-            'client_active' => 1,
-        ]) ? $this->db->insert_id() : null;
+        $clientId = $this->seedClient(['client_name' => 'Test Client']);
+        $invoiceId = $this->seedInvoice($clientId, ['invoice_status_id' => 2], ['invoice_balance' => (string) $invoice_balance]);
 
-        $invoice_id = $this->db->insert('ip_invoices', [
-            'client_id' => $client_id,
-            'invoice_number' => 'INV-' . uniqid(),
-            'invoice_date' => date('Y-m-d'),
-            'invoice_due_date' => date('Y-m-d', strtotime('+30 days')),
-            'invoice_balance' => $invoice_balance,
-            'invoice_status_id' => 1,
-            'invoice_url_key' => hash('sha256', uniqid()),
-            'invoice_active' => 1,
-        ]) ? $this->db->insert_id() : null;
+        return $this->databaseFetchOne('ip_invoices', ['invoice_id' => $invoiceId]);
+    }
 
-        return $this->db->where('invoice_id', $invoice_id)->get('ip_invoices')->row();
+    private function databaseFetchAll(string $table, array $where): array
+    {
+        $db = $this->db();
+
+        $whereClause = '';
+        $params = [];
+        if (!empty($where)) {
+            $parts = [];
+            foreach ($where as $key => $value) {
+                $parts[] = $this->qi($key) . ' = :' . $key;
+                $params[$key] = $value;
+            }
+            $whereClause = ' WHERE ' . implode(' AND ', $parts);
+        }
+
+        $sql = 'SELECT * FROM ' . $this->qi($table) . $whereClause;
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+    }
+
+    private function qi(string $identifier): string
+    {
+        return '`' . str_replace('`', '``', $identifier) . '`';
+    }
+
+    private function db()
+    {
+        return $this->testDb();
+    }
+
+    private function testDb()
+    {
+        static $cache = null;
+
+        if ($cache !== null) {
+            return $cache;
+        }
+
+        $cache = new \PDO(
+            sprintf('mysql:host=%s;port=%d;dbname=%s', env('DB_HOSTNAME'), env('DB_PORT'), env('DB_DATABASE')),
+            env('DB_USERNAME'),
+            env('DB_PASSWORD')
+        );
+
+        return $cache;
     }
 }

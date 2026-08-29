@@ -4,6 +4,8 @@ if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
 
+require_once dirname(__FILE__) . '/../gateways/PaypalResponseExtractor.php';
+
 use GuzzleHttp\Exception\ClientException;
 
 class PaymentCaptureService

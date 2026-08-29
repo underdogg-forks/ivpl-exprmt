@@ -4,6 +4,8 @@ if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
 
+require_once dirname(__FILE__) . '/PaypalRequestExecutor.php';
+
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\HandlerStack;
