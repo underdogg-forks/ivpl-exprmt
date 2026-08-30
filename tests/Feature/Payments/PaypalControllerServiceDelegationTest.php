@@ -125,11 +125,4 @@ class PaypalControllerServiceDelegationTest extends AbstractTestCase
         $this->assertStringContainsString('DECLINED', $merchant_response['merchant_response'] ?? '');
     }
 
-    private function seedPayableInvoice(float $invoice_balance = 100.00)
-    {
-        $clientId = $this->seedClient(['client_name' => 'Test Client']);
-        $invoiceId = $this->seedInvoice($clientId, ['invoice_status_id' => 2], ['invoice_balance' => (string) $invoice_balance]);
-
-        return $this->databaseFetchOne('ip_invoices', ['invoice_id' => $invoiceId]);
-    }
 }

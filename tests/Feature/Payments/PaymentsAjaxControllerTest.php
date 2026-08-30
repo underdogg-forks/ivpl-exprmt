@@ -18,7 +18,7 @@ class PaymentsAjaxControllerTest extends AbstractTestCase
     {
         /* Arrange */
         $clientId  = $this->seedClient();
-        $invoiceId = $this->seedInvoice($clientId, [], ['invoice_balance' => '100.00']);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId, [], ['invoice_balance' => '100.00']);
 
         /* Act */
         $response = $this->ajax('POST', '/payments/ajax/add', $this->validPayload($invoiceId));
@@ -34,7 +34,7 @@ class PaymentsAjaxControllerTest extends AbstractTestCase
     {
         /* Arrange */
         $clientId  = $this->seedClient();
-        $invoiceId = $this->seedInvoice($clientId, [], ['invoice_balance' => '100.00']);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId, [], ['invoice_balance' => '100.00']);
         $payload   = $this->validPayload($invoiceId);
         unset($payload['invoice_id']);
 
@@ -52,7 +52,7 @@ class PaymentsAjaxControllerTest extends AbstractTestCase
     {
         /* Arrange */
         $clientId  = $this->seedClient();
-        $invoiceId = $this->seedInvoice($clientId, [], ['invoice_balance' => '100.00']);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId, [], ['invoice_balance' => '100.00']);
         $payload   = $this->validPayload($invoiceId);
         unset($payload['payment_date']);
 
@@ -70,7 +70,7 @@ class PaymentsAjaxControllerTest extends AbstractTestCase
     {
         /* Arrange */
         $clientId  = $this->seedClient();
-        $invoiceId = $this->seedInvoice($clientId, [], ['invoice_balance' => '100.00']);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId, [], ['invoice_balance' => '100.00']);
         $payload   = $this->validPayload($invoiceId);
         unset($payload['payment_amount']);
 
@@ -88,7 +88,7 @@ class PaymentsAjaxControllerTest extends AbstractTestCase
     {
         /* Arrange */
         $clientId                  = $this->seedClient();
-        $invoiceId                 = $this->seedInvoice($clientId, [], ['invoice_balance' => '10.00']);
+        $invoiceId                 = $invoice = $this->seedInvoiceAsObject($clientId, [], ['invoice_balance' => '10.00']);
         $payload                   = $this->validPayload($invoiceId);
         $payload['payment_amount'] = '999.00';
 
@@ -106,7 +106,7 @@ class PaymentsAjaxControllerTest extends AbstractTestCase
     {
         /* Arrange */
         $clientId  = $this->seedClient();
-        $invoiceId = $this->seedInvoice($clientId, [], ['invoice_balance' => '100.00']);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId, [], ['invoice_balance' => '100.00']);
 
         /* Act */
         $response = $this->ajax('POST', '/payments/ajax/modal_add_payment', [
@@ -124,7 +124,7 @@ class PaymentsAjaxControllerTest extends AbstractTestCase
     {
         /* Arrange */
         $clientId  = $this->seedClient();
-        $invoiceId = $this->seedInvoice($clientId, [], ['invoice_balance' => '100.00']);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId, [], ['invoice_balance' => '100.00']);
 
         /* Act */
         $response = $this->post('/payments/ajax/add', $this->validPayload($invoiceId));

@@ -29,7 +29,7 @@ class PaymentInformationFormTest extends AbstractTestCase
         /* Arrange: draft (status 1) invoices are never guest_visible() */
         $clientId = $this->seedClient();
         $urlKey   = 'draft-key-' . bin2hex(random_bytes(4));
-        $this->seedInvoice($clientId, ['invoice_url_key' => $urlKey, 'invoice_status_id' => 1]);
+        $invoice = $this->seedInvoiceAsObject($clientId, ['invoice_url_key' => $urlKey, 'invoice_status_id' => 1]);
 
         /* Act */
         $response = $this->get('/guest/payment_information/form/' . $urlKey);
@@ -45,7 +45,7 @@ class PaymentInformationFormTest extends AbstractTestCase
         $this->actingAsGuest();
         $clientId = $this->seedClient();
         $urlKey   = 'paid-key-' . bin2hex(random_bytes(4));
-        $this->seedInvoice($clientId, ['invoice_url_key' => $urlKey, 'invoice_status_id' => 4], ['invoice_balance' => '0.00']);
+        $invoice = $this->seedInvoiceAsObject($clientId, ['invoice_url_key' => $urlKey, 'invoice_status_id' => 4], ['invoice_balance' => '0.00']);
 
         /* Act */
         $response = $this->get('/guest/payment_information/form/' . $urlKey);
@@ -60,7 +60,7 @@ class PaymentInformationFormTest extends AbstractTestCase
         /* Arrange */
         $clientId = $this->seedClient();
         $urlKey   = 'payable-key-' . bin2hex(random_bytes(4));
-        $this->seedInvoice($clientId, [
+        $invoice = $this->seedInvoiceAsObject($clientId, [
             'invoice_url_key'   => $urlKey,
             'invoice_status_id' => 2,
             'payment_method'    => 0,
@@ -80,7 +80,7 @@ class PaymentInformationFormTest extends AbstractTestCase
         /* Arrange */
         $clientId = $this->seedClient();
         $urlKey   = 'paid-noerr-key-' . bin2hex(random_bytes(4));
-        $this->seedInvoice($clientId, ['invoice_url_key' => $urlKey, 'invoice_status_id' => 4], ['invoice_balance' => '0.00']);
+        $invoice = $this->seedInvoiceAsObject($clientId, ['invoice_url_key' => $urlKey, 'invoice_status_id' => 4], ['invoice_balance' => '0.00']);
 
         /* Act */
         $response = $this->get('/guest/payment_information/form/' . $urlKey);

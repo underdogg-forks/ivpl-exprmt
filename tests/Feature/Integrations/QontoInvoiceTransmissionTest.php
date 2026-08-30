@@ -3,7 +3,6 @@
 namespace Tests\Feature\Integrations;
 
 use Tests\AbstractTestCase;
-use Tests\Fixtures\InvoiceFixtures;
 
 /**
  * Qonto Invoice Transmission Feature Tests
@@ -12,14 +11,12 @@ use Tests\Fixtures\InvoiceFixtures;
  */
 class QontoInvoiceTransmissionTest extends AbstractTestCase
 {
-    use \Tests\InteractsWithDatabase;
-    use InvoiceFixtures;
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_sends_invoice_to_qonto_successfully(): void
     {
 
-        $invoice = $this->seedInvoice(
+        $invoice = $this->seedInvoiceAsObject(
             invoice_status: 'published',
             einvoicing_enabled: true,
         );
@@ -86,7 +83,7 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
     public function it_handles_qonto_oauth2_token_refresh(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // Mock expired token + refresh
         $mock_sequence = [
@@ -110,7 +107,7 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
     public function it_handles_qonto_rate_limiting(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // Mock 429 rate limit
         $this->withEnvironment('QONTO_MOCK_STATUS', '429')
@@ -129,7 +126,7 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
     public function it_handles_transmission_timeout(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // Mock connection timeout
         $this->withEnvironment('QONTO_MOCK_TIMEOUT', '1')

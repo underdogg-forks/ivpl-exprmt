@@ -334,12 +334,6 @@ class PaypalGatewayCallbackTest extends AbstractTestCase
         return ['status' => 200, 'body' => json_encode(['access_token' => 'fake-bearer-token'])];
     }
 
-    private function seedPayableInvoice(array $overrides = [], array $amountOverrides = []): int
-    {
-        $clientId = $this->seedClient();
-
-        return $this->seedInvoice($clientId, array_merge(['invoice_status_id' => 2], $overrides), array_merge(['invoice_balance' => '50.00'], $amountOverrides));
-    }
 
     private function captureResponse(array $capture, string $status = 'COMPLETED'): array
     {

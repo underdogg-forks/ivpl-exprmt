@@ -6,7 +6,6 @@ use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Psr7\Response;
 use Tests\AbstractTestCase;
-use Tests\Fixtures\InvoiceFixtures;
 
 /**
  * Stripe Payment Integration Tests
@@ -15,8 +14,6 @@ use Tests\Fixtures\InvoiceFixtures;
  */
 class StripePaymentIntegrationTest extends AbstractTestCase
 {
-    use \Tests\InteractsWithDatabase;
-    use InvoiceFixtures;
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_prevents_race_condition_on_concurrent_capture_attempts(): void

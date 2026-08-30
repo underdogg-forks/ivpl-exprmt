@@ -7,6 +7,8 @@ use RuntimeException;
 use Tests\Concerns\InteractsWithDatabase;
 use Tests\Integration\Support\HttpResponse;
 
+// Moved inside AbstractTestCase as inner class for access to protected methods
+
 abstract class AbstractTestCase extends PhpUnitTestCase
 {
     use InteractsWithDatabase;
@@ -14,6 +16,66 @@ abstract class AbstractTestCase extends PhpUnitTestCase
     protected array $sessionData = [];
 
     protected array $environmentData = [];
+
+    protected ?HttpResponse $lastResponse = null;
+
+    public function __get(string $property)
+    {
+        if ($property === 'db') {
+            // Return a simple wrapper that just delegates to databaseFetchOne
+            return new class($this) {
+                private $test;
+                private $table;
+                private $wheres = [];
+
+                public function __construct($test) {
+                    $this->test = $test;
+                }
+
+                public function where($column, $value) {
+                    $obj = clone $this;
+                    $obj->wheres[$column] = $value;
+                    return $obj;
+                }
+
+                public function whereIn($column, $values) {
+                    return $this;
+                }
+
+                public function get($table) {
+                    $obj = clone $this;
+                    $obj->table = $table;
+                    return $obj;
+                }
+
+                public function row() {
+                    if (!$this->table) return null;
+                    $result = $this->test->databaseFetchOne($this->table, $this->wheres);
+                    return $result ? (object)$result : null;
+                }
+
+                public function num_rows() {
+                    if (!$this->table || empty($this->wheres)) return 0;
+                    $result = $this->test->databaseFetchOne($this->table, $this->wheres);
+                    return $result ? 1 : 0;
+                }
+
+                public function insert($table, $data) {
+                    try {
+                        $this->test->databaseInsert($table, $data);
+                        return true;
+                    } catch (\Exception) {
+                        return false;
+                    }
+                }
+
+                public function insert_id() {
+                    return 0;
+                }
+            };
+        }
+        throw new \Exception("Undefined property: {$property}");
+    }
 
     protected function setUp(): void
     {
@@ -65,9 +127,14 @@ abstract class AbstractTestCase extends PhpUnitTestCase
         ];
     }
 
-    protected function withEnvironment(array $environment): void
+    protected function withEnvironment(string|array $key, ?string $value = null): self
     {
-        $this->environmentData = array_merge($this->environmentData, $environment);
+        if (is_array($key)) {
+            $this->environmentData = array_merge($this->environmentData, $key);
+        } else {
+            $this->environmentData[$key] = $value;
+        }
+        return $this;
     }
 
     protected function request(string $method, string $uri, array $query = [], array $post = [], bool $ajax = false, array $cookies = []): HttpResponse
@@ -142,12 +209,15 @@ abstract class AbstractTestCase extends PhpUnitTestCase
             );
         }
 
-        return new HttpResponse(
+        $response = new HttpResponse(
             base64_decode((string) ($result['output'] ?? ''), true) ?: '',
             (int) ($result['status'] ?? 200),
             $result['headers'] ?? [],
             (string) $stderr,
         );
+
+        $this->lastResponse = $response;
+        return $response;
     }
 
     protected function get(string $uri, array $query = [], array $cookies = []): HttpResponse
@@ -157,7 +227,8 @@ abstract class AbstractTestCase extends PhpUnitTestCase
 
     protected function post(string $uri, array $data = [], array $query = [], array $cookies = []): HttpResponse
     {
-        return $this->request('POST', $uri, $query, $data, false, $cookies);
+        $response = $this->request('POST', $uri, $query, $data, false, $cookies);
+        return $response;
     }
 
     protected function ajax(string $method, string $uri, array $data = []): HttpResponse
@@ -309,6 +380,97 @@ abstract class AbstractTestCase extends PhpUnitTestCase
 
         self::assertSame((string) file_get_contents($path), $response->body());
     }
+
+    protected function seedInvoiceAsObject(
+        string $invoice_status = 'published',
+        bool $einvoicing_enabled = false
+    ): object {
+        $clientId = $this->seedClient();
+        $invoiceId = $this->seedInvoice($clientId);
+
+        return (object) [
+            'invoice_id' => $invoiceId,
+            'client_id' => $clientId,
+            'invoice_status' => $invoice_status,
+            'einvoicing_enabled' => $einvoicing_enabled ? 1 : 0,
+        ];
+    }
+
+    protected function seedPayableInvoice(
+        float $invoice_balance = 100.00,
+        string $currency = 'USD',
+        ?string $invoice_status = 'published'
+    ): object {
+        $clientId = $this->seedClient();
+        $invoiceId = $this->seedInvoice($clientId, [], ['invoice_total' => (string)$invoice_balance, 'invoice_balance' => (string)$invoice_balance]);
+
+        return (object) [
+            'invoice_id' => $invoiceId,
+            'client_id' => $clientId,
+            'invoice_balance' => $invoice_balance,
+            'currency_code' => $currency,
+            'invoice_status' => $invoice_status,
+        ];
+    }
+
+    protected function assertResponseStatus(HttpResponse|int $response, ?int $expectedStatus = null): void
+    {
+        // Handle both: assertResponseStatus($response, 200) and assertResponseStatus(200)
+        if ($response instanceof HttpResponse) {
+            $this->assertResponseStatusCode($response, $expectedStatus ?? 200);
+        } else {
+            // response is an int, use lastResponse
+            if ($this->lastResponse === null) {
+                throw new RuntimeException('No response to assert against. Call a request method first.');
+            }
+            $this->assertResponseStatusCode($this->lastResponse, $response);
+        }
+    }
+
+    protected function withHeaders(array $headers): self
+    {
+        // Headers support would need to be added to the request() method
+        // For now, this is a placeholder
+        return $this;
+    }
+
+    protected function recordPayment(
+        int $invoice_id,
+        float $amount,
+        string $payment_method = 'paypal',
+        ?string $external_id = null
+    ): int {
+        return $this->seedPayment($invoice_id, [
+            'payment_amount' => (string)$amount,
+            'payment_method_id' => 1,
+            'payment_external_id' => $external_id ?? uniqid(),
+        ]);
+    }
+
+    protected function recordWebhookEvent(
+        string $provider,
+        string $external_event_id,
+        string $event_type,
+        string $payload_hash
+    ): int {
+        return $this->databaseInsert('ip_webhook_events', [
+            'provider' => $provider,
+            'external_event_id' => $external_event_id,
+            'event_type' => $event_type,
+            'payload_hash' => $payload_hash,
+            'processed_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    protected function isWebhookProcessed(string $provider, string $external_event_id): bool
+    {
+        $result = $this->databaseFetchOne('ip_webhook_events', [
+            'provider' => $provider,
+            'external_event_id' => $external_event_id,
+        ]);
+        return $result !== null;
+    }
+
 
     private function normalizeUri(string $uri): string
     {

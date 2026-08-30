@@ -3,7 +3,6 @@
 namespace Tests\Feature\Integrations;
 
 use Tests\AbstractTestCase;
-use Tests\Fixtures\InvoiceFixtures;
 
 /**
  * SuperPDP Invoice Transmission Feature Tests
@@ -12,14 +11,12 @@ use Tests\Fixtures\InvoiceFixtures;
  */
 class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
 {
-    use \Tests\InteractsWithDatabase;
-    use InvoiceFixtures;
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_sends_invoice_to_superpdp_successfully(): void
     {
 
-        $invoice = $this->seedInvoice(
+        $invoice = $this->seedInvoiceAsObject(
             invoice_status: 'published',
             einvoicing_enabled: true,
         );
@@ -50,7 +47,7 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     public function it_performs_pre_validation_when_enabled(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // SuperPDP offers pre-validation check before full transmission
         $validation_response = [
@@ -71,7 +68,7 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     public function it_handles_superpdp_validation_warnings(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // Pre-check returns warnings but still valid
         $validation_response = [
@@ -96,7 +93,7 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     public function it_rejects_invalid_invoices_during_pre_check(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // Pre-validation fails
         $validation_response = [
@@ -121,7 +118,7 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     public function it_handles_superpdp_oauth2_token_expiration(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // Mock expired token scenario
         $mock_sequence = [
@@ -145,7 +142,7 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     public function it_handles_superpdp_rate_limiting(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // Mock 429 rate limit
         $this->withEnvironment('SUPERPDP_MOCK_STATUS', '429')
@@ -164,7 +161,7 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     public function it_handles_transmission_timeout(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // Mock connection timeout
         $this->withEnvironment('SUPERPDP_MOCK_TIMEOUT', '1')
@@ -203,7 +200,7 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
     public function it_retrieves_invoice_document_from_superpdp(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         $document_response = [
             'status' => 200,

@@ -25,7 +25,7 @@ class PaymentInformationControllerTest extends AbstractTestCase
     {
         /* Arrange */
         $clientId  = $this->seedClient(['client_name' => 'Payment Info Client']);
-        $invoiceId = $this->seedInvoice($clientId);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId);
         $this->seedPayment($invoiceId);
 
         /* Act */

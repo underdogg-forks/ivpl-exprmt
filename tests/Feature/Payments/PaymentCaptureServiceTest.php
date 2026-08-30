@@ -9,7 +9,6 @@ use Tests\AbstractTestCase;
 
 class PaymentCaptureServiceTest extends AbstractTestCase
 {
-    use \Tests\InteractsWithDatabase;
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_processes_successful_completed_payment(): void
@@ -532,24 +531,4 @@ class PaymentCaptureServiceTest extends AbstractTestCase
         $this->assertNull($payment);
     }
 
-    private function seedPayableInvoice(float $invoice_balance = 100.00)
-    {
-        $client_id = $this->db->insert('ip_clients', [
-            'client_name' => 'Test Client',
-            'client_active' => 1,
-        ]) ? $this->db->insert_id() : null;
-
-        $invoice_id = $this->db->insert('ip_invoices', [
-            'client_id' => $client_id,
-            'invoice_number' => 'INV-' . uniqid(),
-            'invoice_date' => date('Y-m-d'),
-            'invoice_due_date' => date('Y-m-d', strtotime('+30 days')),
-            'invoice_balance' => $invoice_balance,
-            'invoice_status_id' => 1,
-            'invoice_url_key' => hash('sha256', uniqid()),
-            'invoice_active' => 1,
-        ]) ? $this->db->insert_id() : null;
-
-        return $this->db->where('invoice_id', $invoice_id)->get('ip_invoices')->row();
-    }
 }

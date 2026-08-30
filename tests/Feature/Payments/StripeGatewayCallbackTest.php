@@ -327,12 +327,6 @@ class StripeGatewayCallbackTest extends AbstractTestCase
         $this->withEnvironment(['STRIPE_MOCK_RESPONSES' => json_encode($responses)]);
     }
 
-    private function seedPayableInvoice(array $overrides = [], array $amountOverrides = []): int
-    {
-        $clientId = $this->seedClient();
-
-        return $this->seedInvoice($clientId, array_merge(['invoice_status_id' => 2], $overrides), array_merge(['invoice_balance' => '50.00'], $amountOverrides));
-    }
 
     // -------------------------------------------------------------------------
     // callback

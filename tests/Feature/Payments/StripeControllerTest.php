@@ -25,7 +25,7 @@ class StripeControllerTest extends AbstractTestCase
     {
         /* Arrange */
         $clientId  = $this->seedClient(['client_name' => 'Stripe Test Client']);
-        $invoiceId = $this->seedInvoice($clientId);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId);
         $this->seedPayment($invoiceId);
 
         /* Act */

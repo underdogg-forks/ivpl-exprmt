@@ -3,7 +3,6 @@
 namespace Tests\Feature\Integrations;
 
 use Tests\AbstractTestCase;
-use Tests\Fixtures\InvoiceFixtures;
 
 /**
  * LetsPeppol Invoice Transmission Feature Tests
@@ -12,14 +11,12 @@ use Tests\Fixtures\InvoiceFixtures;
  */
 class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
 {
-    use \Tests\InteractsWithDatabase;
-    use InvoiceFixtures;
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_sends_invoice_to_letspeppol_successfully(): void
     {
 
-        $invoice = $this->seedInvoice(
+        $invoice = $this->seedInvoiceAsObject(
             invoice_status: 'published',
             einvoicing_enabled: true,
         );
@@ -54,7 +51,7 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     public function it_handles_letspeppol_oauth2_token_refresh(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // Mock expired token + refresh flow
         $mock_sequence = [
@@ -78,7 +75,7 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     public function it_handles_letspeppol_rate_limiting(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // Mock 429 rate limit
         $this->withEnvironment('LETSPEPPOL_MOCK_STATUS', '429')
@@ -98,7 +95,7 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     public function it_polls_transmission_status_from_letspeppol(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // Initial transmission
         $initial_response = [
@@ -137,7 +134,7 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     public function it_handles_participant_validation_failure(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // Mock participant not found
         $this->withEnvironment('LETSPEPPOL_MOCK_STATUS', '404')
@@ -156,7 +153,7 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     public function it_validates_ubl_xml_format_before_transmission(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // This should validate XML schema before sending to LetsPeppol
         $this->post("admin/einvoicing/validate/{$invoice->invoice_id}");
@@ -168,7 +165,7 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     public function it_handles_timeout_during_letspeppol_transmission(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // Mock connection timeout
         $this->withEnvironment('LETSPEPPOL_MOCK_TIMEOUT', '1')
@@ -187,7 +184,7 @@ class LetsPeppolInvoiceTransmissionTest extends AbstractTestCase
     public function it_retries_failed_letspeppol_transmissions(): void
     {
 
-        $invoice = $this->seedInvoice(einvoicing_enabled: true);
+        $invoice = $this->seedInvoiceAsObject(einvoicing_enabled: true);
 
         // First attempt fails
         $this->withEnvironment('LETSPEPPOL_MOCK_STATUS', '503')

@@ -34,7 +34,7 @@ class PaymentProviderAllowlistTest extends AbstractTestCase
         $clientId            = $this->seedClient(['client_name' => 'Allowlist Test Client']);
         $this->invoiceUrlKey = 'allowlist-test-key-' . bin2hex(random_bytes(4));
 
-        $this->seedInvoice($clientId, [
+        $invoice = $this->seedInvoiceAsObject($clientId, [
             'invoice_url_key'   => $this->invoiceUrlKey,
             'invoice_number'    => 'INV-ALLOWLIST-001',
             'invoice_status_id' => 2, // sent — required by guest_visible() filter

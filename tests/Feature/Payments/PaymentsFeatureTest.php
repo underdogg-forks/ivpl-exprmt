@@ -27,7 +27,7 @@ class PaymentsFeatureTest extends AbstractTestCase
     {
         /* Arrange */
         $clientId  = $this->seedClient(['client_name' => 'Payment List Client']);
-        $invoiceId = $this->seedInvoice($clientId);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId);
         $this->seedPayment($invoiceId, ['payment_amount' => '99.00']);
 
         /* Act */
@@ -72,7 +72,7 @@ class PaymentsFeatureTest extends AbstractTestCase
 
         /* Arrange */
         $clientId  = $this->seedClient(['client_name' => 'Payment Create Client']);
-        $invoiceId = $this->seedInvoice($clientId, [], [
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId, [], [
             'invoice_total'   => '250.00',
             'invoice_balance' => '250.00',
         ]);
@@ -104,7 +104,7 @@ class PaymentsFeatureTest extends AbstractTestCase
     {
         /* Arrange */
         $clientId  = $this->seedClient(['client_name' => 'Payment Edit Client']);
-        $invoiceId = $this->seedInvoice($clientId);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId);
         $paymentId = $this->seedPayment($invoiceId, ['payment_amount' => '175.50']);
 
         /* Act */
@@ -133,7 +133,7 @@ class PaymentsFeatureTest extends AbstractTestCase
 
         /* Arrange */
         $clientId  = $this->seedClient(['client_name' => 'Payment Update Client']);
-        $invoiceId = $this->seedInvoice($clientId, [], ['invoice_total' => '300.00', 'invoice_balance' => '300.00']);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId, [], ['invoice_total' => '300.00', 'invoice_balance' => '300.00']);
         $paymentId = $this->seedPayment($invoiceId, ['payment_amount' => '100.00']);
 
         /* Act */
@@ -161,7 +161,7 @@ class PaymentsFeatureTest extends AbstractTestCase
     {
         /* Arrange */
         $clientId  = $this->seedClient(['client_name' => 'Payment Delete Client']);
-        $invoiceId = $this->seedInvoice($clientId);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId);
         $paymentId = $this->seedPayment($invoiceId, ['payment_amount' => '50.00']);
         $this->assertDatabaseHas('ip_payments', ['payment_id' => $paymentId]);
 
@@ -221,7 +221,7 @@ class PaymentsFeatureTest extends AbstractTestCase
 
         /* Arrange */
         $clientId  = $this->seedClient(['client_name' => 'Payment Fail Client']);
-        $invoiceId = $this->seedInvoice($clientId);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId);
 
         /* Act */
         $response = $this->post('/payments/form', [
@@ -252,7 +252,7 @@ class PaymentsFeatureTest extends AbstractTestCase
 
         /* Arrange */
         $clientId  = $this->seedClient(['client_name' => 'Payment No Date Client']);
-        $invoiceId = $this->seedInvoice($clientId);
+        $invoiceId = $invoice = $this->seedInvoiceAsObject($clientId);
 
         /* Act */
         $response = $this->post('/payments/form', [
