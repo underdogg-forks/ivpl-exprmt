@@ -137,12 +137,16 @@ abstract class AbstractTestCase extends PhpUnitTestCase
         ];
     }
 
-    protected function withEnvironment(string|array $key, ?string $value = null): self
+    protected function withEnvironment(string|array $key, mixed $value = null): self
     {
         if (is_array($key)) {
             $this->environmentData = array_merge($this->environmentData, $key);
         } else {
-            $this->environmentData[$key] = $value;
+            if (is_array($value)) {
+                $this->environmentData[$key] = json_encode($value);
+            } else {
+                $this->environmentData[$key] = $value;
+            }
         }
         return $this;
     }
@@ -392,10 +396,13 @@ abstract class AbstractTestCase extends PhpUnitTestCase
     }
 
     protected function seedInvoiceAsObject(
+        ?int $clientId = null,
         string $invoice_status = 'published',
         bool $einvoicing_enabled = false
     ): object {
-        $clientId = $this->seedClient();
+        if ($clientId === null) {
+            $clientId = $this->seedClient();
+        }
         $invoiceId = $this->seedInvoice($clientId);
 
         return (object) [
