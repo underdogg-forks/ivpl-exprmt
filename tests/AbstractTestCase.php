@@ -19,6 +19,16 @@ abstract class AbstractTestCase extends PhpUnitTestCase
 
     protected ?HttpResponse $lastResponse = null;
 
+    public function _fetchOne(string $table, array $where): ?array
+    {
+        return $this->databaseFetchOne($table, $where);
+    }
+
+    public function _insert(string $table, array $data): int
+    {
+        return $this->databaseInsert($table, $data);
+    }
+
     public function __get(string $property)
     {
         if ($property === 'db') {
@@ -50,19 +60,19 @@ abstract class AbstractTestCase extends PhpUnitTestCase
 
                 public function row() {
                     if (!$this->table) return null;
-                    $result = $this->test->databaseFetchOne($this->table, $this->wheres);
+                    $result = $this->test->_fetchOne($this->table, $this->wheres);
                     return $result ? (object)$result : null;
                 }
 
                 public function num_rows() {
                     if (!$this->table || empty($this->wheres)) return 0;
-                    $result = $this->test->databaseFetchOne($this->table, $this->wheres);
+                    $result = $this->test->_fetchOne($this->table, $this->wheres);
                     return $result ? 1 : 0;
                 }
 
                 public function insert($table, $data) {
                     try {
-                        $this->test->databaseInsert($table, $data);
+                        $this->test->_insert($table, $data);
                         return true;
                     } catch (\Exception) {
                         return false;
