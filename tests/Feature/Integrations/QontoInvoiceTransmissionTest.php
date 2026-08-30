@@ -233,7 +233,7 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
         $this->assertEquals(1, $payment_count, 'Should be idempotent');
     }
 
-    #[\PHPUnit\Framework_Attributes\Test]
+    #[\PHPUnit\Framework\Attributes\Test]
     public function it_validates_webhook_signature_from_qonto(): void
     {
 
@@ -247,7 +247,8 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
             ->post('guest/integrations/qonto/webhook', $webhook_payload);
 
         // Should reject invalid signature
-        $this->assertResponseStatus(401 || 403);
+        $status = $response->statusCode();
+        $this->assertTrue($status === 401 || $status === 403, "Expected 401 or 403, got {$status}");
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -262,6 +263,7 @@ class QontoInvoiceTransmissionTest extends AbstractTestCase
         $response = $this->post('guest/integrations/qonto/webhook', $malformed);
 
         // Should return 400 without crashing
-        $this->assertResponseStatus(400 || 422);
+        $status = $response->statusCode();
+        $this->assertTrue($status === 400 || $status === 422, "Expected 400 or 422, got {$status}");
     }
 }

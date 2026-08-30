@@ -240,7 +240,8 @@ class StripePaymentIntegrationTest extends AbstractTestCase
         $response = $this->post('guest/gateways/stripe/webhook', $malformed_payload);
 
         // Should return error without crashing
-        $this->assertResponseStatus(400 || 422);
+        $status = $response->statusCode();
+        $this->assertTrue($status === 400 || $status === 422, "Expected 400 or 422, got {$status}");
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -261,7 +262,8 @@ class StripePaymentIntegrationTest extends AbstractTestCase
             ->post('guest/gateways/stripe/webhook', $payload);
 
         // Should reject invalid signature
-        $this->assertResponseStatus(401 || 403);
+        $status = $response->statusCode();
+        $this->assertTrue($status === 401 || $status === 403, "Expected 401 or 403, got {$status}");
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

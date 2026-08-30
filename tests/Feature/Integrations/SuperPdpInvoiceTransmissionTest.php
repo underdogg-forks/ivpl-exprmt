@@ -111,7 +111,8 @@ class SuperPdpInvoiceTransmissionTest extends AbstractTestCase
             ->post("admin/einvoicing/validate/{$invoice->invoice_id}");
 
         // Should reject with error details
-        $this->assertResponseStatus(400 || 422);
+        $status = $this->lastResponse->statusCode();
+        $this->assertTrue($status === 400 || $status === 422, "Expected 400 or 422, got {$status}");
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
