@@ -59,7 +59,7 @@ class PaypalRequestExecutorTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_invalid_argument_exception(): void
     {
-        $exception = new InvalidArgumentException('Invalid order ID format');
+        $exception = new \InvalidArgumentException('Invalid order ID format');
 
         $callback = fn () => throw $exception;
 
