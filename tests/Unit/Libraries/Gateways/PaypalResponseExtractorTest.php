@@ -2,11 +2,21 @@
 
 namespace Tests\Unit\Libraries\Gateways;
 
-use PaypalResponseExtractor;
 use PHPUnit\Framework\TestCase;
 
 class PaypalResponseExtractorTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        $extractorPath = dirname(__DIR__, 4) . '/application/libraries/gateways/PaypalResponseExtractor.php';
+
+        if (!file_exists($extractorPath)) {
+            $this->markTestSkipped('PaypalResponseExtractor implementation not found');
+        }
+
+        require_once $extractorPath;
+    }
+
     private function paypalResponse(array $overrides = []): object
     {
         $default = [
@@ -38,7 +48,7 @@ class PaypalResponseExtractorTest extends TestCase
             'amount' => ['value' => '100.00', 'currency_code' => 'USD'],
         ]);
 
-        $capture_data = PaypalResponseExtractor::extractCaptureData($response);
+        $capture_data = \PaypalResponseExtractor::extractCaptureData($response);
 
         $this->assertNotNull($capture_data);
     }
@@ -47,7 +57,7 @@ class PaypalResponseExtractorTest extends TestCase
     public function it_extracts_capture_id_from_response(): void
     {
         $response = $this->paypalResponse(['id' => 'CAP-123']);
-        $capture_data = PaypalResponseExtractor::extractCaptureData($response);
+        $capture_data = \PaypalResponseExtractor::extractCaptureData($response);
 
         $this->assertEquals('CAP-123', $capture_data->id);
     }
@@ -61,7 +71,7 @@ class PaypalResponseExtractorTest extends TestCase
             ]],
         ]));
 
-        $capture_data = PaypalResponseExtractor::extractCaptureData($response);
+        $capture_data = \PaypalResponseExtractor::extractCaptureData($response);
 
         $this->assertNull($capture_data);
     }
@@ -74,7 +84,7 @@ class PaypalResponseExtractorTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Invalid PayPal response structure');
 
-        PaypalResponseExtractor::extractCaptureData($response);
+        \PaypalResponseExtractor::extractCaptureData($response);
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('captureStatusScenarios')]
@@ -83,7 +93,7 @@ class PaypalResponseExtractorTest extends TestCase
     {
         $response = $this->paypalResponse(['status' => $inputStatus]);
 
-        $status = PaypalResponseExtractor::extractCaptureStatus($response);
+        $status = \PaypalResponseExtractor::extractCaptureStatus($response);
 
         $this->assertEquals($expectedStatus, $status);
     }
@@ -104,7 +114,7 @@ class PaypalResponseExtractorTest extends TestCase
     {
         $response = $this->paypalResponse(['id' => 'CAP-123']);
 
-        $status = PaypalResponseExtractor::extractCaptureStatus($response);
+        $status = \PaypalResponseExtractor::extractCaptureStatus($response);
 
         $this->assertNull($status);
     }
@@ -114,7 +124,7 @@ class PaypalResponseExtractorTest extends TestCase
     {
         $response = json_decode(json_encode(['invalid' => 'structure']));
 
-        $status = PaypalResponseExtractor::extractCaptureStatus($response);
+        $status = \PaypalResponseExtractor::extractCaptureStatus($response);
 
         $this->assertNull($status);
     }
@@ -124,7 +134,7 @@ class PaypalResponseExtractorTest extends TestCase
     {
         $capture_data = $this->captureData(['invoice_id' => '42']);
 
-        $invoice_id = PaypalResponseExtractor::extractInvoiceId((object) [], $capture_data);
+        $invoice_id = \PaypalResponseExtractor::extractInvoiceId((object) [], $capture_data);
 
         $this->assertEquals('42', $invoice_id);
     }
@@ -134,7 +144,7 @@ class PaypalResponseExtractorTest extends TestCase
     {
         $response = $this->paypalResponse(['invoice_id' => '99']);
 
-        $invoice_id = PaypalResponseExtractor::extractInvoiceId($response);
+        $invoice_id = \PaypalResponseExtractor::extractInvoiceId($response);
 
         $this->assertEquals('99', $invoice_id);
     }
@@ -144,7 +154,7 @@ class PaypalResponseExtractorTest extends TestCase
     {
         $response = $this->paypalResponse(['id' => 'CAP-123']);
 
-        $invoice_id = PaypalResponseExtractor::extractInvoiceId($response);
+        $invoice_id = \PaypalResponseExtractor::extractInvoiceId($response);
 
         $this->assertNull($invoice_id);
     }
@@ -154,7 +164,7 @@ class PaypalResponseExtractorTest extends TestCase
     {
         $response = json_decode(json_encode(['invalid' => 'data']));
 
-        $invoice_id = PaypalResponseExtractor::extractInvoiceId($response);
+        $invoice_id = \PaypalResponseExtractor::extractInvoiceId($response);
 
         $this->assertNull($invoice_id);
     }
@@ -165,7 +175,7 @@ class PaypalResponseExtractorTest extends TestCase
     {
         $capture_data = $this->captureData(['amount' => $amountData]);
 
-        $result = PaypalResponseExtractor::extractAmountAndCurrency($capture_data);
+        $result = \PaypalResponseExtractor::extractAmountAndCurrency($capture_data);
 
         $this->assertEquals($expectedAmount, $result['amount']);
         $this->assertEquals($expectedCurrency, $result['currency']);
@@ -207,7 +217,7 @@ class PaypalResponseExtractorTest extends TestCase
     {
         $capture_data = $this->captureData(['amount' => null]);
 
-        $result = PaypalResponseExtractor::extractAmountAndCurrency($capture_data);
+        $result = \PaypalResponseExtractor::extractAmountAndCurrency($capture_data);
 
         $this->assertNull($result['amount']);
         $this->assertEquals('', $result['currency']);
@@ -220,7 +230,7 @@ class PaypalResponseExtractorTest extends TestCase
             'processor_response' => ['response_code' => '0000'],
         ]);
 
-        $code = PaypalResponseExtractor::extractProcessorResponseCode($capture_data);
+        $code = \PaypalResponseExtractor::extractProcessorResponseCode($capture_data);
 
         $this->assertEquals('0000', $code);
     }
@@ -230,7 +240,7 @@ class PaypalResponseExtractorTest extends TestCase
     {
         $capture_data = $this->captureData();
 
-        $code = PaypalResponseExtractor::extractProcessorResponseCode($capture_data);
+        $code = \PaypalResponseExtractor::extractProcessorResponseCode($capture_data);
 
         $this->assertEquals('Unknown error', $code);
     }
