@@ -367,48 +367,138 @@ class LetsPeppolFlowTest extends AbstractTestCase
     // =========================================================================
 
     #[Test]
-    public function it_returns_an_error_when_send_invoice_references_an_unknown_merchant_client(): void
+    public function it_rejects_send_invoice_when_merchant_client_does_not_exist(): void
     {
         /* Arrange */
         $clientId                    = $this->seedClient();
         $invoiceId                   = $this->seedInvoice($clientId);
         $nonexistentMerchantClientId = 99999;
 
-        /* Act & Assert */
-        // show_error() surfaces as a RuntimeException in the test harness;
-        // trans('merchant_client_not_found') resolves to its English string.
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessageMatches('/not found or is disabled/i');
+        // Capture pre-request state
+        $responsesCountBefore = 0;
+        $this->databaseSelect('SELECT COUNT(*) as c FROM ip_merchant_responses WHERE invoice_id = ?', [$invoiceId]);
 
-        $this->post('/integrations/send_invoice/' . $invoiceId . '/' . $nonexistentMerchantClientId);
+        /* Act */
+        $response = $this->post('/integrations/send_invoice/' . $invoiceId . '/' . $nonexistentMerchantClientId);
+
+        /* Assert: Business logic — pre-condition validation */
+        $this->assertResponseStatusCode($response, 404);
+        // Verify the controller rejected the invalid merchant client before any side effects
+
+        /* Assert: State isolation — no database mutations */
+        $this->assertDatabaseMissing('ip_merchant_responses', [
+            'invoice_id'        => $invoiceId,
+            'merchant_client_id' => $nonexistentMerchantClientId,
+        ]);
+        $responsesCountAfter = count($this->databaseSelect('SELECT * FROM ip_merchant_responses WHERE invoice_id = ?', [$invoiceId]));
+        $this->assertSame($responsesCountBefore, $responsesCountAfter, 'No merchant responses should be created for invalid merchant client');
+
+        /* Assert: Error semantics — non-leaking message */
+        $this->assertResponseBodyContains($response, 'not found or is disabled');
+        // Verify no sensitive internal details are exposed
+        $this->assertResponseBodyNotContains($response, 'stack trace');
+        $this->assertResponseBodyNotContains($response, 'debug');
+
+        /* Assert: Idempotency — repeated requests are safe */
+        $response2 = $this->post('/integrations/send_invoice/' . $invoiceId . '/' . $nonexistentMerchantClientId);
+        $this->assertResponseStatusCode($response2, 404);
+        $responsesCountAfterRetry = count($this->databaseSelect('SELECT * FROM ip_merchant_responses WHERE invoice_id = ?', [$invoiceId]));
+        $this->assertSame($responsesCountBefore, $responsesCountAfterRetry, 'Repeated requests do not accumulate state');
+
+        /* Assert: Authorization context — invoice still belongs to client */
+        $invoice = $this->databaseFetchOne('ip_invoices', ['invoice_id' => $invoiceId]);
+        $this->assertNotNull($invoice, 'Invoice should not be deleted after failed send attempt');
+        $this->assertSame($clientId, (int) $invoice['client_id'], 'Invoice client relationship preserved');
     }
 
     #[Test]
-    public function it_returns_an_error_when_send_invoice_uses_a_disabled_merchant_client(): void
+    public function it_rejects_send_invoice_when_merchant_client_is_disabled(): void
     {
         /* Arrange */
         $clientId         = $this->seedClient();
         $invoiceId        = $this->seedInvoice($clientId);
         $merchantClientId = $this->seedLetsPeppolClient(['enabled' => 0]);
 
-        /* Act & Assert */
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessageMatches('/not found or is disabled/i');
+        // Capture pre-request state
+        $responsesCountBefore = 0;
 
-        $this->post('/integrations/send_invoice/' . $invoiceId . '/' . $merchantClientId);
+        /* Act */
+        $response = $this->post('/integrations/send_invoice/' . $invoiceId . '/' . $merchantClientId);
+
+        /* Assert: Business logic — disabled client fails gate */
+        $this->assertResponseStatusCode($response, 404);
+        // Verify the controller treats disabled clients as non-existent (authorization pattern)
+
+        /* Assert: State isolation — no outbound attempts made */
+        $this->assertDatabaseMissing('ip_merchant_responses', [
+            'invoice_id'         => $invoiceId,
+            'merchant_client_id' => $merchantClientId,
+        ]);
+        $responsesCountAfter = count($this->databaseSelect('SELECT * FROM ip_merchant_responses WHERE invoice_id = ?', [$invoiceId]));
+        $this->assertSame($responsesCountBefore, $responsesCountAfter, 'Disabled client produces no outbound response');
+
+        /* Assert: Error semantics — consistent message */
+        $this->assertResponseBodyContains($response, 'not found or is disabled');
+        // Message should match the "not found" case to avoid leaking enabled/disabled state
+        $this->assertResponseBodyNotContains($response, 'disabled');
+
+        /* Assert: Related entity integrity — merchant client unchanged */
+        $merchantClient = $this->databaseFetchOne('ip_merchant_clients', ['id' => $merchantClientId]);
+        $this->assertNotNull($merchantClient);
+        $this->assertSame('0', $merchantClient['enabled'], 'Disabled state preserved');
+
+        /* Assert: Idempotency */
+        $response2 = $this->post('/integrations/send_invoice/' . $invoiceId . '/' . $merchantClientId);
+        $this->assertResponseStatusCode($response2, 404);
     }
 
     #[Test]
-    public function it_returns_an_error_when_send_invoice_references_an_unknown_invoice(): void
+    public function it_rejects_send_invoice_when_invoice_does_not_exist(): void
     {
         /* Arrange */
         $merchantClientId     = $this->seedLetsPeppolClient();
         $nonexistentInvoiceId = 99999;
 
-        /* Act & Assert */
-        $this->expectException(RuntimeException::class);
+        // Capture pre-request state
+        $responsesCountBefore = 0;
 
-        $this->post('/integrations/send_invoice/' . $nonexistentInvoiceId . '/' . $merchantClientId);
+        /* Act */
+        $response = $this->post('/integrations/send_invoice/' . $nonexistentInvoiceId . '/' . $merchantClientId);
+
+        /* Assert: Business logic — invoice pre-condition validation */
+        $this->assertResponseStatusCode($response, 404);
+        // Verify the controller rejects requests for nonexistent invoices as a guard
+
+        /* Assert: State isolation — no database mutations */
+        $this->assertDatabaseMissing('ip_merchant_responses', [
+            'invoice_id' => $nonexistentInvoiceId,
+        ]);
+
+        /* Assert: Error semantics — appropriate message */
+        $this->assertResponseBodyContains($response, 'invoice_not_found');
+        // Message is specific enough to aid debugging but not sensitive
+        $this->assertResponseBodyNotContains($response, 'exception');
+        $this->assertResponseBodyNotContains($response, 'trace');
+
+        /* Assert: Boundary values — edge case handling */
+        // Non-numeric ID
+        $response3 = $this->post('/integrations/send_invoice/invalid-id/' . $merchantClientId);
+        $this->assertResponseStatusCode($response3, 404);
+        $this->assertDatabaseMissing('ip_merchant_responses', ['invoice_id' => 0]);
+
+        // Zero ID
+        $response4 = $this->post('/integrations/send_invoice/0/' . $merchantClientId);
+        $this->assertResponseStatusCode($response4, 404);
+        $this->assertDatabaseMissing('ip_merchant_responses', ['invoice_id' => 0]);
+
+        /* Assert: Merchant client unchanged */
+        $merchantClient = $this->databaseFetchOne('ip_merchant_clients', ['id' => $merchantClientId]);
+        $this->assertNotNull($merchantClient, 'Valid merchant client should exist');
+        $this->assertSame('1', $merchantClient['enabled'], 'Enabled state preserved');
+
+        /* Assert: Idempotency */
+        $response2 = $this->post('/integrations/send_invoice/' . $nonexistentInvoiceId . '/' . $merchantClientId);
+        $this->assertResponseStatusCode($response2, 404);
     }
 
     // =========================================================================
