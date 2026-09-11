@@ -27,12 +27,36 @@ class PaypalControllerTest extends AbstractTestCase
         $clientId  = $this->seedClient(['client_name' => 'Paypal Test Client']);
         $invoiceId = $this->seedInvoice($clientId);
         $this->seedPayment($invoiceId);
+        $paymentCountBefore = $this->databaseCount('ip_payments');
 
         /* Act */
         $response = $this->get('/payments');
 
-        /* Assert */
+        /* Assert: Error Semantics (C) */
+        $this->assertResponseStatusCode($response, 200);
         $this->assertResponseBodyContains($response, '<html');
+
+        /* Assert: Business Logic (A) */
+        $this->assertResponseBodyContains($response, 'paypal');
+
+        /* Assert: State Isolation (B) */
+        $paymentCountAfter = $this->databaseCount('ip_payments');
+        $this->assertSame($paymentCountBefore, $paymentCountAfter);
+
+        /* Assert: Data Integrity (D) */
+        $payment = $this->databaseFetchOne('ip_payments', ['invoice_id' => $invoiceId]);
+        $this->assertSame($invoiceId, (int) $payment['invoice_id']);
+
+        /* Assert: Boundary Cases (F) */
+        $invoiceId2 = $this->seedInvoice($clientId);
+        $this->seedPayment($invoiceId2);
+        $response2 = $this->get('/payments');
+        $this->assertResponseStatusCode($response2, 200);
+
+        /* Assert: Idempotency (E) */
+        $response3 = $this->get('/payments');
+        $this->assertResponseStatusCode($response3, 200);
+        $this->assertResponseBodyContains($response3, '<html');
     }
 
     #[Test]
@@ -40,14 +64,40 @@ class PaypalControllerTest extends AbstractTestCase
     {
         /* Arrange */
         $this->actingAsGuest();
+        $clientId = $this->seedClient();
+        $invoiceId = $this->seedInvoice($clientId);
+        $this->seedPayment($invoiceId);
+        $paymentCountBefore = $this->databaseCount('ip_payments');
 
         /* Act */
         $response = $this->get('/payments');
 
-        /* Assert */
+        /* Assert: Error Semantics (C) */
         self::assertTrue(
             $response->isRedirect(),
             sprintf('Unauthenticated GET [/payments] must redirect. Got [%d].', $response->statusCode())
         );
+        $this->assertResponseStatusCode($response, 302);
+
+        /* Assert: State Isolation (B) */
+        $paymentCountAfter = $this->databaseCount('ip_payments');
+        $this->assertSame($paymentCountBefore, $paymentCountAfter);
+        $this->assertResponseBodyNotContains($response, 'payment');
+
+        /* Assert: Business Logic (A) */
+        $this->assertStringContainsString('/login', $response->headers()['Location'] ?? '');
+
+        /* Assert: Data Integrity (D) */
+        $payment = $this->databaseFetchOne('ip_payments', ['invoice_id' => $invoiceId]);
+        $this->assertSame($invoiceId, (int) $payment['invoice_id']);
+
+        /* Assert: Boundary Cases (F) */
+        $response2 = $this->get('/payments/view/' . $invoiceId);
+        self::assertTrue($response2->isRedirect());
+
+        /* Assert: Idempotency (E) */
+        $response3 = $this->get('/payments');
+        self::assertTrue($response3->isRedirect());
+        $this->assertResponseStatusCode($response3, 302);
     }
 }
