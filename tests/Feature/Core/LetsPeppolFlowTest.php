@@ -410,7 +410,7 @@ class LetsPeppolFlowTest extends AbstractTestCase
 
         /* Assert */
         $this->assertResponseStatusCode($response, 404);
-        $this->assertResponseBodyContains($response, 'invoice_not_found');
+        $this->assertResponseBodyContains($response, 'Invoice Not Found');
     }
 
     // =========================================================================

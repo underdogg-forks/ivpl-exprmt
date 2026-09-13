@@ -376,13 +376,12 @@ class QontoFlowTest extends AbstractTestCase
         $invoiceId                   = $this->seedInvoice($clientId);
         $nonexistentMerchantClientId = 99999;
 
-        /* Act & Assert */
-        // show_error() surfaces as a RuntimeException in the test harness;
-        // trans('merchant_client_not_found') resolves to its English string.
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessageMatches('/not found or is disabled/i');
+        /* Act */
+        $response = $this->post('/integrations/send_invoice/' . $invoiceId . '/' . $nonexistentMerchantClientId);
 
-        $this->post('/integrations/send_invoice/' . $invoiceId . '/' . $nonexistentMerchantClientId);
+        /* Assert */
+        $this->assertResponseStatusCode($response, 404);
+        $this->assertResponseBodyContains($response, 'not found or is disabled');
     }
 
     #[Test]
@@ -393,11 +392,12 @@ class QontoFlowTest extends AbstractTestCase
         $invoiceId        = $this->seedInvoice($clientId);
         $merchantClientId = $this->seedQontoClient(['enabled' => 0]);
 
-        /* Act & Assert */
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessageMatches('/not found or is disabled/i');
+        /* Act */
+        $response = $this->post('/integrations/send_invoice/' . $invoiceId . '/' . $merchantClientId);
 
-        $this->post('/integrations/send_invoice/' . $invoiceId . '/' . $merchantClientId);
+        /* Assert */
+        $this->assertResponseStatusCode($response, 404);
+        $this->assertResponseBodyContains($response, 'not found or is disabled');
     }
 
     #[Test]
@@ -407,10 +407,12 @@ class QontoFlowTest extends AbstractTestCase
         $merchantClientId     = $this->seedQontoClient();
         $nonexistentInvoiceId = 99999;
 
-        /* Act & Assert */
-        $this->expectException(RuntimeException::class);
+        /* Act */
+        $response = $this->post('/integrations/send_invoice/' . $nonexistentInvoiceId . '/' . $merchantClientId);
 
-        $this->post('/integrations/send_invoice/' . $nonexistentInvoiceId . '/' . $merchantClientId);
+        /* Assert */
+        $this->assertResponseStatusCode($response, 404);
+        $this->assertResponseBodyContains($response, 'Invoice Not Found');
     }
 
     // =========================================================================
