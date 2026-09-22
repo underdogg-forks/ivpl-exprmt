@@ -78,7 +78,6 @@ class EmailTemplatesAjaxControllerTest extends AbstractTestCase
         $response = $this->get('/email_templates');
 
         /* Assert */
-<<<<<<< HEAD
         $this->assertResponseStatusCode($response, 200);
         $this->assertResponseHasNoPhpErrors($response);
         self::assertTrue(
@@ -164,8 +163,5 @@ class EmailTemplatesAjaxControllerTest extends AbstractTestCase
         $this->assertDatabaseCount('ip_email_templates', 1, [
             'email_template_title' => 'Unique Template Name',
         ]);
-=======
-        $this->assertResponseBodyContains($response, 'Ajax Email Template');
->>>>>>> origin/enforce-test-coverage-metadata
     }
 }
